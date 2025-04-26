@@ -43,7 +43,15 @@ typedef int          GLsizei;
                   << " Error code: " << std::hex << error << std::dec << std::endl; \
     } \
 }
-
+#define DrawArraysInstancedWrapper(mode, first, count, instanceCount) { \
+    glDrawArraysInstanced(mode, first, count, instanceCount); \
+    g_drawCallCount++; \
+    GLenum error = glGetError(); \
+    if (error != GL_NO_ERROR) { \
+        std::cerr << "OpenGL Error in DrawElementsWrapper at " << __FILE__ << ":" << __LINE__ \
+                  << " Error code: " << std::hex << error << std::dec << std::endl; \
+    } \
+}
 
 // Controls
 extern uint_fast16_t FORWARD_KEY;
@@ -89,10 +97,8 @@ extern std::filesystem::path ICONS_DIRECTORY;
 extern float GRAVITY;
 
 // Utils for rendering
-extern void GLCheckError(const char* file, int line);
 extern unsigned int g_drawCallCount;
-extern void DrawArraysWrapper_Impl(GLenum mode, GLint first, GLsizei count);
-extern void DrawElementsWrapper_Impl(GLenum mode, GLsizei count, GLenum type, const void* indices);
+extern void GLCheckError(const char* file, int line);
 extern float LINE_WIDTH;
 extern bool WIREFRAME_MODE;
 extern bool DEPTH_TEST;

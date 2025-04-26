@@ -5,7 +5,7 @@
 
 // Project Attributes
 std::string WINDOW_NAME = "Window";
-const std::string VERSION = "v0.1.0a";	// a stands for alpha
+const std::string VERSION = "v0.1.0-a";	// a stands for alpha
 
 
 // Controls
@@ -50,7 +50,7 @@ float GRAVITY = 9.80665f;
 
 
 //Utils for rendering
-
+unsigned int g_drawCallCount = 0;
 void GLCheckError(const char* file, int line) {
     GLenum error;
     while ((error = glGetError()) != GL_NO_ERROR) {
@@ -59,20 +59,6 @@ void GLCheckError(const char* file, int line) {
     }
 }
 
-unsigned int g_drawCallCount = 0;
-
-// Original function names without underscore
-void DrawArraysWrapper_Impl(GLenum mode, GLint first, GLsizei count, const char* file, int line) {
-    glDrawArrays(mode, first, count);
-    g_drawCallCount++;
-    GLCheckError(file, line);  // Now prints where it was called from
-}
-
-void DrawElementsWrapper_Impl(GLenum mode, GLsizei count, GLenum type, const void* indices, const char* file, int line) {
-    glDrawElements(mode, count, type, indices);
-    g_drawCallCount++;
-    GLCheckError(file, line);  // Now prints where it was called from
-}
 
 float LINE_WIDTH = 1.5f;
 bool WIREFRAME_MODE = false;
