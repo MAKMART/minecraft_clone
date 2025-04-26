@@ -1,0 +1,16 @@
+#include "Application.h"
+#include <cstdlib>
+#include <exception>
+#include <iostream>
+
+int main(void)
+{
+	try {
+		Application app(2048, 1152);
+		app.Run();
+	} catch (const std::exception &e) {
+		std::cerr << "\nError: " << e.what() << std::endl;
+		return EXIT_FAILURE;
+	}
+	return EXIT_SUCCESS;
+}

@@ -1,0 +1,185 @@
+#include "ChunkManager.h"
+#include "defines.h"
+#include <cstdint>
+#include <stdexcept>
+
+ChunkManager::ChunkManager(glm::ivec3 size, int renderDistance) : chunkSize(size) { 
+    if (!chunksTexture.get())
+	chunksTexture = std::make_unique<Texture>(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
+    if(!chunkShader.get())
+	chunkShader = std::make_unique<Shader>(CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY);
+
+    if (chunkSize.x <= 0 || chunkSize.y <= 0 || chunkSize.z <= 0) {
+	throw std::invalid_argument("chunkSize must be positive");
+    }
+    if ((chunkSize.x & (chunkSize.x - 1)) != 0 || (chunkSize.y & (chunkSize.y - 1)) != 0 || (chunkSize.z & (chunkSize.z - 1)) != 0) {
+	throw std::invalid_argument("chunkSize must be a power of 2");
+    }
+    uint64_t totalSize = static_cast<uint64_t>(chunkSize.x) * chunkSize.y * chunkSize.z;
+    if (totalSize > 1'000'000) { // Arbitrary limit, adjust as needed
+	throw std::invalid_argument("chunkSize too large: " + std::to_string(totalSize) + " elements");
+    }
+
+    lastChunkX = -1;  // Initialize with a value that is not equal to any valid chunk position.
+    lastChunkZ = -1;
+    
+    glCreateVertexArrays(1, &VAO);
+
+    loadChunksAroundPlayer({0.0f, 0.0f, 0.0f}, renderDistance);
+}
+ChunkManager::~ChunkManager(void) { 
+    clearChunks();
+}
+
+// Unload a chunk at the given world position
+void ChunkManager::unloadChunk(glm::vec3 worldPos) {
+    auto chunkKey = getChunkKey(worldPos);
+    auto it = chunks.find(chunkKey);
+    if (it != chunks.end()) {
+        it->second->cleanup(); // Delete VBO
+        chunks.erase(it);
+    }
+}
+
+void ChunkManager::loadChunksAroundPlayer(glm::vec3 playerPosition, int renderDistance)
+{
+    if (renderDistance <= 0)
+        return;
+
+    int playerChunkX = static_cast<int>(floor(playerPosition.x / chunkSize.x));
+    int playerChunkZ = static_cast<int>(floor(playerPosition.z / chunkSize.z));
+
+    for (int dx = -renderDistance; dx <= renderDistance; ++dx)
+    {
+	for (int dz = -renderDistance; dz <= renderDistance; ++dz)
+	{
+	    int chunkX = playerChunkX + dx;
+	    int chunkZ = playerChunkZ + dz;
+
+	    std::tuple<int, int, int> chunkKey = {chunkX, 0, chunkZ}; // Avoid std::make_tuple()
+	    try {
+		auto [it, inserted] = chunks.emplace(chunkKey, std::make_shared<Chunk>(glm::ivec3(chunkX, 0, chunkZ), chunkSize));
+		if (!inserted) continue; // Chunk already exists
+		// Generate noise map
+		noiseMap.resize(chunkSize.x * chunkSize.z);
+
+		for (int z = 0; z < chunkSize.z; ++z) {
+		    for (int x = 0; x < chunkSize.x; ++x) {
+			float worldX = (chunkX * chunkSize.x + x);
+			float worldZ = (chunkZ * chunkSize.z + z);
+			float frequency = 0.007f;
+			float noiseValue = perlin.octave2D_01(worldX * frequency, worldZ * frequency, 5);
+			noiseValue *= noiseValue * noiseValue;
+			noiseMap[z * chunkSize.x + x] = noiseValue;
+		    }
+		}
+		// Generate chunk data
+		chunks[chunkKey]->generate(noiseMap);
+	    }
+	    catch (const std::exception& e) {
+		std::cerr << "Failed to create chunk at (" << chunkX << ", 0, " << chunkZ << "): " << e.what() << std::endl;
+	    }
+	}
+    }
+}
+void ChunkManager::unloadDistantChunks(glm::vec3 playerPosition, int unloadDistance)
+{
+    int playerChunkX = static_cast<int>(floor(playerPosition.x / chunkSize.x));
+    int playerChunkY = static_cast<int>(floor(playerPosition.y / chunkSize.y));
+    (void)playerChunkY;
+    int playerChunkZ = static_cast<int>(floor(playerPosition.z / chunkSize.z));
+
+    int unloadDistSquared = unloadDistance * unloadDistance; // Avoid sqrt()
+
+    std::erase_if(chunks, [&](const auto& pair) {
+        auto [chunkX, chunkY, chunkZ] = pair.first;
+
+        int distX = chunkX - playerChunkX;
+        int distZ = chunkZ - playerChunkZ;
+        int distSquared = distX * distX + distZ * distZ;
+
+        return distSquared > unloadDistSquared; // Remove if too far
+    });
+}
+// Get a chunk by its world position
+std::shared_ptr<Chunk> ChunkManager::getChunk(glm::vec3 worldPos) const
+{
+    std::tuple<int, int, int> chunkPosition = getChunkKey(worldPos);
+    auto [chunkX, chunkY, chunkZ] = chunkPosition;
+    if (chunks.find(chunkPosition) != chunks.end()) {
+        return chunks.find(chunkPosition)->second;
+    } else {
+        std::cerr << "Chunk at " << chunkX << ", " << chunkY << ", " << chunkZ << " not found!" << std::endl;
+        return nullptr;
+    }
+}
+// Function returning a raw pointer (Chunk*) with a flag
+Chunk* ChunkManager::getChunk(glm::vec3 worldPos, bool returnRawPointer) const
+{
+    (void)returnRawPointer;
+    std::tuple<int, int, int> chunkPosition = getChunkKey(worldPos);
+    auto [chunkX, chunkY, chunkZ] = chunkPosition;
+    auto it = chunks.find(chunkPosition);
+    if (it != chunks.end())
+    {
+	return it->second.get(); // Return raw pointer (Chunk*)
+    }
+    else
+    {
+	std::cerr << "Chunk at " << chunkX << ", " << chunkY << ", " << chunkZ << " not found!" << std::endl;
+	return nullptr;
+    }
+}
+
+
+
+
+
+
+
+void ChunkManager::renderChunks(glm::vec3 player_position, unsigned int render_distance, const Camera& camera)
+{
+
+    chunkShader->use();
+    chunkShader->setMat4("projection", camera.GetProjectionMatrix());
+    chunkShader->setMat4("view", camera.GetViewMatrix());
+
+    // Calculate the player's current chunk position (X, Z)
+    int playerChunkX = static_cast<int>(floor(player_position.x / chunkSize.x));
+    int playerChunkZ = static_cast<int>(floor(player_position.z / chunkSize.z));
+
+    // If the player has moved to a new chunk, update loaded chunks
+    if (playerChunkX != lastChunkX || playerChunkZ != lastChunkZ)
+    {
+        loadChunksAroundPlayer(player_position, render_distance);
+        if (render_distance > 0)
+            unloadDistantChunks(player_position, render_distance + 3);
+
+        lastChunkX = playerChunkX;
+        lastChunkZ = playerChunkZ;
+    }
+
+    // Bind texture once for all chunks (reduces state changes)
+    chunksTexture->Bind(0);
+
+    glBindVertexArray(VAO);
+    // Optimize chunk rendering loop
+    for (const auto& [key, chunk] : chunks) {
+        if (!chunk) continue;
+
+        // Extract chunk position by reference (avoids unnecessary copying)
+        const int& x = std::get<0>(key);
+        const int& y = std::get<1>(key);
+        const int& z = std::get<2>(key);
+
+        glm::vec3 worldPos = glm::vec3(x * chunkSize.x, y * chunkSize.y, z * chunkSize.z);
+
+        // Check if chunk is within camera view
+        if (!camera.isChunkVisible(worldPos, chunkSize)) continue;
+        // Render the chunk with the current shader
+        chunk->renderChunk(chunkShader);
+    }
+    glBindVertexArray(0);
+
+    chunksTexture->Unbind(); // Unbind after rendering all chunks
+}
