@@ -3,10 +3,6 @@
 #include <iostream>
 #include <glm/glm.hpp>
 
-// Project Attributes
-std::string WINDOW_NAME = "Window";
-const std::string VERSION = "v0.1.0-a";	// a stands for alpha
-
 
 // Controls
 uint_fast16_t FORWARD_KEY 		= GLFW_KEY_W;

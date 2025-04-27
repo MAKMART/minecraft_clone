@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Project Name
-project("opengl" CXX)
+project("opengl" VERSION 0.1.0 LANGUAGES CXX)
+
+# Then manually add a pre-release label
+set(PROJECT_VERSION_SUFFIX "-pre-alpha")
+set(PROJECT_FULL_VERSION "${PROJECT_VERSION}${PROJECT_VERSION_SUFFIX}")
+set(EXECUTABLE_OUTPUT_NAME "${PROJECT_NAME}-v${PROJECT_FULL_VERSION}")
 
 # Set C++ Standard
 set(CMAKE_CXX_STANDARD 20)
@@ -46,8 +51,8 @@ endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Maybe FIX before with nvim
-#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${PROJECT_SOURCE_DIR}/build/Debug)
-#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${PROJECT_SOURCE_DIR}/build/Release)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/debug)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/release)
 
 # Source Files
 file(GLOB_RECURSE PROJECT_SOURCE_FILES src/*.cpp include/external/imgui/*.cpp)
@@ -55,10 +60,20 @@ file(GLOB_RECURSE PROJECT_SOURCE_FILES src/*.cpp include/external/imgui/*.cpp)
 # Executable
 add_executable(${PROJECT_NAME} main.cpp ${PROJECT_SOURCE_FILES})
 
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    OUTPUT_NAME ${EXECUTABLE_OUTPUT_NAME}
+)
+
 # Compiler Flags
 target_compile_definitions(${PROJECT_NAME} PRIVATE 
     $<$<CONFIG:Debug>:DEBUG>
     $<$<CONFIG:Release>:NDEBUG>
+    PROJECT_NAME="${PROJECT_NAME}"
+    PROJECT_VERSION="${PROJECT_FULL_VERSION}"
+    PROJECT_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
+    PROJECT_VERSION_MINOR=${PROJECT_VERSION_MINOR}
+    PROJECT_VERSION_PATCH=${PROJECT_VERSION_PATCH}
+    PROJECT_VERSION_SUFFIX="${PROJECT_VERSION_SUFFIX}"
 )
 
 target_compile_options(${PROJECT_NAME} PRIVATE # use -Werror if u want warning treated as errors!!!! && use -Wall to 

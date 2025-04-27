@@ -8,7 +8,9 @@
 #include <stdexcept>
 
 Application::Application(int width, int height)
-    : title(WINDOW_NAME + " - " + VERSION), width(width), height(height), backgroundColor(0.11f, 0.67f, 0.7f, 1.0f), nbFrames(0), deltaTime(0.0f), lastFrame(0.0f), 
+    : title(std::string(PROJECT_NAME) + " " + PROJECT_VERSION),
+    width(width), height(height), backgroundColor(0.11f, 0.67f, 0.7f, 1.0f),
+    nbFrames(0), deltaTime(0.0f), lastFrame(0.0f), 
     mouseClickEnabled(true), frametimes(frametime_max, 0.0f) {
 
 #ifdef DEBUG

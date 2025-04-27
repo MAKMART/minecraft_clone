@@ -3,9 +3,6 @@
 #include <filesystem>
 
 
-// Project Attributes
-extern std::string WINDOW_NAME;
-extern const std::string VERSION;
 
 #ifndef GL_TYPES_DEFINED
 #define GL_TYPES_DEFINED
