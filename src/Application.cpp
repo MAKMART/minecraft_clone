@@ -2,7 +2,6 @@
 #include "defines.h"
 #include "imgui.h"
 #include <exception>
-#include <gl/GL.h>
 #include <memory>
 #include <stb_image.h>
 #include <stdexcept>
@@ -33,8 +32,8 @@ Application::Application(int width, int height)
     // Define texture and cell size
     const float textureWidth = 512.0f;
     const float textureHeight = 512.0f;
-    const float cellWidth = 32.0f;
-    const float cellHeight = 32.0f;
+    const float cellWidth = 15.0f;
+    const float cellHeight = 15.0f;
 
     // Define row and column (0-based index, top-left starts at row=0, col=0)
     const int row = 0;    // First row (from the top)
@@ -46,7 +45,7 @@ Application::Application(int width, int height)
     float uMax = ((col + 1) * cellWidth) / textureWidth;
     float vMax = 1.0f - (row * cellHeight) / textureHeight;
 
-    crosshairSize = 45.0f; // in pixels
+    crosshairSize = 15.0f; // in pixels
     float centerX = width / 2.0f;
     float centerY = height / 2.0f;
 
@@ -232,7 +231,8 @@ void Application::initWindow(void) {
     glViewport(0, 0, width, height);
     if(!V_SYNC)
 	glfwSwapInterval(0); // Disables V-Sync
-
+    else
+	glfwSwapInterval(1);
 
     // OpenGL state setup
     if(FACE_CULLING) {
@@ -368,16 +368,15 @@ void Application::Run(void) {
 	playerShader->setMat4("projection", player->_camera->GetProjectionMatrix());
 	playerShader->setMat4("view", player->_camera->GetViewMatrix());
 	player->update(deltaTime, *chunkManager);
-	//player->update(deltaTime);
 
-
-	// --- Render Chunks ---
+	// --- Render World ---
 	if(renderTerrain)
 	  chunkManager->renderChunks(player->getPos(), player->render_distance, *player->_camera);
 
 	// -- Render Player -- (BEFORE UI pass)
-	if(player->renderSkin)
+	if(player->renderSkin) {
 	    player->render(playerShader->getProgramID());
+	}
 
 	// --- UI Pass --- (now rendered BEFORE ImGui)
 	if(renderUI) {
@@ -403,6 +402,7 @@ void Application::Run(void) {
 	ImGui::NewFrame();
 	ImGui::Begin("INFO", NULL, ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_::ImGuiWindowFlags_NoMove | ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
 	RenderFrametimeGraph();
+	ImGui::SliderInt("Render distance", (int*)&player->render_distance, 0, 30);
 	ImGui::End();
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -459,7 +459,7 @@ void Application::Run(void) {
 		ImGui::SliderFloat("Far Clip Plane", &player->_camera->FAR_PLANE, 1.5f, 1000000.0f);
 		ImGui::SliderFloat("LINE_WIDTH", &LINE_WIDTH, 0.001f, 9.0f);
 		ImGui::SliderFloat("GRAVITY", &GRAVITY, -10.0f, 30.0f);
-		ImGui::SliderFloat4("BACKGROUND COLOR", &backgroundColor.r, 0.0f, 1.0f);
+		ImGui::SliderFloat3("BACKGROUND COLOR", &backgroundColor.r, 0.0f, 1.0f);
 		ImGui::SliderFloat3("armOffset", &player->armOffset.x, -5.0f, 5.0f);
 		// --- Player Model Attributes ---
 		/*
@@ -489,12 +489,13 @@ void Application::Run(void) {
 
 	    ImGui::Render();
 	    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-	    if(DEPTH_TEST) {
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
-	    }
+	    
 	}
 #endif
+	if(DEPTH_TEST) {
+	    glEnable(GL_DEPTH_TEST);
+	    glDepthFunc(GL_LEQUAL);
+	}
 	glPolygonMode(GL_FRONT_AND_BACK, WIREFRAME_MODE ? GL_LINE : GL_FILL);
 	// --- Swap Buffers ---
 	glfwSwapBuffers(window);

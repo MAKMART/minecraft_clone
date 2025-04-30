@@ -56,7 +56,7 @@ private:
     std::unique_ptr<ChunkManager> chunkManager;
     std::unique_ptr<Player> player;
     std::unique_ptr<InputManager> input;
-    glm::ivec3 chunkSize = {16, 128, 16};
+    glm::ivec3 chunkSize = {16, 128, 16};	// Size of each chunk
 
 
     void initWindow(void);

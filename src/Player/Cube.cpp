@@ -157,9 +157,11 @@ void Cube::render(unsigned int shaderProgram, const glm::mat4& transform) {
     
     glBindVertexArray(VAO);
     DrawArraysWrapper(GL_TRIANGLES, 0, 36); // 36 vertices for 12 triangles
+#if DEBUG
     GLenum err;
     while ((err = glGetError()) != GL_NO_ERROR) {
         std::cerr << "OpenGL error in Cube::render: " << err << std::endl;
     }
+#endif
     glBindVertexArray(0);
 }

@@ -7,7 +7,6 @@
 #include "CreativeMode.h"
 #include "SpectatorMode.h"
 #include "defines.h"
-#include <gl/GL.h>
 #include <memory>
 #include <numbers>
 
@@ -20,7 +19,7 @@ Player::Player(glm::vec3 spawnPos, glm::ivec3& chunksize, GLFWwindow* window)
     input = std::make_unique<InputManager>(window);
     skinTexture = std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST);  // Default skin
     setupBodyParts();
-    currentMode = std::make_unique<SpectatorMode>();	// STARTING MODE DEFAULT
+    currentMode = std::make_unique<SurvivalMode>();	// STARTING MODE DEFAULT
     currentMode->enterMode(*this); // Sets initial state via mode
     updateCameraPosition();
 }

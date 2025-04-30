@@ -13,6 +13,7 @@ public:
 	player.isDamageable = true;
 	player.canBreakBlocks = true;
 	player.canPlaceBlocks = true;
+	player.renderSkin = true;
 
         player.changeState(std::make_unique<WalkingState>()); // Default state in Survival is Walking
     }

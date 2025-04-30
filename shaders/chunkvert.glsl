@@ -1,5 +1,7 @@
 #version 460 core
 
+#extension GL_ARB_shader_storage_buffer_object : enable
+
 // Output data (to fragment shader)
 out vec2 TexCoord;
 out vec3 DebugColor;
@@ -67,26 +69,7 @@ const vec3 facePositions[6][4] = vec3[6][4](
         vec3(0, 0, 1)
     )
 );
-// Winding order to access the face positions
-const int faceIndices[6][6] = int[6][6](
-    // FRONT (+Z)
-    int[6](0, 1, 2, 0, 2, 3),
-
-    // BACK (-Z) — needs to be **flipped**
-    int[6](1, 2, 0, 2, 3, 0),
-
-    // LEFT (-X) — needs to be **flipped**
-    int[6](1, 2, 0, 2, 3, 0),
-
-    // RIGHT (+X)
-    int[6](0, 1, 2, 0, 2, 3),
-
-    // TOP (+Y)
-    int[6](0, 1, 2, 0, 2, 3),
-
-    // BOTTOM (-Y) — needs to be **flipped**
-    int[6](1, 2, 0, 2, 3, 0)
-);
+const int faceIndices[6] = int[6](0, 1, 2, 0, 2, 3);
 
 
 void main()
@@ -126,7 +109,7 @@ void main()
 
   vec3 position = vec3(x, y, z);
 
-  vec3 localOffset = facePositions[face_id][faceIndices[face_id][currVertexID]];
+  vec3 localOffset = facePositions[face_id][faceIndices[currVertexID]];
   position += localOffset;
 
   gl_Position = projection * view * model * vec4(position, 1.0);

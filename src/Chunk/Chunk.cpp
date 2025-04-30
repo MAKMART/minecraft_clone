@@ -191,10 +191,22 @@ void Chunk::generateBlockFace(const Block& block, int x, int y, int z, std::vect
 	    if(visibilityMask & (1 << 5)) pushFace(x, y, z, X, Y, 5, block.toInt());
 	    break;
 	case Block::blocks::LAVA:
-	    
+	    X = 6, Y = 0;
+	    if(visibilityMask & (1 << 0)) pushFace(x, y, z, X, Y, 0, block.toInt());
+	    if(visibilityMask & (1 << 1)) pushFace(x, y, z, X, Y, 1, block.toInt());
+	    if(visibilityMask & (1 << 2)) pushFace(x, y, z, X, Y, 2, block.toInt());
+	    if(visibilityMask & (1 << 3)) pushFace(x, y, z, X, Y, 3, block.toInt());
+	    if(visibilityMask & (1 << 4)) pushFace(x, y, z, X, Y, 4, block.toInt());
+	    if(visibilityMask & (1 << 5)) pushFace(x, y, z, X, Y, 5, block.toInt());
 	    break;
 	case Block::blocks::WATER:
-	    
+	    X = 0, Y = 4;
+	    if(visibilityMask & (1 << 0)) pushFace(x, y, z, X, Y, 0, block.toInt());
+	    if(visibilityMask & (1 << 1)) pushFace(x, y, z, X, Y, 1, block.toInt());
+	    if(visibilityMask & (1 << 2)) pushFace(x, y, z, X, Y, 2, block.toInt());
+	    if(visibilityMask & (1 << 3)) pushFace(x, y, z, X, Y, 3, block.toInt());
+	    if(visibilityMask & (1 << 4)) pushFace(x, y, z, X, Y, 4, block.toInt());
+	    if(visibilityMask & (1 << 5)) pushFace(x, y, z, X, Y, 5, block.toInt());
 	    break;
 	case Block::blocks::WOOD:
 	    X = 2;

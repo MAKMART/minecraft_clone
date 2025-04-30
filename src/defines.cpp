@@ -61,9 +61,9 @@ bool WIREFRAME_MODE = false;
 bool DEPTH_TEST = true;
 uint8_t DEPTH_BITS = 24;
 uint8_t STENCIL_BITS = 8;
-bool BLENDING = false;
+bool BLENDING = true;
 bool V_SYNC = false;
 bool FACE_CULLING = true;
-bool MSAA = true;
+bool MSAA = false;
 uint8_t MSAA_STRENGHT = 4; // 4x MSAA Means 4 samples per pixel. Common options are 2, 4, 8, or 16—higher numbers improve quality but increase GPU memory and computation cost.
 

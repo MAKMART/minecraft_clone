@@ -110,6 +110,8 @@ public:
     float eyeHeight;
     int selectedBlock = 1;
 
+
+
     // --- Player Flags ---
     bool isOnGround = false;
     bool isDamageable = false;
