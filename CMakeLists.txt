@@ -1,7 +1,33 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.15)
 
 # Project Name
 project("opengl" VERSION 0.1.0 LANGUAGES CXX)
+
+include(FetchContent)
+
+# GLEW
+FetchContent_Declare(
+  glew
+  GIT_REPOSITORY https://github.com/nigels-com/glew.git
+  GIT_TAG        master
+)
+FetchContent_MakeAvailable(glew)
+
+# GLFW
+FetchContent_Declare(
+  glfw
+  GIT_REPOSITORY https://github.com/glfw/glfw.git
+  GIT_TAG        3.3.8
+)
+FetchContent_MakeAvailable(glfw)
+
+# GLM
+FetchContent_Declare(
+  glm
+  GIT_REPOSITORY https://github.com/g-truc/glm.git
+  GIT_TAG        0.9.9.8
+)
+FetchContent_MakeAvailable(glm)
 
 # Then manually add a pre-release label
 set(PROJECT_VERSION_SUFFIX "-pre-alpha")
@@ -16,36 +42,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Generate compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+
+
 # Set the default build type to Release if not set explicitly
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-# Ensure CMake Prefix Path is Set
-set(CMAKE_PREFIX_PATH "C:/msys64/mingw64/include")
 
 # Find Required Packages
 find_package(OpenGL REQUIRED)
-find_package(GLEW REQUIRED)
-find_package(glfw3 REQUIRED)
-find_package(glm REQUIRED)
 
-# Ensure the packages were found
-if (NOT OpenGL_FOUND)
-    message(FATAL_ERROR "OpenGL package not found!")
-endif()
-
-if (NOT GLEW_FOUND)
-    message(FATAL_ERROR "GLEW package not found!")
-endif()
-
-if (NOT glfw3_FOUND)
-    message(FATAL_ERROR "GLFW package not found!")
-endif()
-
-if (NOT glm_FOUND)
-    message(FATAL_ERROR "GLM package not found!")
-endif()
 
 # Output Directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -56,6 +63,12 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rel
 
 # Source Files
 file(GLOB_RECURSE PROJECT_SOURCE_FILES src/*.cpp include/external/imgui/*.cpp)
+
+find_package(OpenGL REQUIRED)
+
+if (NOT OpenGL_FOUND)
+    message(FATAL_ERROR "OpenGL package not found!")
+endif()
 
 # Executable
 add_executable(${PROJECT_NAME} main.cpp ${PROJECT_SOURCE_FILES})
@@ -84,7 +97,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE # use -Werror if u want warning t
 # Linking
 target_link_libraries(${PROJECT_NAME} 
     PUBLIC OpenGL::GL 
-    PRIVATE GLEW::GLEW glfw glm::glm
+    PRIVATE GLEW::glew_s glfw glm::glm
 )
 
 # Include Paths
