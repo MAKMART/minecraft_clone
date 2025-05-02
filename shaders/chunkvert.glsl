@@ -85,15 +85,14 @@ void main()
 
   uint u = packedTexCoord & 0x3FFu;
   uint v = (packedTexCoord >> 10) & 0x3FFu;
+  uint face_id = (packedTexCoord >> 20) & 0x7u;
+  uint block_type = (packedTexCoord >> 23) & 0x1FFu; // 9 bits
   u = min(u, 15u);
   v = min(v, 15u);
-
-  uint face_id = (packedTexCoord >> 20) & 0x7u;
   face_id = min(face_id, 5u);
-  uint block_type = (packedTexCoord >> 23) & 0x1FFu; // 9 bits
 
-  DebugColor = debugColor[face_id];
-  //DebugColor = mix(debugColor[face_id], vec3(float(gl_VertexID % 6) / 6.0, 0.0, 1.0), 0.5);
+  //DebugColor = debugColor[face_id];
+  DebugColor = mix(debugColor[face_id], vec3(float(gl_VertexID % 6) / 6.0, 0.0, 1.0), 0.5);
   //DebugColor = vec3(float(face_id) / 6.0, 0.0, 1.0);
 
   /*

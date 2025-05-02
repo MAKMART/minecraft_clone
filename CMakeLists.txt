@@ -5,7 +5,7 @@ cmake_policy(VERSION 3.25)  # Set this to highest version you've tested with
 project("opengl" VERSION 0.1.0 LANGUAGES CXX)
 
 set(BUILD_SHARED_LIBS OFF)
-
+set(CMAKE_EXE_LINKER_FLAGS "-static")
 include(FetchContent)
 
 # GLEW (CMake-friendly fork)
