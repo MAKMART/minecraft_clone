@@ -28,8 +28,6 @@ public:
     void changeState(std::unique_ptr<PlayerState> newState);
     void update(float deltaTime, ChunkManager& chunkManager);
     void update(float deltaTime);
-    void renderThirdPersonModel(unsigned int shaderProgram);
-    void renderFirstPersonHand(unsigned int shaderProgram);
     void render(unsigned int shaderProgram);
     void loadSkin(const std::string &path);
     void loadSkin(const std::filesystem::path &path);
@@ -78,7 +76,7 @@ public:
     };
     std::vector<BodyPart> bodyParts;
     
-    // Base sizes (Minecraft units)
+    // Base sizes
     glm::vec3 headSize = glm::vec3(8, 8, 8);
     glm::vec3 torsoSize = glm::vec3(8, 12, 4);
     glm::vec3 limbSize = glm::vec3(4, 12, 4);

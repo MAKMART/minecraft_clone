@@ -2,14 +2,13 @@
 #include <iostream>
 #include "defines.h"
 
-Cube::Cube(glm::vec3 size, BodyPartType type, glm::vec2 texOffset) {
+Cube::Cube(glm::vec3 size, BodyPartType type) {
     float halfX = size.x / 2.0f;
     float yBase = 0.0f;
     float yTop = size.y;
     float halfZ = size.z / 2.0f;
     float texScale = 1.0f / 64.0f;
 
-    (void)texOffset;
     // Define texture regions for each face
     TextureRegion frontRegion, topRegion, bottomRegion, rightRegion, leftRegion, backRegion;
     switch (type) {

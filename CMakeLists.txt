@@ -4,6 +4,8 @@ cmake_policy(VERSION 3.25)  # Set this to highest version you've tested with
 # Project Name
 project("opengl" VERSION 0.1.0 LANGUAGES CXX)
 
+set(BUILD_SHARED_LIBS OFF)
+
 include(FetchContent)
 
 # GLEW (CMake-friendly fork)
@@ -114,6 +116,7 @@ target_link_directories(${PROJECT_NAME} PRIVATE ${glew_BINARY_DIR}/lib)
 target_compile_definitions(${PROJECT_NAME} PRIVATE GLEW_STATIC)
 # Include Paths
 target_include_directories(${PROJECT_NAME} PRIVATE
+    ${glew_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/include/Chunk
     ${PROJECT_SOURCE_DIR}/include/Player

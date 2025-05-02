@@ -375,6 +375,7 @@ void Application::Run(void) {
 
 	// -- Render Player -- (BEFORE UI pass)
 	if(player->renderSkin) {
+	    playerShader->use();
 	    player->render(playerShader->getProgramID());
 	}
 
@@ -474,15 +475,11 @@ void Application::Run(void) {
 		ImGui::SliderFloat3("leftLegOffset", &player->leftLegOffset.x, -10.0f, 50.0f);
 		*/
 		ImGui::SliderFloat("Camera Distance", &player->_camera->Distance, 1.0f, 20.0f);
-		static std::string skinInput = ASSETS_DIRECTORY.string() + "/Player/Steve.png";
-
-		// Ensure the buffer is large enough for user input
-		skinInput.resize(128);
-
-		if (ImGui::InputTextWithHint("Skin Path", "Enter skin path...", skinInput.data(), skinInput.size()))
-		    player->loadSkin(skinInput);
 		ImGui::Checkbox("renderTerrain", &renderTerrain);
 		ImGui::Checkbox("renderPlayer", &player->renderSkin);
+		static bool debug = false;
+		ImGui::Checkbox("debug", &debug); // Updates the value
+		chunkManager->chunkShader->setBool("debug", debug);
 
 	    }
 	    ImGui::End();

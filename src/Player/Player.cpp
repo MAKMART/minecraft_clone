@@ -51,14 +51,13 @@ void Player::setupBodyParts(void) {
     rightLegOffset *= scaleFactor;
     leftLegOffset *= scaleFactor;
 
-    // Initialize body parts with scaled sizes and explicit body part types
-    // texOffset still corresponds to front face coordinates for reference
-    bodyParts[0] = { std::make_unique<Cube>(headSize,  BodyPartType::HEAD,      glm::vec2(8,  8)),  headOffset,     glm::mat4(1.0f) };
-    bodyParts[1] = { std::make_unique<Cube>(torsoSize, BodyPartType::TORSO,     glm::vec2(20, 20)), torsoOffset,    glm::mat4(1.0f) };
-    bodyParts[2] = { std::make_unique<Cube>(limbSize,  BodyPartType::RIGHT_ARM, glm::vec2(44, 20)), rightArmOffset, glm::mat4(1.0f) };
-    bodyParts[3] = { std::make_unique<Cube>(limbSize,  BodyPartType::LEFT_ARM,  glm::vec2(36, 52)), leftArmOffset,  glm::mat4(1.0f) };
-    bodyParts[4] = { std::make_unique<Cube>(limbSize,  BodyPartType::RIGHT_LEG, glm::vec2(4,  20)), rightLegOffset, glm::mat4(1.0f) };
-    bodyParts[5] = { std::make_unique<Cube>(limbSize,  BodyPartType::LEFT_LEG,  glm::vec2(20, 52)), leftLegOffset,  glm::mat4(1.0f) };
+    bodyParts[0] = { std::make_unique<Cube>(headSize,  BodyPartType::HEAD),  headOffset,     glm::mat4(1.0f) };
+    bodyParts[1] = { std::make_unique<Cube>(torsoSize, BodyPartType::TORSO), torsoOffset,    glm::mat4(1.0f) };
+    bodyParts[2] = { std::make_unique<Cube>(limbSize,  BodyPartType::RIGHT_ARM), rightArmOffset, glm::mat4(1.0f) };
+    bodyParts[3] = { std::make_unique<Cube>(limbSize,  BodyPartType::LEFT_ARM), leftArmOffset,  glm::mat4(1.0f) };
+    bodyParts[4] = { std::make_unique<Cube>(limbSize,  BodyPartType::RIGHT_LEG), rightLegOffset, glm::mat4(1.0f) };
+    bodyParts[5] = { std::make_unique<Cube>(limbSize,  BodyPartType::LEFT_LEG), leftLegOffset,  glm::mat4(1.0f) };
+
 }
 void Player::loadSkin(const std::string &path) {
     skinTexture = std::make_unique<Texture>(path, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST);
@@ -271,8 +270,6 @@ void Player::render(unsigned int shaderProgram) {
 
     skinTexture->Bind(2);
 
-    glUseProgram(shaderProgram);
-
     if(isThirdPerson)
     {
 	// Calculate the total height of the player model (torso + head, scaled)
@@ -309,6 +306,7 @@ void Player::render(unsigned int shaderProgram) {
 	}
     }
     else{
+	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
 	const auto& rightArm = bodyParts[2]; // Right arm at index 2
 
@@ -329,38 +327,11 @@ void Player::render(unsigned int shaderProgram) {
 
 	rightArm.cube->render(shaderProgram, armTransform);
 	glEnable(GL_BLEND);
+	if(DEPTH_TEST) {
+	    glEnable(GL_DEPTH_TEST);
+	    glDepthFunc(GL_LEQUAL);
+	}
     }
-    skinTexture->Unbind();
-}
-void Player::renderThirdPersonModel(unsigned int shaderProgram) {
-    if (!skinTexture) {
-	std::cerr << "Error: skinTexture is null!" << std::endl;
-	return;
-    }
-    if(!isThirdPerson)	return;
-
-    skinTexture->Bind(2);
-
-    // Third-person: Render full body with feet at position
-    glm::mat4 baseTransform = glm::translate(glm::mat4(1.0f), position);
-
-    // Rotate to face camera direction (horizontal only)
-    glm::vec3 cameraDirection = _camera->Front;
-    cameraDirection.y = 0.0f;
-    cameraDirection = glm::normalize(cameraDirection);
-    glm::vec3 playerForward(0.0f, 0.0f, -1.0f);
-    float dot = glm::clamp(glm::dot(playerForward, cameraDirection), -1.0f, 1.0f);
-    float angle = acos(dot) * (180.0f / std::numbers::pi);
-    glm::vec3 cross = glm::cross(playerForward, cameraDirection);
-    if (cross.y < 0) angle = -angle;
-    baseTransform = baseTransform * glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
-
-    // Render all body parts
-    for (const auto& part : bodyParts) {
-	glm::mat4 transform = baseTransform * glm::translate(glm::mat4(1.0f), part.offset) * part.transform;
-	part.cube->render(shaderProgram, transform);
-    }
-
     skinTexture->Unbind();
 }
 const char* Player::getState(void) const {
@@ -375,35 +346,6 @@ const char* Player::getMode(void) const {
     if (dynamic_cast<CreativeMode*>(currentMode.get())) return "CREATIVE";
     if (dynamic_cast<SpectatorMode*>(currentMode.get())) return "SPECTATOR";
     return "UNKNOWN";
-}
-void Player::renderFirstPersonHand(unsigned int shaderProgram) {
-    if (!skinTexture) {
-        std::cerr << "Error: skinTexture is null!" << std::endl;
-        return;
-    }
-
-    skinTexture->Bind(2);
-
-    const auto& rightArm = bodyParts[2]; // Right arm at index 2
-
-    glm::mat4 armTransform = glm::translate(glm::mat4(1.0f), _camera->Position);
-    glm::vec3 forward = _camera->Front;
-    glm::vec3 up = _camera->Up;
-    glm::vec3 right = _camera->Right;
-    glm::mat4 viewRotation = glm::mat4(
-        glm::vec4(right, 0.0f),
-        glm::vec4(up, 0.0f),
-        glm::vec4(-forward, 0.0f),
-        glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
-    );
-    armTransform = armTransform * viewRotation;
-
-    armTransform = armTransform * glm::translate(glm::mat4(1.0f), armOffset);
-    armTransform = armTransform * rightArm.transform;
-
-    rightArm.cube->render(shaderProgram, armTransform);
-
-    skinTexture->Unbind();
 }
 void Player::update(float deltaTime, ChunkManager& chunkManager) {
     input->update();

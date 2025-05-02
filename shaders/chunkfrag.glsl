@@ -7,6 +7,7 @@ in vec3 DebugColor;
 // Output color (to the framebuffer)
 out vec4 FragColor;
 
+uniform int debug;
 
 layout(binding = 0) uniform sampler2D myTexture;
 
@@ -21,6 +22,8 @@ void main() {
     //if (any(lessThan(pixelUV, vec2(0.0001))) || any(greaterThan(pixelUV, vec2(0.95))))
 	//FragColor = vec4(1, 0, 0, 1); // red tile border
     //else
-	//FragColor = mix(texColor, vec4(DebugColor, 1.0), 0.05);
-	FragColor = texColor;
+	if(debug != 0)
+	    FragColor = vec4(DebugColor, 1.0);
+	else
+	    FragColor = texColor;
 }

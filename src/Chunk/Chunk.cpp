@@ -119,7 +119,7 @@ bool Chunk::isFaceVisible(const Block& block, int x, int y, int z) const
 {
     (void)block;
     if (x >= 0 && x < _size.x && y >= 0 && y < _size.y && z >= 0 && z < _size.z) {
-	return getBlockAt(x, y, z).type == Block::blocks::AIR;
+	return getBlockAt(x, y, z).type == Block::blocks::AIR || getBlockAt(x, y, z).type == Block::blocks::WATER;
     }
     /*
     // Convert local to world coordinates
@@ -134,6 +134,7 @@ bool Chunk::isFaceVisible(const Block& block, int x, int y, int z) const
 void Chunk::renderChunk(std::unique_ptr<Shader> &shader) {
     if (faces.empty()) 
 	return;
+    shader->use();
     shader->setMat4("model", getModelMatrix());
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO); // Ensure SSBO is bound
     DrawArraysWrapper(GL_TRIANGLES, 0, faces.size() * 6);	// 6 faces per Voxel/Cube
@@ -141,8 +142,8 @@ void Chunk::renderChunk(std::unique_ptr<Shader> &shader) {
 void Chunk::generateBlockFace(const Block& block, int x, int y, int z, std::vector<Face>& faces)
 {
     // Lambda to push a face into the vector.
-    auto pushFace = [&faces](int vx, int vy, int vz, int u, int v, int face, int block_type) {
-	faces.emplace_back(Face(vx, vy, vz, u, v, face, block_type));
+    auto pushFace = [&faces](int x, int y, int z, int u, int v, int face, int block_type) {
+	faces.emplace_back(Face(x, y, z, u, v, face, block_type));
     };
 
     uint8_t visibilityMask = 
@@ -191,7 +192,7 @@ void Chunk::generateBlockFace(const Block& block, int x, int y, int z, std::vect
 	    if(visibilityMask & (1 << 5)) pushFace(x, y, z, X, Y, 5, block.toInt());
 	    break;
 	case Block::blocks::LAVA:
-	    X = 6, Y = 0;
+	    X = 5, Y = 0;
 	    if(visibilityMask & (1 << 0)) pushFace(x, y, z, X, Y, 0, block.toInt());
 	    if(visibilityMask & (1 << 1)) pushFace(x, y, z, X, Y, 1, block.toInt());
 	    if(visibilityMask & (1 << 2)) pushFace(x, y, z, X, Y, 2, block.toInt());
