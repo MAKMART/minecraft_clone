@@ -216,6 +216,14 @@ public:
 	    glProgramUniform1f(ID, location, value);
 	}
     }
+    void setVec2(const std::string &name, const glm::vec2& value) {
+	GLint location = glGetUniformLocation(ID, name.c_str());
+	if(location == -1) {
+	    std::cerr << "Warning: Uniform '" << name << "' not found in shader program!" << std::endl;
+	} else {
+	    glProgramUniform2fv(ID, location, 1, glm::value_ptr(value));
+	}
+    }
 
     void setVec3(const std::string& name, const glm::vec3& value) const {
 	GLint location = glGetUniformLocation(ID, name.c_str());

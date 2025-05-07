@@ -101,7 +101,7 @@ public:
     float flying_speed = 17.5f;
     float JUMP_FORCE = 4.8f;
     float max_interaction_distance = 10.0f;
-    unsigned int render_distance = 3;
+    unsigned int render_distance = 5;
 
     float playerHeight = 0.0f;
     float prevPlayerHeight;

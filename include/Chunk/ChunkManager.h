@@ -13,6 +13,8 @@
 #include <functional>
 #include "../defines.h"
 #include <PerlinNoise.hpp>
+#include <random>
+#include <optional>
 
 namespace std {
     template <>
@@ -39,7 +41,7 @@ class ChunkManager
 {
 public:
     // Constructor to initialize the manager
-    ChunkManager(glm::ivec3 size, int renderDistance);   
+    ChunkManager(glm::ivec3 size, int renderDistance, std::optional<siv::PerlinNoise::seed_type> seed = std::nullopt);   
     // Destructor to clear all the chunks before deleting the ChunkManager
     ~ChunkManager(void);
 
@@ -94,10 +96,8 @@ private:
     }
     // Noise map
     std::vector<float> noiseMap;
-    //seed
-    const siv::PerlinNoise::seed_type seed = 123456u;
     //noise
-    const siv::PerlinNoise perlin{ seed };
+    siv::PerlinNoise perlin;
     int lastChunkX;
     int lastChunkZ;
     // Cached states to minimize redundant updates.

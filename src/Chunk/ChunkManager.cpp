@@ -3,7 +3,19 @@
 #include <cstdint>
 #include <stdexcept>
 
-ChunkManager::ChunkManager(glm::ivec3 size, int renderDistance) : chunkSize(size) { 
+ChunkManager::ChunkManager(glm::ivec3 size, int renderDistance, std::optional<siv::PerlinNoise::seed_type> seed) : chunkSize(size) { 
+    // Initialize Perlin noise
+    if (seed.has_value()) {
+	perlin = siv::PerlinNoise(seed.value());
+	std::cout << "ChunkManager initialized with seed: " << seed.value() << "\n";
+    } else {
+	std::random_device rd;
+	std::mt19937 engine(rd());
+	std::uniform_int_distribution<int> distribution(1, 999999);
+	siv::PerlinNoise::seed_type random_seed = 1/*distribution(engine)*/;
+	perlin = siv::PerlinNoise(random_seed);
+	std::cout << "ChunkManager initialized with random seed: " << random_seed << "\n";
+    }
     if (!chunksTexture.get())
 	chunksTexture = std::make_unique<Texture>(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
     if(!chunkShader.get())
