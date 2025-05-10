@@ -20,13 +20,13 @@ cd minecraft_clone
 Choose the configuration type depending on your goal.
 ### Debug build:
 ```
-  cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug .
-  ninja
+  cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug .
+  ninja -C build
 ```
 ### Release build:
 ```
-  cmake -G Ninja -DCMAKE_BUILD_TYPE=Release .
-  ninja
+  cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release .
+  ninja -C build
 ```
 The final binary will be located in bin/debug/ or bin/release/ depending on your build type.
 ## Troubleshooting
