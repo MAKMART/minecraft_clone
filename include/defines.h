@@ -21,34 +21,6 @@ typedef int          GLsizei;
 #define CYAN "\033[36m"
 
 
-#define DrawArraysWrapper(mode, first, count) { \
-    glDrawArrays(mode, first, count); \
-    g_drawCallCount++; \
-    GLenum error = glGetError(); \
-    if (error != GL_NO_ERROR) { \
-        std::cerr << "OpenGL Error in DrawArraysWrapper at " << __FILE__ << ":" << __LINE__ \
-                  << " Error code: " << std::hex << error << std::dec << std::endl; \
-    } \
-}
-
-#define DrawElementsWrapper(mode, count, type, indices) { \
-    glDrawElements(mode, count, type, indices); \
-    g_drawCallCount++; \
-    GLenum error = glGetError(); \
-    if (error != GL_NO_ERROR) { \
-        std::cerr << "OpenGL Error in DrawElementsWrapper at " << __FILE__ << ":" << __LINE__ \
-                  << " Error code: " << std::hex << error << std::dec << std::endl; \
-    } \
-}
-#define DrawArraysInstancedWrapper(mode, first, count, instanceCount) { \
-    glDrawArraysInstanced(mode, first, count, instanceCount); \
-    g_drawCallCount++; \
-    GLenum error = glGetError(); \
-    if (error != GL_NO_ERROR) { \
-        std::cerr << "OpenGL Error in DrawElementsWrapper at " << __FILE__ << ":" << __LINE__ \
-                  << " Error code: " << std::hex << error << std::dec << std::endl; \
-    } \
-}
 
 // Controls
 extern uint_fast16_t FORWARD_KEY;
@@ -95,7 +67,9 @@ extern float GRAVITY;
 
 // Utils for rendering
 extern unsigned int g_drawCallCount;
-extern void GLCheckError(const char* file, int line);
+extern void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count);
+extern void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void* indices);
+extern void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount);
 extern float LINE_WIDTH;
 extern bool WIREFRAME_MODE;
 extern bool DEPTH_TEST;

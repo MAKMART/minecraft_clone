@@ -1,4 +1,5 @@
 #include "defines.h"
+#include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <glm/glm.hpp>
@@ -47,14 +48,41 @@ float GRAVITY = 9.80665f;
 
 //Utils for rendering
 unsigned int g_drawCallCount = 0;
-void GLCheckError(const char* file, int line) {
-    GLenum error;
-    while ((error = glGetError()) != GL_NO_ERROR) {
-        std::cerr << RED << "OpenGL Error: " << std::hex << error << std::dec
-          << " | File: " << file << " | Line: " << line << RESET_COLOR << std::endl;
+void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count) {
+    glDrawArrays(mode, first, count);
+    g_drawCallCount++;
+#ifdef DEBUG
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL Error in DrawArraysWrapper: Error code: "
+                  << std::hex << error << std::dec << std::endl;
     }
+#endif
 }
 
+void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void* indices) {
+    glDrawElements(mode, count, type, indices);
+    g_drawCallCount++;
+#ifdef DEBUG
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL Error in DrawElementsWrapper: Error code: "
+                  << std::hex << error << std::dec << std::endl;
+    }
+#endif
+}
+
+void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount) {
+    glDrawArraysInstanced(mode, first, count, instanceCount);
+    g_drawCallCount++;
+#ifdef DEBUG
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL Error in DrawArraysInstancedWrapper: Error code: "
+                  << std::hex << error << std::dec << std::endl;
+    }
+#endif
+}
 
 float LINE_WIDTH = 1.5f;
 bool WIREFRAME_MODE = false;

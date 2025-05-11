@@ -110,8 +110,7 @@ Application::Application(int width, int height)
     // Initialize ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();// (void)io;  // Avoid unused variable warning if not using io directly
-    io.WantCaptureMouse = false;
+    ImGuiIO& io = ImGui::GetIO(); // Avoid unused variable warning if not using io directly
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
    ImGui_ImplOpenGL3_Init("#version 460");
@@ -168,9 +167,10 @@ void Application::initWindow(void) {
     glfwSetScrollCallback(window, scroll_callback);
     if (glfwRawMouseMotionSupported()) {
 	glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+    } else {
+	std::cerr << "Raw Mouse Motion not supported!\n";
     }
-    FREE_CURSOR = false;
-    glfwSetInputMode(window, GLFW_CURSOR, FREE_CURSOR ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 
     GLuint err = glewInit();
@@ -306,8 +306,8 @@ void Application::processInput() {
     if (input->isPressed(MENU_KEY))
     {
 	player->_camera->setMouseTracking(FREE_CURSOR);
-	mouseClickEnabled = !mouseClickEnabled;
 	glfwSetInputMode(window, GLFW_CURSOR, FREE_CURSOR ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+	mouseClickEnabled = !mouseClickEnabled;
 	FREE_CURSOR = !FREE_CURSOR;
     }
     // Toggle wireframe mode with cooldown

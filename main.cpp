@@ -6,7 +6,7 @@
 int main(void)
 {
 	try {
-		Application app(2048, 1152);
+		Application app(1920, 1080);
 		app.Run();
 	} catch (const std::exception &e) {
 		std::cerr << "\nError: " << e.what() << std::endl;

@@ -12,7 +12,7 @@ ChunkManager::ChunkManager(glm::ivec3 size, int renderDistance, std::optional<si
 	std::random_device rd;
 	std::mt19937 engine(rd());
 	std::uniform_int_distribution<int> distribution(1, 999999);
-	siv::PerlinNoise::seed_type random_seed = 1/*distribution(engine)*/;
+	siv::PerlinNoise::seed_type random_seed = distribution(engine);
 	perlin = siv::PerlinNoise(random_seed);
 	std::cout << "ChunkManager initialized with random seed: " << random_seed << "\n";
     }

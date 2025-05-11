@@ -40,7 +40,7 @@ private:
 
     b8 isFullscreen = false;
     b8 FREE_CURSOR = false;
-    b8 mouseClickEnabled;
+    b8 mouseClickEnabled = false;
     b8 renderUI = true;
     b8 renderTerrain = true;
 

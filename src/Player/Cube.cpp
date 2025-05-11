@@ -138,10 +138,6 @@ void Cube::setupBuffers(void) {
     glEnableVertexArrayAttrib(VAO, 1);
     glVertexArrayAttribFormat(VAO, 1, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float));
     glVertexArrayAttribBinding(VAO, 1, 0); // Bind attribute 1 to binding index 0
-
-    // Debugging info (optional)
-    //std::cout << "Cube vertex count: " << vertices.size() / 5
-    //        << ", size in bytes: " << vertices.size() * sizeof(float) << " B\n";
 }
 
 void Cube::render(unsigned int shaderProgram, const glm::mat4& transform) {
@@ -156,11 +152,5 @@ void Cube::render(unsigned int shaderProgram, const glm::mat4& transform) {
     
     glBindVertexArray(VAO);
     DrawArraysWrapper(GL_TRIANGLES, 0, 36); // 36 vertices for 12 triangles
-#if DEBUG
-    GLenum err;
-    while ((err = glGetError()) != GL_NO_ERROR) {
-        std::cerr << "OpenGL error in Cube::render: " << err << std::endl;
-    }
-#endif
     glBindVertexArray(0);
 }
