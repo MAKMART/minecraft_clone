@@ -1,4 +1,4 @@
-# Minecraft Clone (Working Title):
+# Minecraft Clone (Working Title)
 Yeah, I haven’t named it yet. Suggestions welcome :)
 ## Introduction
 This is a small game project built using modern OpenGL. Think Minecraft-style voxel fun, but from scratch and fully under your control. The project is in a very early, experimental stage.
