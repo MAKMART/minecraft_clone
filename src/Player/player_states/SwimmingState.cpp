@@ -13,21 +13,29 @@ void SwimmingState::exitState(Player& player) {
 // Handling input when in the Walking State
 void SwimmingState::handleInput(Player& player, float deltaTime) {
     glm::vec3 movement(0.0f);
-        float speed = player.swimming_speed * deltaTime;
+    float speed = player.swimming_speed;
 
-        if (player.input->isHeld(FORWARD_KEY))
-            movement += player._camera->Front * speed;
-        if (player.input->isHeld(BACKWARD_KEY))
-            movement -= player._camera->Front * speed;
-        if (player.input->isHeld(LEFT_KEY))
-            movement -= player._camera->Right * speed;
-        if (player.input->isHeld(RIGHT_KEY))
-            movement += player._camera->Right * speed;
-	//	TODO: Implement these keys specifically for the SwimmingState
-        if (player.input->isHeld(GLFW_KEY_SPACE))
-            movement += player._camera->Up * speed;
-        if (player.input->isHeld(GLFW_KEY_LEFT_CONTROL))
-            movement -= player._camera->Up * speed;
+    if (player.input->isHeld(FORWARD_KEY))
+	movement += player._camera->Front * speed;
+    if (player.input->isHeld(BACKWARD_KEY))
+	movement -= player._camera->Front * speed;
+    if (player.input->isHeld(LEFT_KEY))
+	movement -= player._camera->Right * speed;
+    if (player.input->isHeld(RIGHT_KEY))
+	movement += player._camera->Right * speed;
+    //	TODO: Implement these keys specifically for the SwimmingState
+    if (player.input->isHeld(GLFW_KEY_SPACE))
+	movement += player._camera->Up * speed;
+    if (player.input->isHeld(GLFW_KEY_LEFT_CONTROL))
+	movement -= player._camera->Up * speed;
+    // Normalize movement and apply speed
+    if (glm::length(movement) > 0.0f) {
+	movement = glm::normalize(movement) * speed;
+	player.velocity.x = movement.x;
+	player.velocity.z = movement.z;
+    } else {
+	player.velocity.x = 0.0f;
+	player.velocity.z = 0.0f;
+    }
 
-        player.pendingMovement += movement;
 }

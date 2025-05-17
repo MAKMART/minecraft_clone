@@ -14,7 +14,7 @@ void WalkingState::handleInput(Player& player, float deltaTime) {
     if (!player._camera) return;
 
     glm::vec3 movement(0.0f);
-    float speed = player.walking_speed * deltaTime;
+    float speed = player.walking_speed;
 
     // Handle movement keys (W, A, S, D, Space for Up)
     if (player.input->isHeld(FORWARD_KEY))
@@ -28,11 +28,13 @@ void WalkingState::handleInput(Player& player, float deltaTime) {
     if (player.input->isHeld(JUMP_KEY))
         player.jump();
 
-    // Normalize movement if there is any
-    if (glm::length(movement) > 0.0f)
-        movement = glm::normalize(movement) * speed;
-
-    // Apply the pending movement (only in the XZ plane)
-    player.pendingMovement += glm::vec3(movement.x, 0.0f, movement.z);
+    // Normalize movement and apply speed
+    if (glm::length(movement) > 0.0f) {
+	movement = glm::normalize(movement) * speed;
+	player.velocity.x = movement.x;
+	player.velocity.z = movement.z;
+    } else {
+	player.velocity.x = 0.0f;
+	player.velocity.z = 0.0f;
+    }
 }
-

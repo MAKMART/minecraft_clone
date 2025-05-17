@@ -11,7 +11,7 @@ void FlyingState::exitState(Player& player) {
 
 void FlyingState::handleInput(Player& player, float deltaTime) {
     glm::vec3 movement(0.0f);
-    float speed = player.flying_speed * deltaTime;
+    float speed = player.flying_speed;
 
     if (player.input->isHeld(FORWARD_KEY))
 	movement += player._camera->Front * speed;
@@ -26,10 +26,11 @@ void FlyingState::handleInput(Player& player, float deltaTime) {
     if (player.input->isHeld(UP_KEY))
 	movement += player._camera->Up * speed;
 
-    // Normalize movement if there is any
-    if (glm::length(movement) > 0.0f)
-        movement = glm::normalize(movement) * speed;
-
-    // Apply the pending movement (only in the XZ plane)
-    player.pendingMovement += movement;
+    // Normalize movement and apply speed
+    if (glm::length(movement) > 0.0f) {
+	movement = glm::normalize(movement) * speed;
+	player.velocity = movement;
+    } else {
+	player.velocity = glm::vec3(0.0f);
+    }
 }

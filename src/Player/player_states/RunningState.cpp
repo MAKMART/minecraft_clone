@@ -13,7 +13,7 @@ void RunningState::handleInput(Player& player, float deltaTime) {
 
     glm::vec3 movement(0.0f);
     player.running_speed = player.walking_speed + player.running_speed_increment;
-    float speed = player.running_speed * deltaTime;
+    float speed = player.running_speed;
 
     if (player.input->isHeld(FORWARD_KEY))
 	movement += player._camera->ProcessKeyboard(Camera_Movement::FORWARD, deltaTime, player.running_speed);
@@ -26,9 +26,13 @@ void RunningState::handleInput(Player& player, float deltaTime) {
     if (player.input->isHeld(JUMP_KEY))
 	player.jump();
 
-    if (glm::length(movement) > 0.0f)
+    // Normalize movement and apply speed
+    if (glm::length(movement) > 0.0f) {
 	movement = glm::normalize(movement) * speed;
-
-    player.pendingMovement += glm::vec3(movement.x, 0.0f, movement.z);
+	player.velocity.x = movement.x;
+	player.velocity.z = movement.z;
+    } else {
+	player.velocity.x = 0.0f;
+	player.velocity.z = 0.0f;
+    }
 }
-

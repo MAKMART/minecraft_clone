@@ -190,6 +190,7 @@ bool Player::isCollidingAt(const glm::vec3& pos, ChunkManager& chunkManager) {
                 if (!currentChunk) return true; // Prevent moving into unloaded chunks
 
                 int localX = x - (chunkCoords.x * chunkSize.x);
+		int localY = y - (chunkCoords.y * chunkSize.y);
                 int localZ = z - (chunkCoords.z * chunkSize.z);
 
                 if (y < 0 || y >= chunkSize.y) {
@@ -197,7 +198,7 @@ bool Player::isCollidingAt(const glm::vec3& pos, ChunkManager& chunkManager) {
                     else continue;
                 }
 
-                const Block& block = currentChunk->getBlockAt(localX, y, localZ);
+                const Block& block = currentChunk->getBlockAt(localX, localY, localZ);
                 if (block.type != Block::blocks::AIR) {
                     return true;
                 }
@@ -223,43 +224,89 @@ bool Player::isInsidePlayerBoundingBox(const glm::vec3& checkPos) const {
 	(checkZ >= minZ && checkZ <= maxZ);
     return inside;
 }
+/*
 void Player::handleCollisions(glm::vec3& newPosition, glm::vec3& velocity,
                               const glm::vec3& oldPosition, ChunkManager& chunkManager) {
-    // --- X-axis collision ---
+    // --- Y-axis collision (handle vertical first to set correct y-position) ---
     glm::vec3 testPos = newPosition;
-    testPos.y = oldPosition.y; // Test horizontal movement first
-    testPos.z = oldPosition.z;
+    if (isCollidingAt(testPos, chunkManager)) {
+        if (velocity.y < 0)
+            isOnGround = true;
+        newPosition.y = oldPosition.y;
+        velocity.y = 0.0f;
+    } else {
+        isOnGround = false;
+    }
+
+    // --- X-axis collision ---
+    testPos = newPosition; // Use newPosition.y (after Y-axis collision)
+    testPos.z = oldPosition.z; // Only change z to test x movement
     if (isCollidingAt(testPos, chunkManager)) {
         newPosition.x = oldPosition.x;
         velocity.x = 0.0f;
     }
 
     // --- Z-axis collision ---
-    testPos = newPosition;
-    testPos.y = oldPosition.y;
-    testPos.x = oldPosition.x;
+    testPos = newPosition; // Use newPosition.y (after Y-axis collision)
+    testPos.x = oldPosition.x; // Only change x to test z movement
     if (isCollidingAt(testPos, chunkManager)) {
         newPosition.z = oldPosition.z;
         velocity.z = 0.0f;
     }
 
-    // --- Y-axis collision ---
-    testPos = newPosition;
+    // Additional check for grounded state when velocity.y is zero
+    if (velocity.y == 0.0f) {
+        glm::vec3 groundCheckPos = newPosition;
+        groundCheckPos.y -= 0.001f; // Small epsilon to check for ground
+        if (isCollidingAt(groundCheckPos, chunkManager)) {
+            isOnGround = true;
+        }
+    }
+}*/
+void Player::handleCollisions(glm::vec3& newPosition, glm::vec3& velocity,
+                              const glm::vec3& oldPosition, ChunkManager& chunkManager) {
+    // --- Full movement collision check ---
+    glm::vec3 testPos = newPosition;
     if (isCollidingAt(testPos, chunkManager)) {
-	if (velocity.y < 0) isOnGround = true;
-	newPosition.y = oldPosition.y;
-	velocity.y = 0.0f;
+        // Try Y-axis first (vertical collision)
+        testPos = newPosition;
+        testPos.x = oldPosition.x;
+        testPos.z = oldPosition.z;
+        if (isCollidingAt(testPos, chunkManager)) {
+            if (velocity.y < 0)
+                isOnGround = true;
+            newPosition.y = oldPosition.y;
+            velocity.y = 0.0f;
+        } else {
+            isOnGround = false;
+        }
+
+        // Test X-axis (horizontal collision)
+        testPos = newPosition;
+        testPos.z = oldPosition.z;
+        if (isCollidingAt(testPos, chunkManager)) {
+            newPosition.x = oldPosition.x;
+            velocity.x = 0.0f;
+        }
+
+        // Test Z-axis (horizontal collision)
+        testPos = newPosition;
+        testPos.x = oldPosition.x;
+        if (isCollidingAt(testPos, chunkManager)) {
+            newPosition.z = oldPosition.z;
+            velocity.z = 0.0f;
+        }
     } else {
-	isOnGround = false;
+        isOnGround = false;
     }
 
-    // Additional check to handle grounded state when velocity is zero (e.g., initial spawn)
+    // Ground check for standing still
     if (velocity.y == 0.0f) {
-	glm::vec3 groundCheckPos = newPosition;
-	groundCheckPos.y -= 0.001f; // Small epsilon to check for ground
-	if (isCollidingAt(groundCheckPos, chunkManager)) {
-	    isOnGround = true;
-	}
+        glm::vec3 groundCheckPos = newPosition;
+        groundCheckPos.y -= 0.001f;
+        if (isCollidingAt(groundCheckPos, chunkManager)) {
+            isOnGround = true;
+        }
     }
 }
 void Player::render(unsigned int shaderProgram) {
