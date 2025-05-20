@@ -2,11 +2,15 @@ cmake_minimum_required(VERSION 3.15...4.0.1)
 cmake_policy(VERSION 3.25)  # Set this to highest version you've tested with
 
 # Project Name
-project("opengl" VERSION 0.1.0 LANGUAGES CXX)
+project("opengl" VERSION 0.2.0 LANGUAGES CXX)
 
-set(BUILD_SHARED_LIBS OFF)
-set(CMAKE_EXE_LINKER_FLAGS "-static")
+#set(CMAKE_EXE_LINKER_FLAGS "-static")
+set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 include(FetchContent)
+
+
+
+
 
 # GLEW (CMake-friendly fork)
 FetchContent_Declare(
@@ -16,8 +20,20 @@ FetchContent_Declare(
   GIT_SHALLOW    TRUE
   GIT_PROGRESS   TRUE
 )
+
 set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Build static libs" FORCE)
+set(GLEW_USE_STATIC_LIBS ON)
+set(GLEW_BUILD_STATIC ON)
+set(GLEW_BUILD_SHARED OFF)
+set(GLEW_BUILD_EXAMPLES OFF)
+set(GLEW_BUILD_TESTS OFF)
+set(GLEW_BUILD_DOCS OFF)
+
+
+
 FetchContent_MakeAvailable(glew)
+get_directory_property(GLEW_SUBDIR TARGETS)
+message(STATUS "Targets from GLEW dir: ${GLEW_SUBDIR}")
 message(STATUS "GLEW (CMake version) fetched from: ${glew_SOURCE_DIR}")
 
 # GLFW
@@ -108,11 +124,9 @@ target_compile_options(${PROJECT_NAME} PRIVATE # use -Werror if u want warning t
 # Linking
 target_link_libraries(${PROJECT_NAME} 
     PUBLIC OpenGL::GL 
-    PRIVATE ${glew_BINARY_DIR}/lib/libglewd.a glfw glm::glm
-    opengl32
+    PRIVATE libglew_static glfw glm::glm opengl32
 )
 message(STATUS "GLEW build dir: ${glew_BINARY_DIR}")
-target_link_directories(${PROJECT_NAME} PRIVATE ${glew_BINARY_DIR}/lib)
 target_compile_definitions(${PROJECT_NAME} PRIVATE GLEW_STATIC)
 # Include Paths
 target_include_directories(${PROJECT_NAME} PRIVATE
