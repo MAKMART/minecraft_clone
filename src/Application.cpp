@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "GLFW/glfw3.h"
 #include "defines.h"
 #include "imgui.h"
 #include <exception>
@@ -346,7 +347,7 @@ void Application::Run(void) {
 	return;
     }
 
-    while (window && !glfwWindowShouldClose(window)) {
+    while(!glfwWindowShouldClose(window) && window) {
 	// --- Time Management ---
 	float currentFrame = static_cast<float>(glfwGetTime());
 	deltaTime = currentFrame - lastFrame;
@@ -370,9 +371,12 @@ void Application::Run(void) {
 	player->update(deltaTime, *chunkManager);
 
 	// --- Render World ---
-	if(renderTerrain)
+	if(renderTerrain) {
 	  chunkManager->renderChunks(player->getPos(), player->render_distance, *player->_camera);
-
+	  //chunkManager->chunkShader->setFloat("time", glfwGetTime());	// yk maybe don't do it here 
+									// would be better if you do it in the ChunkManger class directly
+									// TODO: FIX it
+	}
 	// -- Render Player -- (BEFORE UI pass)
 	if(player->renderSkin) {
 	    playerShader->use();

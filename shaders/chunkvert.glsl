@@ -24,6 +24,7 @@ layout(std430, binding = 0) readonly buffer vertexPullBuffer
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
+uniform float time;
 
 const vec3 facePositions[6][4] = vec3[6][4](
     // FRONT (+Z)
@@ -111,7 +112,17 @@ void main()
   vec3 localOffset = facePositions[face_id][faceIndices[currVertexID]];
   position += localOffset;
 
-  gl_Position = projection * view * model * vec4(position, 1.0);
+
+  // EFFECTS
+
+  vec4 worldPos = model * vec4(position, 1.0);
+
+  gl_Position = projection * view * worldPos;
+
+
+  // END
+
+
 
   const vec2 cellSize = vec2(16, 16);	//Size of each texture in the atlas
 

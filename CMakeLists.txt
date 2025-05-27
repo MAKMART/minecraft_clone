@@ -4,12 +4,8 @@ cmake_policy(VERSION 3.25)  # Set this to highest version you've tested with
 # Project Name
 project("opengl" VERSION 0.2.0 LANGUAGES CXX)
 
-#set(CMAKE_EXE_LINKER_FLAGS "-static")
 set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 include(FetchContent)
-
-
-
 
 
 # GLEW (CMake-friendly fork)
@@ -28,19 +24,16 @@ set(GLEW_BUILD_SHARED OFF)
 set(GLEW_BUILD_EXAMPLES OFF)
 set(GLEW_BUILD_TESTS OFF)
 set(GLEW_BUILD_DOCS OFF)
-
-
-
 FetchContent_MakeAvailable(glew)
-get_directory_property(GLEW_SUBDIR TARGETS)
-message(STATUS "Targets from GLEW dir: ${GLEW_SUBDIR}")
-message(STATUS "GLEW (CMake version) fetched from: ${glew_SOURCE_DIR}")
+#message(STATUS "Targets from GLEW dir: ${GLEW_SUBDIR}")
+#message(STATUS "GLEW (CMake version) fetched from: ${glew_SOURCE_DIR}")
+#message(STATUS "GLEW build dir: ${glew_BINARY_DIR}")
 
 # GLFW
 FetchContent_Declare(
   glfw
   GIT_REPOSITORY https://github.com/glfw/glfw.git
-  GIT_TAG        master     # assumes they're using main for development
+  GIT_TAG        master     # assumes they're using master for development
   GIT_SHALLOW    TRUE     # faster fetch
   GIT_PROGRESS   TRUE
 )
@@ -85,10 +78,8 @@ if (NOT OpenGL_FOUND)
     message(FATAL_ERROR "OpenGL package not found!")
 endif()
 
-# Output Directory
+# Output Directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-# Maybe FIX before with nvim
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/debug)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/release)
 
@@ -116,9 +107,24 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     PROJECT_VERSION_SUFFIX="${PROJECT_VERSION_SUFFIX}"
 )
 
-target_compile_options(${PROJECT_NAME} PRIVATE # use -Werror if u want warning treated as errors!!!! && use -Wall to 
-    $<$<CONFIG:Debug>:-g -fexceptions -Wall -Wextra -pedantic  -Wuninitialized -ggdb >
-    $<$<CONFIG:Release>:-O3 -Wall -Wextra -pedantic  -flto -march=native>
+target_compile_options(${PROJECT_NAME} PRIVATE
+    $<$<CONFIG:Debug>:
+	-g 
+	-fexceptions 
+	-Wall 
+	-Wextra 
+	-pedantic  
+	-Wuninitialized 
+	-ggdb 
+    > # use -Werror if u want warning treated as errors!!!! && use -Wall to
+    $<$<CONFIG:Release>:
+	-O3 
+	-s 
+	-flto 
+	-fomit-frame-pointer 
+	-funsafe-math-optimizations 
+	-fno-math-errno 
+    > # Beware of -match=native as it locks the build to the CPU type it's beign built in
 )
 
 # Linking
@@ -126,8 +132,6 @@ target_link_libraries(${PROJECT_NAME}
     PUBLIC OpenGL::GL 
     PRIVATE libglew_static glfw glm::glm opengl32
 )
-message(STATUS "GLEW build dir: ${glew_BINARY_DIR}")
-target_compile_definitions(${PROJECT_NAME} PRIVATE GLEW_STATIC)
 # Include Paths
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${glew_SOURCE_DIR}/include
