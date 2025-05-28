@@ -1,0 +1,10 @@
+<rml>
+<head>
+    <link type="text/css" href="styles.css"/>
+</head>
+<body class="centered">
+    <div class="fancy-box">
+        Hello with a background!
+    </div>
+</body>
+</rml>

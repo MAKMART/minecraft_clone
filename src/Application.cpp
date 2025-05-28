@@ -108,6 +108,7 @@ Application::Application(int width, int height)
     } catch (const std::exception& e) {
 	std::cerr << "Error: " << e.what() << std::endl;
     }
+    ui = std::make_unique<UI>(width, height, new Shader("shaders/uiVert.glsl", "shaders/uiFrag.glsl"), "assets/ui/fonts/Hack-Regular.ttf", "assets/ui/main2.rml");
     // Initialize ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -164,7 +165,8 @@ void Application::initWindow(void) {
 
     // Set GLFW callbacks
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetCursorPosCallback(window, cursor_callback);
+    glfwSetMouseButtonCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetKeyCallback(window, key_callback);
     if (glfwRawMouseMotionSupported()) {
@@ -494,6 +496,14 @@ void Application::Run(void) {
 	    
 	}
 #endif
+
+
+	// other UI things...
+	
+	ui->render();
+
+
+
 	if(DEPTH_TEST) {
 	    glEnable(GL_DEPTH_TEST);
 	    glDepthFunc(GL_LEQUAL);
@@ -513,9 +523,10 @@ void Application::framebuffer_size_callback(GLFWwindow* window, int width, int h
     if (app) {
 	app->aspectRatio = static_cast<float>(width) / height;
 	app->player->_camera->setAspectRatio(app->aspectRatio);
+	app->ui->SetViewportSize(width, height);
     }
 }
-void Application::mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+void Application::cursor_callback(GLFWwindow* window, double xpos, double ypos) {
     (void)ypos;
     (void)xpos;
     auto* application = static_cast<Application*>(glfwGetWindowUserPointer(window));
@@ -530,8 +541,23 @@ void Application::mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     glm::vec2 delta(static_cast<float>(mouseDelta.first), yDelta);
 
     application->player->processMouseMovement(delta.x, delta.y, true);
+    if (application->ui->context)
+	application->ui->context->ProcessMouseMove(static_cast<int>(xpos), static_cast<int>(ypos), application->ui->GetKeyModifiers()); 
 
 }
+void Application::mouse_callback(GLFWwindow* window, int button, int action, int mods) {
+    auto* application = static_cast<Application*>(glfwGetWindowUserPointer(window));
+
+    if (!application) return;
+
+    if (!application->ui->context) return;
+    if (action == GLFW_PRESS)
+	application->ui->context->ProcessMouseButtonDown(button, mods);
+    else if (action == GLFW_RELEASE)
+	application->ui->context->ProcessMouseButtonUp(button, mods);
+
+}
+
 void Application::scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 
     (void)xoffset;
@@ -540,6 +566,8 @@ void Application::scroll_callback(GLFWwindow* window, double xoffset, double yof
 
     if (app)
 	app->player->processMouseScroll(static_cast<float>(yoffset));
+    if (app->ui->context)
+	app->ui->context->ProcessMouseWheel(static_cast<float>(-yoffset), 0);
 }
 void Application::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     /*if (!ui || !ui->context) return;

@@ -1,0 +1,42 @@
+body.centered {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    background: #111; /* optional dark background for contrast */
+}
+
+div.fancy-box {
+    font-family: "Hack-Regular";
+    background-color: #eeeeee;
+    padding: 20px;
+    width: 300px;
+    color: black;
+    text-align: center;
+    animation: none;
+}
+
+/* Bounce animation */
+@keyframes click-bounce {
+    0%   { transform: rotate(0deg); }
+    10%  { transform: rotate(15deg); }
+    20%  { transform: rotate(-12deg); }
+    30%  { transform: rotate(9deg); }
+    40%  { transform: rotate(-6deg); }
+    50%  { transform: rotate(4deg); }
+    60%  { transform: rotate(-2deg); }
+    70%  { transform: rotate(1deg); }
+    80%  { transform: rotate(0deg); }
+    100% { transform: rotate(0deg); }
+}
+div.fancy-box.clicked {
+    font-family: "Hack-Regular";
+    background-color: #eeeeee;
+    padding: 20px;
+    width: 300px;
+    color: black;
+    text-align: center;
+    animation: click-bounce 3.4s ease-out;
+}

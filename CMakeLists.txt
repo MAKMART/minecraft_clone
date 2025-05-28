@@ -50,6 +50,78 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
+
+
+
+
+# FreeType setup
+FetchContent_Declare(
+  freetype
+  GIT_REPOSITORY https://github.com/freetype/freetype.git
+  GIT_TAG master
+  GIT_SHALLOW TRUE
+  GIT_PROGRESS TRUE
+)
+option(FT_DISABLE_ZLIB "Disable use of system zlib and use internal zlib library instead." ON)
+option(FT_DISABLE_BZIP2 "Disable support of bzip2 compressed fonts." ON)
+option(FT_DISABLE_PNG "Disable support of PNG compressed OpenType embedded bitmaps." ON)
+option(FT_DISABLE_HARFBUZZ "Disable HarfBuzz (used for improving auto-hinting of OpenType fonts)." ON)
+option(FT_DISABLE_BROTLI "Disable support of compressed WOFF2 fonts." ON)
+FetchContent_MakeAvailable(freetype)
+message(STATUS "Freetype_ROOT: ${freetype_ROOT_DIR}")
+message(STATUS "freetype_BINARY_DIR: ${freetype_BINARY_DIR}")
+message(STATUS "FreeType fetched from: ${freetype_SOURCE_DIR}")
+
+# Ensure FreeType is found by RmlUi
+set(Freetype_ROOT ${freetype_BINARY_DIR} CACHE INTERNAL "FreeType build directory")
+set(FREETYPE_LIBRARY ${freetype_BINARY_DIR}/libfreetype.a CACHE INTERNAL "FreeType library")
+set(FREETYPE_INCLUDE_DIRS ${freetype_SOURCE_DIR}/include CACHE INTERNAL "FreeType include directories")
+add_library(Freetype::Freetype ALIAS freetype)
+find_package(Freetype REQUIRED)
+message(STATUS "Freetype found: ${FREETYPE_FOUND}")
+message(STATUS "Freetype libraries: ${FREETYPE_LIBRARIES}")
+message(STATUS "Freetype include dirs: ${FREETYPE_INCLUDE_DIRS}")
+if(NOT FREETYPE_FOUND)
+  message(FATAL_ERROR "Freetype not found by find_package(Freetype)")
+endif()
+
+# RmlUi setup
+FetchContent_Declare(
+  RmlUi
+  GIT_REPOSITORY https://github.com/mikke89/RmlUi.git
+  GIT_TAG master
+  GIT_SHALLOW TRUE
+  GIT_PROGRESS TRUE
+)
+option(RMLUI_ENABLE_DEBUGGER "Enable RmlUi Debugger" ON)
+set(RMLUI_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+set(RMLUI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(RMLUI_BUILD_LIBRMLDEBUGGER ON CACHE BOOL "" FORCE)
+set(RMLUI_FONT_ENGINE "freetype" CACHE STRING "Force freetype font engine" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Force static RmlUi library" FORCE)
+set(RMLUI_SHELL OFF CACHE BOOL "Force disabling shell" FORCE)
+set(CMAKE_MESSAGE_LOG_LEVEL TRACE CACHE STRING "Set log level to TRACE for verbose output" FORCE)
+set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "Enable verbose output" FORCE)
+FetchContent_MakeAvailable(RmlUi)
+message(STATUS "RmlUi fetched from: ${RmlUi_SOURCE_DIR}")
+if(NOT TARGET RmlUi::Core)
+  message(FATAL_ERROR "RmlUi::Core target not found after FetchContent_MakeAvailable(RmlUi). Check _deps/rmlui-src/Source/CMakeLists.txt or CMake/Dependencies.cmake for errors.")
+endif()
+message(STATUS "RmlUi::RmlCore target exists: $<TARGET_EXISTS:RmlUi::RmlCore>")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Then manually add a pre-release label
 set(PROJECT_VERSION_SUFFIX "-pre-alpha")
 set(PROJECT_FULL_VERSION "${PROJECT_VERSION}${PROJECT_VERSION_SUFFIX}")
@@ -130,12 +202,15 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 # Linking
 target_link_libraries(${PROJECT_NAME} 
     PUBLIC OpenGL::GL 
-    PRIVATE libglew_static glfw glm::glm opengl32
+    PRIVATE libglew_static glfw glm::glm freetype RmlUi::Core RmlUi::Debugger opengl32
 )
 # Include Paths
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${glew_SOURCE_DIR}/include
+    ${rmlui_SOURCE_DIR}/Include/RmlUi
+    ${rmlui_SOURCE_DIR}/Backends
     ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/include/UI
     ${PROJECT_SOURCE_DIR}/include/Chunk
     ${PROJECT_SOURCE_DIR}/include/Player
     ${PROJECT_SOURCE_DIR}/include/Player/player_states
@@ -143,4 +218,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${PROJECT_SOURCE_DIR}/include/external
     ${PROJECT_SOURCE_DIR}/include/external/imgui
     ${PROJECT_SOURCE_DIR}/include/external/imgui/backends
+)
+target_sources(${PROJECT_NAME} PRIVATE
+    ${rmlui_SOURCE_DIR}/Include/RmlUi/Core.h
 )
