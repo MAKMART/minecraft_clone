@@ -1,13 +1,16 @@
 #version 460 core
+layout (location = 0) in vec2 inPos;
+layout (location = 1) in vec4 inColor;
+layout (location = 2) in vec2 inTexCoord;
 
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec2 aTexCoord;
+out vec4 vColor;
+out vec2 TexCoord;
 
-uniform mat4 uProjection; // Updated to use a full projection matrix
-
-out vec2 vTexCoord;
+uniform mat4 uProjection;
+uniform mat4 uModel;
 
 void main() {
-    gl_Position = uProjection * vec4(aPos, 0.0, 1.0);
-    vTexCoord = aTexCoord;
+    vColor = inColor;
+    TexCoord = inTexCoord;
+    gl_Position = uProjection * uModel * vec4(inPos, 0.0, 1.0);
 }

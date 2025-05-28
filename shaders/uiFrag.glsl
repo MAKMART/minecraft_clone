@@ -1,17 +1,17 @@
 #version 460 core
-
-in vec2 vTexCoord; // Interpolated texture coordinates
+in vec4 vColor;
+in vec2 TexCoord;
+uniform sampler2D uTexture;
+uniform int uHasTexture;    // Flag to check if texture is used
 out vec4 FragColor;
 
-layout (binding = 1)  uniform sampler2D uTexture; // Texture sampler
-
-void main()
-{
-    vec4 texColor = texture(uTexture, vTexCoord);
-    if (texColor.a == 0.0) {
-        discard;
+void main() {
+    if (uHasTexture == 0) {
+	// If no texture is provided, use the color from the CSS
+	FragColor = vColor; 
+    } else {
+	// Otherwise, sample the texture and apply the vertex color
+	vec4 tex = texture(uTexture, TexCoord);
+	FragColor = tex * vColor;
     }
-    vec3 finalColor = vec3(1.0) - texColor.rgb;
-    FragColor = vec4(finalColor, texColor.a);
 }
-

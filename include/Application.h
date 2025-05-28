@@ -20,7 +20,6 @@
 #include "RunningState.h"
 #include "SwimmingState.h"
 #include "InputManager.h"
-#include <gl/GL.h>
 
 class Application {
 public:
@@ -50,8 +49,6 @@ private:
     b8 firstMouse = true;
 
 
-
-
     std::unique_ptr<Shader> playerShader;
     std::unique_ptr<ChunkManager> chunkManager;
     std::unique_ptr<Player> player;
@@ -64,6 +61,7 @@ private:
     static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
     static void mouse_callback(GLFWwindow* window, double xpos, double ypos);
     static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+    static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
     void processInput();
     float getFPS(float delta);
 

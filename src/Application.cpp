@@ -166,6 +166,7 @@ void Application::initWindow(void) {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
+    glfwSetKeyCallback(window, key_callback);
     if (glfwRawMouseMotionSupported()) {
 	glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
     } else {
@@ -540,6 +541,40 @@ void Application::scroll_callback(GLFWwindow* window, double xoffset, double yof
     if (app)
 	app->player->processMouseScroll(static_cast<float>(yoffset));
 }
+void Application::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    /*if (!ui || !ui->context) return;
+
+    // Update modifier state
+    bool pressed = (action != GLFW_RELEASE);
+    switch (key) {
+	case GLFW_KEY_LEFT_SHIFT:
+	case GLFW_KEY_RIGHT_SHIFT:
+	    ui->isShiftDown = pressed;
+	    break;
+	case GLFW_KEY_LEFT_CONTROL:
+	case GLFW_KEY_RIGHT_CONTROL:
+	    ui->isCtrlDown = pressed;
+	    break;
+	case GLFW_KEY_LEFT_ALT:
+	case GLFW_KEY_RIGHT_ALT:
+	    ui->isAltDown = pressed;
+	    break;
+	case GLFW_KEY_LEFT_SUPER:
+	case GLFW_KEY_RIGHT_SUPER:
+	    ui->isMetaDown = pressed;
+	    break;
+	default:
+	    break;
+    }
+
+    // Map and pass the key event to RmlUI
+    Rml::Input::KeyIdentifier rml_key = ui->MapKey(key);
+    if (action == GLFW_PRESS)
+	ui->context->ProcessKeyDown(rml_key, ui->GetKeyModifiers());
+    else if (action == GLFW_RELEASE)
+	ui->context->ProcessKeyUp(rml_key, ui->GetKeyModifiers());*/
+}
+
 void Application::MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
                                 GLsizei length, const GLchar* message, const void* userParam) {
 
