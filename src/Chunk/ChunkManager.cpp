@@ -204,7 +204,9 @@ std::shared_ptr<Chunk> ChunkManager::getChunk(glm::vec3 worldPos) const
     if (chunks.find(chunkPosition) != chunks.end()) {
         return chunks.find(chunkPosition)->second;
     } else {
-        std::cerr << "Chunk at " << chunkX << ", " << chunkY << ", " << chunkZ << " not found!" << std::endl;
+#ifdef DEBUG
+        //std::cerr << "Chunk at " << chunkX << ", " << chunkY << ", " << chunkZ << " not found!" << std::endl;
+#endif
         return nullptr;
     }
 }
@@ -221,7 +223,9 @@ Chunk* ChunkManager::getChunk(glm::vec3 worldPos, bool returnRawPointer) const
     }
     else
     {
+#ifdef DEBUG
 	std::cerr << "Chunk at " << chunkX << ", " << chunkY << ", " << chunkZ << " not found!" << std::endl;
+#endif
 	return nullptr;
     }
 }
