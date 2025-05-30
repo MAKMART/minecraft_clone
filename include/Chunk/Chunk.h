@@ -157,6 +157,13 @@ class Chunk
 	void cleanup(void) {
 	    if(SSBO)	glDeleteBuffers(1, &SSBO);
 	}
+
+	// References to neighboring chunks
+	std::weak_ptr<Chunk> leftChunk;   // -x direction
+	std::weak_ptr<Chunk> rightChunk;  // +x direction
+	std::weak_ptr<Chunk> frontChunk;  // +z direction
+	std::weak_ptr<Chunk> backChunk;   // -z direction
+
 	GLuint SSBO, EBO;
 	int nonAirBlockCount = 0;
 	int blockCount = 0;

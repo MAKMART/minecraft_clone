@@ -108,11 +108,11 @@ Application::Application(int width, int height)
     } catch (const std::exception& e) {
 	std::cerr << "Error: " << e.what() << std::endl;
     }
-    ui = std::make_unique<UI>(width, height, new Shader("shaders/uiVert.glsl", "shaders/uiFrag.glsl"), "assets/ui/fonts/Hack-Regular.ttf", "assets/ui/main2.rml");
+    ui = std::make_unique<UI>(width, height, new Shader("shaders/uiVert.glsl", "shaders/uiFrag.glsl"), "assets/ui/fonts/Hack-Regular.ttf", "assets/ui/main.rml");
     // Initialize ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); // Avoid unused variable warning if not using io directly
+    //ImGuiIO& io = ImGui::GetIO(); // Avoid unused variable warning if not using io directly
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
    ImGui_ImplOpenGL3_Init("#version 460");
@@ -133,8 +133,12 @@ void Application::initWindow(void) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#else
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_FALSE);
+#endif
+    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);		// !!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!
 #ifdef DEBUG
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #endif
@@ -368,7 +372,6 @@ void Application::Run(void) {
 	glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT);
 
 	// --- Player Update && Third-Person Rendering ---
-	playerShader->use();
 	playerShader->setMat4("projection", player->_camera->GetProjectionMatrix());
 	playerShader->setMat4("view", player->_camera->GetViewMatrix());
 	player->update(deltaTime, *chunkManager);
@@ -394,14 +397,17 @@ void Application::Run(void) {
 	    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	    crossHairshader->setMat4("uProjection", orthoProj);
 
-	    crossHairshader->use();
 	    crossHairTexture->Bind(1);	//INFO: MAKE SURE TO BIND IT TO THE CORRECT TEXTURE BINDING!!!
+	    crossHairshader->use();
 	    glBindVertexArray(crosshairVAO);
 	    DrawElementsWrapper(GL_TRIANGLES, sizeof(CrosshairIndices) / sizeof(CrosshairIndices[0]), GL_UNSIGNED_INT, nullptr);
 	    crossHairTexture->Unbind();
 	    glBindVertexArray(0);
 	    // --- ---
 
+	    //render the ui before IMGUI
+	    
+	    ui->render();
 	    //other UI stuff...
 	}
 #ifdef NDEBUG // TEMP
@@ -416,11 +422,12 @@ void Application::Run(void) {
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 #endif
 
+	//GLFWwindow* current = glfwGetCurrentContext();
+	//std::cout << "Current context before ImGui pass: " << current << "\n";
 #ifdef DEBUG
 	if(renderUI) {
-	    // --- UI Pass ---
-	    glDisable(GL_DEPTH_TEST);
 	    // --- ImGui Debug UI Pass ---
+	    glDisable(GL_DEPTH_TEST);
 	    ImGui_ImplOpenGL3_NewFrame();
 	    ImGui_ImplGlfw_NewFrame();
 	    ImGui::NewFrame();
@@ -491,16 +498,24 @@ void Application::Run(void) {
 	    }
 	    ImGui::End();
 
+	    //ImGui::Render();
+	    //ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+	    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "ImGui Render");
 	    ImGui::Render();
 	    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-	    
+	    glPopDebugGroup();
+
+
 	}
 #endif
+	//current = glfwGetCurrentContext();
+	//std::cout << "Current context after ImGui pass: " << current << "\n";
 
 
 	// other UI things...
 	
-	ui->render();
+	//ui->render();
 
 
 
@@ -527,8 +542,6 @@ void Application::framebuffer_size_callback(GLFWwindow* window, int width, int h
     }
 }
 void Application::cursor_callback(GLFWwindow* window, double xpos, double ypos) {
-    (void)ypos;
-    (void)xpos;
     auto* application = static_cast<Application*>(glfwGetWindowUserPointer(window));
 
     if (!application) return;
@@ -541,7 +554,7 @@ void Application::cursor_callback(GLFWwindow* window, double xpos, double ypos) 
     glm::vec2 delta(static_cast<float>(mouseDelta.first), yDelta);
 
     application->player->processMouseMovement(delta.x, delta.y, true);
-    if (application->ui->context)
+    if (application->ui->context && application->FREE_CURSOR)
 	application->ui->context->ProcessMouseMove(static_cast<int>(xpos), static_cast<int>(ypos), application->ui->GetKeyModifiers()); 
 
 }
@@ -559,9 +572,6 @@ void Application::mouse_callback(GLFWwindow* window, int button, int action, int
 }
 
 void Application::scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-
-    (void)xoffset;
-
     auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
 
     if (app)
@@ -570,37 +580,40 @@ void Application::scroll_callback(GLFWwindow* window, double xoffset, double yof
 	app->ui->context->ProcessMouseWheel(static_cast<float>(-yoffset), 0);
 }
 void Application::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    /*if (!ui || !ui->context) return;
 
+    auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+
+    if (!app) return;
+    if (!app->ui || !app->ui->context) return;
     // Update modifier state
     bool pressed = (action != GLFW_RELEASE);
     switch (key) {
 	case GLFW_KEY_LEFT_SHIFT:
 	case GLFW_KEY_RIGHT_SHIFT:
-	    ui->isShiftDown = pressed;
+	    app->ui->isShiftDown = pressed;
 	    break;
 	case GLFW_KEY_LEFT_CONTROL:
 	case GLFW_KEY_RIGHT_CONTROL:
-	    ui->isCtrlDown = pressed;
+	    app->ui->isCtrlDown = pressed;
 	    break;
 	case GLFW_KEY_LEFT_ALT:
 	case GLFW_KEY_RIGHT_ALT:
-	    ui->isAltDown = pressed;
+	    app->ui->isAltDown = pressed;
 	    break;
 	case GLFW_KEY_LEFT_SUPER:
 	case GLFW_KEY_RIGHT_SUPER:
-	    ui->isMetaDown = pressed;
+	    app->ui->isMetaDown = pressed;
 	    break;
 	default:
 	    break;
     }
 
     // Map and pass the key event to RmlUI
-    Rml::Input::KeyIdentifier rml_key = ui->MapKey(key);
+    Rml::Input::KeyIdentifier rml_key = app->ui->MapKey(key);
     if (action == GLFW_PRESS)
-	ui->context->ProcessKeyDown(rml_key, ui->GetKeyModifiers());
+	app->ui->context->ProcessKeyDown(rml_key, app->ui->GetKeyModifiers());
     else if (action == GLFW_RELEASE)
-	ui->context->ProcessKeyUp(rml_key, ui->GetKeyModifiers());*/
+	app->ui->context->ProcessKeyUp(rml_key, app->ui->GetKeyModifiers());
 }
 
 void Application::MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity,

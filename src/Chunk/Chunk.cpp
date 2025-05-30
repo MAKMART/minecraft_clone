@@ -117,19 +117,43 @@ void Chunk::updateMesh(void) {
 // Helper function to check if a face is visible
 bool Chunk::isFaceVisible(const Block& block, int x, int y, int z) const
 {
-    (void)block;
+    if (block.type == Block::blocks::AIR) return false; // No faces for air blocks
+
+    // Check if the position is within the current chunk
     if (x >= 0 && x < _size.x && y >= 0 && y < _size.y && z >= 0 && z < _size.z) {
-	return getBlockAt(x, y, z).type == Block::blocks::AIR || getBlockAt(x, y, z).type == Block::blocks::WATER;
+	return getBlockAt(x, y, z).type == Block::blocks::AIR ||
+	    getBlockAt(x, y, z).type == Block::blocks::WATER;
     }
-    /*
-    // Convert local to world coordinates
-    glm::vec3 worldPos(position.x + x, position.y + y, position.z + z);
-    auto chunk = chunkManager.getChunk(worldPos);
-    if (!chunk) return true; // No chunk = air
-    glm::ivec3 localPos = Chunk::worldToLocal(worldPos, _size);
-    return chunk->getBlockAt(localPos.x, localPos.y, localPos.z).type == Block::blocks::AIR;
-    */
-    return true;
+
+    // Handle boundary cases using neighbor references
+    std::shared_ptr<Chunk> neighbor;
+    glm::ivec3 localPos;
+
+    if (x < 0) { // Left neighbor (-x)
+	neighbor = leftChunk.lock();
+	localPos = glm::ivec3(_size.x - 1, y, z);
+    } else if (x >= _size.x) { // Right neighbor (+x)
+	neighbor = rightChunk.lock();
+	localPos = glm::ivec3(0, y, z);
+    } else if (z < 0) { // Back neighbor (-z)
+	neighbor = backChunk.lock();
+	localPos = glm::ivec3(x, y, _size.z - 1);
+    } else if (z >= _size.z) { // Front neighbor (+z)
+	neighbor = frontChunk.lock();
+	localPos = glm::ivec3(x, y, 0);
+    } else if (y < 0 || y >= _size.y) { // Vertical boundaries (if needed)
+					// Handle y-boundaries if chunks exist above/below
+					// For now, assume air for simplicity
+	return true;
+    }
+
+    if (!neighbor) {
+	return true; // Neighbor not loaded, assume air
+    }
+
+    return neighbor->getBlockAt(localPos.x, localPos.y, localPos.z).type == Block::blocks::AIR ||
+	neighbor->getBlockAt(localPos.x, localPos.y, localPos.z).type == Block::blocks::WATER;
+
 }
 void Chunk::renderChunk(std::unique_ptr<Shader> &shader) {
     if (faces.empty()) 

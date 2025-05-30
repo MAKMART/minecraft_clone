@@ -550,30 +550,8 @@ void Player::breakBlock(ChunkManager& chunkManager) {
 
     glm::ivec3 blockPos = hitBlock.value();
 
-    // Determine which chunk this block belongs to
-    Chunk* hitChunk = chunkManager.getChunk({blockPos.x, 0, blockPos.z}, true);
-    if (!hitChunk) return;
-
-    // Convert world position to local chunk position
-    glm::ivec3 localBlockPos = Chunk::worldToLocal(blockPos, chunkSize);
-
-    // Ensure the block index is valid before modifying the chunk data
-    int blockIndex = hitChunk->getBlockIndex(localBlockPos.x, localBlockPos.y, localBlockPos.z);
-    if (blockIndex < 0 || static_cast<size_t>(blockIndex) >= hitChunk->getChunkData().size()) return;
-
-    // Break the block by setting it to air
-    hitChunk->getChunkData()[blockIndex].type = Block::blocks::AIR;
-
-    // Update the chunk after modification
-    chunkManager.updateChunk({blockPos.x, 0, blockPos.z});
-
-
-    // Update adjacent chunks
-    /*for (int dx = -1; dx <= 1; dx += 2) {
-	chunkManager.updateChunk({blockPos.x + dx * chunkSize.x, 0, blockPos.z});
-	chunkManager.updateChunk({blockPos.x, 0, blockPos.z + dx * chunkSize.z});
-    }*/
-
+    // Use updateBlock to set the block to AIR
+    chunkManager.updateBlock(blockPos, Block::blocks::AIR);
 }
 std::optional<std::pair<glm::ivec3, glm::ivec3>> Player::raycastVoxelWithNormal(
     ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance)
@@ -641,10 +619,11 @@ std::optional<std::pair<glm::ivec3, glm::ivec3>> Player::raycastVoxelWithNormal(
 
     return std::nullopt;
 }
-void Player::placeBlock(ChunkManager& chunkManager)
-{
+
+void Player::placeBlock(ChunkManager& chunkManager) {
     // Perform raycast to find the block the player is looking at
-    std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycastVoxelWithNormal(chunkManager, _camera->Position, _camera->Front, max_interaction_distance);
+    std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycastVoxelWithNormal(
+        chunkManager, _camera->Position, _camera->Front, max_interaction_distance);
 
     if (!hitResult.has_value()) return; // No valid block hit, exit
 
@@ -652,44 +631,38 @@ void Player::placeBlock(ChunkManager& chunkManager)
     glm::ivec3 normal = hitResult->second;      // The normal of the hit face
 
     // Determine the position to place the new block
-    glm::ivec3 placePos = hitBlockPos + -normal;
+    glm::ivec3 placePos = hitBlockPos + (-normal);
 
-    if (isInsidePlayerBoundingBox(placePos))
-	return;
+    // Check if the placement position intersects with the player's bounding box
+    if (isInsidePlayerBoundingBox(placePos)) {
+        return;
+    }
 
     // Get the chunk where the new block should be placed
-    Chunk* placeChunk = chunkManager.getChunk({placePos.x, 0, placePos.z}, true);
-    if (!placeChunk)
-	return;
+    Chunk* placeChunk = chunkManager.getChunk(placePos, true);
+    if (!placeChunk) {
+        return;
+    }
 
     // Convert world coordinates to local chunk coordinates
     glm::ivec3 localBlockPos = Chunk::worldToLocal(placePos, chunkSize);
 
+    // Validate block index
     int blockIndex = placeChunk->getBlockIndex(localBlockPos.x, localBlockPos.y, localBlockPos.z);
     if (blockIndex < 0 || static_cast<size_t>(blockIndex) >= placeChunk->getChunkData().size()) {
-	std::cout << "❌ Invalid block index: " << blockIndex << "\n";
-	return;
+        std::cout << "❌ Invalid block index: " << blockIndex << "\n";
+        return;
     }
 
+    // Check if the target position is air
     if (placeChunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
-	std::cout << "❌ Target block is NOT air! It's type: " 
-	    << Block::toString(placeChunk->getChunkData()[blockIndex].type) << "\n";
-	return;
+        std::cout << "❌ Target block is NOT air! It's type: "
+                  << Block::toString(placeChunk->getChunkData()[blockIndex].type) << "\n";
+        return;
     }
 
-    // ✅ Place block
-    placeChunk->getChunkData()[blockIndex].type = static_cast<Block::blocks>(selectedBlock);
-
-    // Update the modified chunk
-    chunkManager.updateChunk({placePos.x, 0, placePos.z});
-
-
-    // Update adjacent chunks
-    /*for (int dx = -1; dx <= 1; dx += 2) {
-        chunkManager.updateChunk({placePos.x + dx * chunkSize.x, 0, placePos.z});
-        chunkManager.updateChunk({placePos.x, 0, placePos.z + dx * chunkSize.z});
-    }*/
-
+    // Place the block using updateBlock
+    chunkManager.updateBlock(placePos, static_cast<Block::blocks>(selectedBlock));
 }
 
 // Handle mouse movement input

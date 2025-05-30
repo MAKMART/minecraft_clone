@@ -47,11 +47,67 @@ ChunkManager::~ChunkManager(void) {
 void ChunkManager::unloadChunk(glm::vec3 worldPos) {
     auto chunkKey = getChunkKey(worldPos);
     auto it = chunks.find(chunkKey);
-    if (it != chunks.end()) {
-        it->second->cleanup(); // Delete VBO
-        chunks.erase(it);
+    if (it == chunks.end()) return;
+
+    // Clear neighbor references in adjacent chunks
+    auto chunk = it->second;
+    if (auto left = chunk->leftChunk.lock()) {
+	left->rightChunk.reset();
+	left->updateMesh();
     }
+    if (auto right = chunk->rightChunk.lock()) {
+	right->leftChunk.reset();
+	right->updateMesh();
+    }
+    if (auto front = chunk->frontChunk.lock()) {
+	front->backChunk.reset();
+	front->updateMesh();
+    }
+    if (auto back = chunk->backChunk.lock()) {
+	back->frontChunk.reset();
+	back->updateMesh();
+    }
+
+    // Clean up and remove the chunk
+    chunk->cleanup();
+    chunks.erase(it);
 }
+
+void ChunkManager::updateBlock(glm::vec3 worldPos, Block::blocks newType) {
+    auto chunk = getChunk(worldPos);
+    if (!chunk) return;
+
+    glm::ivec3 localPos = Chunk::worldToLocal(worldPos, chunkSize);
+    int index = chunk->getBlockIndex(localPos.x, localPos.y, localPos.z);
+    if (index == -1) return;
+
+    chunk->getChunkData()[index].type = newType;
+    chunk->updateMesh();
+
+    // Update neighbors if the block is on a boundary
+    if (localPos.x == 0) {
+        if (auto neighbor = chunk->leftChunk.lock()) {
+            neighbor->updateMesh();
+        }
+    }
+    if (localPos.x == chunkSize.x - 1) {
+        if (auto neighbor = chunk->rightChunk.lock()) {
+            neighbor->updateMesh();
+        }
+    }
+    if (localPos.z == 0) {
+        if (auto neighbor = chunk->backChunk.lock()) {
+            neighbor->updateMesh();
+        }
+    }
+    if (localPos.z == chunkSize.z - 1) {
+        if (auto neighbor = chunk->frontChunk.lock()) {
+            neighbor->updateMesh();
+        }
+    }
+    // Add y-boundary checks if needed
+}
+
 
 void ChunkManager::loadChunksAroundPlayer(glm::vec3 playerPosition, int renderDistance)
 {
@@ -85,8 +141,35 @@ void ChunkManager::loadChunksAroundPlayer(glm::vec3 playerPosition, int renderDi
 			noiseMap[z * chunkSize.x + x] = noiseValue;
 		    }
 		}
+		std::shared_ptr<Chunk> newChunk = chunks[chunkKey];
 		// Generate chunk data
-		chunks[chunkKey]->generate(noiseMap);
+		newChunk->generate(noiseMap);
+
+		// Set neighbor references for the new chunk
+		newChunk->leftChunk = getChunk({(chunkX - 1) * chunkSize.x, 0, chunkZ * chunkSize.z});
+		newChunk->rightChunk = getChunk({(chunkX + 1) * chunkSize.x, 0, chunkZ * chunkSize.z});
+		newChunk->frontChunk = getChunk({chunkX * chunkSize.x, 0, (chunkZ + 1) * chunkSize.z});
+		newChunk->backChunk = getChunk({chunkX * chunkSize.x, 0, (chunkZ - 1) * chunkSize.z});
+
+		// Update neighbor references for adjacent chunks
+		if (auto left = newChunk->leftChunk.lock()) {
+		    left->rightChunk = newChunk;
+		    left->updateMesh();
+		}
+		if (auto right = newChunk->rightChunk.lock()) {
+		    right->leftChunk = newChunk;
+		    right->updateMesh();
+		}
+		if (auto front = newChunk->frontChunk.lock()) {
+		    front->backChunk = newChunk;
+		    front->updateMesh();
+		}
+		if (auto back = newChunk->backChunk.lock()) {
+		    back->frontChunk = newChunk;
+		    back->updateMesh();
+		}
+
+
 	    }
 	    catch (const std::exception& e) {
 		std::cerr << "Failed to create chunk at (" << chunkX << ", 0, " << chunkZ << "): " << e.what() << std::endl;
@@ -142,12 +225,6 @@ Chunk* ChunkManager::getChunk(glm::vec3 worldPos, bool returnRawPointer) const
 	return nullptr;
     }
 }
-
-
-
-
-
-
 
 void ChunkManager::renderChunks(glm::vec3 player_position, unsigned int render_distance, const Camera& camera)
 {

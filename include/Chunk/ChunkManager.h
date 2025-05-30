@@ -80,6 +80,7 @@ public:
         chunks.clear();
     }
 
+    void updateBlock(glm::vec3 worldPos, Block::blocks newType);
 
     bool textureLoaded = false;
     std::unique_ptr<Texture> chunksTexture;
