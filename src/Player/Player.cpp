@@ -379,7 +379,6 @@ void Player::render(unsigned int shaderProgram) {
 	    glDepthFunc(GL_LEQUAL);
 	}
     }
-    skinTexture->Unbind();
 }
 const char* Player::getState(void) const {
     if (dynamic_cast<WalkingState*>(currentState.get())) return "WALKING";

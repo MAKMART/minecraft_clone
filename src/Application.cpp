@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "Debugger/Debugger.h"
 #include "GLFW/glfw3.h"
 #include "defines.h"
 #include "imgui.h"
@@ -93,7 +94,7 @@ Application::Application(int width, int height)
     input = std::make_unique<InputManager>(window);
     std::cout << "Initializing Shaders...\n";
     try {
-    playerShader = std::make_unique<Shader>(SHADERS_DIRECTORY / "player_vert.glsl", SHADERS_DIRECTORY / "player_frag.glsl");
+    playerShader = std::make_unique<Shader>(PLAYER_VERTEX_SHADER_DIRECTORY, PLAYER_FRAGMENT_SHADER_DIRECTORY);
     } catch (const std::exception& e) {
 	std::cerr << "Failed to create Shader!!\n";
     }
@@ -108,7 +109,7 @@ Application::Application(int width, int height)
     } catch (const std::exception& e) {
 	std::cerr << "Error: " << e.what() << std::endl;
     }
-    ui = std::make_unique<UI>(width, height, new Shader("shaders/uiVert.glsl", "shaders/uiFrag.glsl"), "assets/ui/fonts/Hack-Regular.ttf", "assets/ui/main.rml");
+    ui = new UI(width, height, new Shader(UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
     // Initialize ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -118,7 +119,8 @@ Application::Application(int width, int height)
    ImGui_ImplOpenGL3_Init("#version 460");
 }
 Application::~Application(void) {
-    // Clean up ImGui and GLFW
+    // Clean up ImGui and GLFW and UI
+    delete ui;
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -314,6 +316,7 @@ void Application::processInput() {
     if (input->isPressed(MENU_KEY))
     {
 	player->_camera->setMouseTracking(FREE_CURSOR);
+	Rml::Debugger::SetVisible(!FREE_CURSOR);
 	glfwSetInputMode(window, GLFW_CURSOR, FREE_CURSOR ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
 	mouseClickEnabled = !mouseClickEnabled;
 	FREE_CURSOR = !FREE_CURSOR;
@@ -401,7 +404,6 @@ void Application::Run(void) {
 	    crossHairshader->use();
 	    glBindVertexArray(crosshairVAO);
 	    DrawElementsWrapper(GL_TRIANGLES, sizeof(CrosshairIndices) / sizeof(CrosshairIndices[0]), GL_UNSIGNED_INT, nullptr);
-	    crossHairTexture->Unbind();
 	    glBindVertexArray(0);
 	    // --- ---
 
@@ -422,8 +424,6 @@ void Application::Run(void) {
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 #endif
 
-	//GLFWwindow* current = glfwGetCurrentContext();
-	//std::cout << "Current context before ImGui pass: " << current << "\n";
 #ifdef DEBUG
 	if(renderUI) {
 	    // --- ImGui Debug UI Pass ---
@@ -498,24 +498,15 @@ void Application::Run(void) {
 	    }
 	    ImGui::End();
 
-	    //ImGui::Render();
-	    //ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-	    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "ImGui Render");
 	    ImGui::Render();
 	    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-	    glPopDebugGroup();
 
 
 	}
 #endif
-	//current = glfwGetCurrentContext();
-	//std::cout << "Current context after ImGui pass: " << current << "\n";
-
 
 	// other UI things...
 	
-	//ui->render();
 
 
 
@@ -535,6 +526,10 @@ void Application::framebuffer_size_callback(GLFWwindow* window, int width, int h
 
     Application* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
 
+    if (width <= 0 || height <= 0) {
+	// Don't recalculate the projection matrix, skip this frame's rendering, or log a warning
+	return;
+    }
     if (app) {
 	app->aspectRatio = static_cast<float>(width) / height;
 	app->player->_camera->setAspectRatio(app->aspectRatio);

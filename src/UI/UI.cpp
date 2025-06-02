@@ -1,12 +1,9 @@
 #include "UI.h"
 #include "glm/gtc/type_ptr.hpp"
-#include <cstring>
 #include <iostream>
-//#define STB_IMAGE_IMPLEMENTATION
-//#include "stb_image.h"
 #include <cstring>
 #include <GLFW/glfw3.h>
-#include <exception>
+#include <stdexcept>
 
 UI::UI(int width, int height, Shader* ui_shader, std::filesystem::path fontPath, std::filesystem::path docPath) : viewport_width(width), viewport_height(height) {
     Rml::SetRenderInterface(this);
@@ -23,7 +20,7 @@ UI::UI(int width, int height, Shader* ui_shader, std::filesystem::path fontPath,
 
     doc = context->LoadDocument(docPath.string());
     if (!doc) {
-	std::cerr << "Failed to load RML document.\n";
+	throw std::runtime_error("Failed to load RML document: " + docPath.string());
     } else {
 	doc->Show();
     }
@@ -36,13 +33,16 @@ UI::~UI() {
         glDeleteBuffers(1, &geo.vbo);
         glDeleteBuffers(1, &geo.ebo);
     }
-    for (auto& [handle, tex] : texture_map) {
-        glDeleteTextures(1, &tex);
+    // No manual deletion needed for textures, Texture destructor handles it
+    texture_map.clear();  // This calls ~Texture for each texture, freeing their OpenGL resources
+
+    if (doc) {
+	doc->Close();
     }
+    Rml::RemoveContext("main");
+    context = nullptr;
     Rml::Shutdown();
     delete shader;
-    delete context;
-    delete doc;
 }
 
 Rml::CompiledGeometryHandle UI::CompileGeometry(Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices) {
@@ -87,17 +87,21 @@ void UI::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f transl
     glm::mat4 final_model = model * translation_matrix; // Apply SetTransform's model first, then translation
 
     shader->use();
-    shader->setMat4("uProjection", projection);
-    shader->setMat4("uModel", final_model);
+    //shader->setMat4("uProjection", projection);
+    //shader->setMat4("uModel", final_model);
 
-    bool hasTexture = texture != 0;
-    shader->setInt("uHasTexture", hasTexture ? 1 : 0);
+    shader->setInt("uHasTexture", texture != 0 ? 1 : 0);
 
     if (texture != 0) {
-	glBindTexture(GL_TEXTURE_2D, texture_map[texture]);
-	shader->setInt("uTexture", 0);
-    } else {
-	glBindTexture(GL_TEXTURE_2D, 0);
+	auto tex = texture_map.find(texture);
+	if (tex != texture_map.end()) {
+	    tex->second.Bind(1);
+	} else {
+	    // Invalid handle, maybe unbind texture or log error
+	    glBindTextureUnit(1, 0);  // Unbind texture unit 1
+	    // Or log warning
+	    std::cerr << "[UI] Warning: Invalid texture handle " << texture << std::endl;
+	}
     }
 
     Geometry& geo = it->second;
@@ -123,30 +127,30 @@ Rml::TextureHandle UI::LoadTexture(Rml::Vector2i& out_dimensions, const Rml::Str
     out_dimensions.y = tex.getHeight();
 
     Rml::TextureHandle handle = next_texture_handle++;
-    texture_map[handle] = tex.getID();
+    texture_map.emplace(handle, std::move(tex));
     return handle;
 }
 
 Rml::TextureHandle UI::GenerateTexture(Rml::Span<const Rml::byte> source, Rml::Vector2i source_dimensions) {
-    GLuint tex;
-    glCreateTextures(GL_TEXTURE_2D, 1, &tex);
-    glTextureStorage2D(tex, 1, GL_RGBA8, source_dimensions.x, source_dimensions.y);
-    glTextureSubImage2D(tex, 0, 0, 0, source_dimensions.x, source_dimensions.y, GL_RGBA, GL_UNSIGNED_BYTE, source.data());
+    // Create an empty texture using your Texture class
+    Texture tex;
+    tex.createEmpty(source_dimensions.x, source_dimensions.y, GL_RGBA8);
 
-    glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // Upload the pixel data (source.data())
+    glTextureSubImage2D(tex.getID(), 0, 0, 0, source_dimensions.x, source_dimensions.y, GL_RGBA, GL_UNSIGNED_BYTE, source.data());
+
+    // Set filtering parameters
+    glTextureParameteri(tex.getID(), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(tex.getID(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     Rml::TextureHandle handle = next_texture_handle++;
-    texture_map[handle] = tex;
+    texture_map.emplace(handle, std::move(tex));  // Store the full Texture object
+
     return handle;
 }
 
 void UI::ReleaseTexture(Rml::TextureHandle handle) {
-    auto it = texture_map.find(handle);
-    if (it != texture_map.end()) {
-        glDeleteTextures(1, &it->second);
-        texture_map.erase(it);
-    }
+    texture_map.erase(handle);
 }
 
 void UI::EnableScissorRegion(bool enable) {
@@ -174,11 +178,11 @@ void UI::SetViewportSize(int width, int height) {
 
 void UI::EnableClipMask(bool enable) {
     // Default: no clip mask support, just disable OpenGL scissor test for clip mask.
-    if (enable) {
+    //if (enable) {
         // You could enable stencil buffer here if you want real clip masks
         // but for now, just disable to be safe.
-        glDisable(GL_SCISSOR_TEST);
-    }
+        //glDisable(GL_SCISSOR_TEST);
+    //}
 }
 
 void UI::RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation) {

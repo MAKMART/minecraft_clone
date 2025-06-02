@@ -3,6 +3,28 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <glm/glm.hpp>
+#include <stdexcept>
+#include <string>
+#include <sstream>
+
+class OpenGLError : public std::runtime_error {
+public:
+    explicit OpenGLError(GLenum errorCode)
+        : std::runtime_error(buildMessage(errorCode)), errorCode(errorCode) {}
+
+    GLenum code() const { return errorCode; }
+
+private:
+    GLenum errorCode;
+
+    static std::string buildMessage(GLenum errorCode) {
+        std::ostringstream oss;
+        oss << "OpenGL Error: 0x" << std::hex << errorCode;
+        return oss.str();
+    }
+};
+
+
 
 
 // Controls
@@ -31,16 +53,24 @@ uint_fast8_t  DEFENSE_BUTTON 		= GLFW_MOUSE_BUTTON_RIGHT;
 std::filesystem::path WORKING_DIRECTORY = std::filesystem::current_path();
 // 	Shaders
 std::filesystem::path SHADERS_DIRECTORY = WORKING_DIRECTORY / "shaders";
+std::filesystem::path PLAYER_VERTEX_SHADER_DIRECTORY = SHADERS_DIRECTORY / "player_vert.glsl";
+std::filesystem::path PLAYER_FRAGMENT_SHADER_DIRECTORY = SHADERS_DIRECTORY / "player_frag.glsl";
 std::filesystem::path CHUNK_VERTEX_SHADER_DIRECTORY = SHADERS_DIRECTORY / "chunkvert.glsl";
 std::filesystem::path CHUNK_FRAGMENT_SHADER_DIRECTORY = SHADERS_DIRECTORY / "chunkfrag.glsl";
 std::filesystem::path CROSSHAIR_VERTEX_SHADER_DIRECTORY = SHADERS_DIRECTORY / "crosshairVert.glsl";
 std::filesystem::path CROSSHAIR_FRAGMENT_SHADER_DIRECTORY = SHADERS_DIRECTORY / "crosshairFrag.glsl";
+std::filesystem::path UI_VERTEX_SHADER_DIRECTORY = SHADERS_DIRECTORY / "ui_vert.glsl";
+std::filesystem::path UI_FRAGMENT_SHADER_DIRECTORY = SHADERS_DIRECTORY / "ui_frag.glsl";
 // 	Assets
 std::filesystem::path ASSETS_DIRECTORY = WORKING_DIRECTORY / "assets";
+std::filesystem::path UI_DIRECTORY = ASSETS_DIRECTORY / "UI";
 std::filesystem::path WINDOW_ICON_DIRECTORY = ASSETS_DIRECTORY / "alpha.png";
 std::filesystem::path BLOCK_ATLAS_TEXTURE_DIRECTORY = ASSETS_DIRECTORY / "block_map.png";
 std::filesystem::path DEFAULT_SKIN_DIRECTORY = ASSETS_DIRECTORY / "Player/default_skin.png";
-std::filesystem::path ICONS_DIRECTORY = ASSETS_DIRECTORY / "UI/icons.png";
+std::filesystem::path ICONS_DIRECTORY = UI_DIRECTORY / "icons.png";
+std::filesystem::path FONTS_DIRECTORY = UI_DIRECTORY / "fonts";
+std::filesystem::path MAIN_FONT_DIRECTORY = FONTS_DIRECTORY / "Hack-Regular.ttf";
+std::filesystem::path MAIN_DOC_DIRECTORY = UI_DIRECTORY / "main.html";
 
 // World Attributes
 float GRAVITY = 9.80665f;
@@ -83,6 +113,45 @@ void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei
     }
 #endif
 }
+/*
+void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count) {
+    glDrawArrays(mode, first, count);
+    g_drawCallCount++;
+
+#ifdef DEBUG
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        throw OpenGLError(error);
+    }
+#endif
+}
+
+void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void* indices) {
+    glDrawElements(mode, count, type, indices);
+    g_drawCallCount++;
+
+#ifdef DEBUG
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        throw OpenGLError(error);
+    }
+#endif
+}
+
+void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount) {
+    glDrawArraysInstanced(mode, first, count, instanceCount);
+    g_drawCallCount++;
+
+#ifdef DEBUG
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        throw OpenGLError(error);
+    }
+#endif
+}*/
+
+
+
 
 float LINE_WIDTH = 1.5f;
 bool WIREFRAME_MODE = false;

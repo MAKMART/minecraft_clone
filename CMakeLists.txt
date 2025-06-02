@@ -51,9 +51,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glm)
 
 
-
-
-
 # FreeType setup
 FetchContent_Declare(
   freetype
@@ -68,9 +65,9 @@ option(FT_DISABLE_PNG "Disable support of PNG compressed OpenType embedded bitma
 option(FT_DISABLE_HARFBUZZ "Disable HarfBuzz (used for improving auto-hinting of OpenType fonts)." ON)
 option(FT_DISABLE_BROTLI "Disable support of compressed WOFF2 fonts." ON)
 FetchContent_MakeAvailable(freetype)
-message(STATUS "Freetype_ROOT: ${freetype_ROOT_DIR}")
-message(STATUS "freetype_BINARY_DIR: ${freetype_BINARY_DIR}")
-message(STATUS "FreeType fetched from: ${freetype_SOURCE_DIR}")
+#message(STATUS "Freetype_ROOT: ${freetype_ROOT_DIR}")
+#message(STATUS "freetype_BINARY_DIR: ${freetype_BINARY_DIR}")
+#message(STATUS "FreeType fetched from: ${freetype_SOURCE_DIR}")
 
 # Ensure FreeType is found by RmlUi
 set(Freetype_ROOT ${freetype_BINARY_DIR} CACHE INTERNAL "FreeType build directory")
@@ -108,18 +105,6 @@ if(NOT TARGET RmlUi::Core)
   message(FATAL_ERROR "RmlUi::Core target not found after FetchContent_MakeAvailable(RmlUi). Check _deps/rmlui-src/Source/CMakeLists.txt or CMake/Dependencies.cmake for errors.")
 endif()
 message(STATUS "RmlUi::RmlCore target exists: $<TARGET_EXISTS:RmlUi::RmlCore>")
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # Then manually add a pre-release label
@@ -200,10 +185,18 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 )
 
 # Linking
-target_link_libraries(${PROJECT_NAME} 
-    PUBLIC OpenGL::GL 
-    PRIVATE libglew_static glfw glm::glm freetype RmlUi::Core RmlUi::Debugger opengl32
-)
+if (WIN32)
+    target_link_libraries(${PROJECT_NAME} 
+	PUBLIC OpenGL::GL 
+	PRIVATE libglew_static glfw glm::glm freetype RmlUi::Core RmlUi::Debugger opengl32
+    )
+elseif (UNIX)
+    target_link_libraries(${PROJECT_NAME} 
+	PUBLIC OpenGL::GL 
+	PRIVATE libglew_static glfw glm::glm freetype RmlUi::Core RmlUi::Debugger GL X11 Xext
+    )
+endif()
+
 # Include Paths
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${glew_SOURCE_DIR}/include
@@ -222,3 +215,27 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_sources(${PROJECT_NAME} PRIVATE
     ${rmlui_SOURCE_DIR}/Include/RmlUi/Core.h
 )
+
+
+
+# === Post-build: Copy Shaders and Assets ===
+
+# Source directories (relative to your project root)
+set(SHADERS_DIR "${CMAKE_SOURCE_DIR}/shaders")
+set(ASSETS_DIR "${CMAKE_SOURCE_DIR}/assets")
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}")
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}")
+endif()
+# Define custom command to copy shaders
+add_custom_command(
+    TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${SHADERS_DIR}" "${OUTPUT_DIR}/shaders"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${ASSETS_DIR}" "${OUTPUT_DIR}/assets"
+    COMMENT "Copying shaders and assets to output directory..."
+)
+

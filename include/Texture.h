@@ -2,6 +2,7 @@
 #include <string>
 #include <GL/glew.h>  // or your appropriate OpenGL header
 #include <filesystem>
+#include <stdexcept>
 
 class Texture {
 public:
@@ -19,16 +20,14 @@ public:
     
     ~Texture(void);
 
-    void Bind(int textureUnitIndex);
-    void Unbind(void) const;
+    void Bind(int unit) const;
+    static void Unbind(int unit);
 
-    GLuint getID(void) const { return ID; }
+    GLuint getID(void) const { if (ID == 0) throw std::runtime_error("Trying to get a invalid ID == 0"); else return ID; }
     int getWidth(void) const { return width; }
     int getHeight(void) const { return height; }
-    GLenum getBoundUnit(void) const { return lastBoundUnit; }
 
 private:
     GLuint ID;
-    GLenum lastBoundUnit = GL_TEXTURE0; // Track the last used texture unit
     int width, height;
 };

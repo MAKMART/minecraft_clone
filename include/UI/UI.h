@@ -97,7 +97,7 @@ private:
     glm::mat4 projection = glm::mat4(1.0f);
     glm::mat4 model = glm::mat4(1.0f);
     std::unordered_map<Rml::CompiledGeometryHandle, Geometry> geometry_map;
-    std::unordered_map<Rml::TextureHandle, GLuint> texture_map;
+    std::unordered_map<Rml::TextureHandle, Texture> texture_map;
 
     Rml::CompiledGeometryHandle next_geometry_handle = 1;
     Rml::TextureHandle next_texture_handle = 1;

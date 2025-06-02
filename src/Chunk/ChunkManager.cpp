@@ -274,5 +274,4 @@ void ChunkManager::renderChunks(glm::vec3 player_position, unsigned int render_d
     }
     glBindVertexArray(0);
 
-    chunksTexture->Unbind(); // Unbind after rendering all chunks
 }

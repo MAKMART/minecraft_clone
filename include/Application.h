@@ -2,8 +2,6 @@
 #include "defines.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <memory>
-#include <windows.h>
-#include <shellapi.h>
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "imgui_impl_glfw.h"
@@ -54,7 +52,7 @@ private:
     std::unique_ptr<ChunkManager> chunkManager;
     std::unique_ptr<Player> player;
     std::unique_ptr<InputManager> input;
-    std::unique_ptr<UI> ui;
+    UI* ui;
     glm::ivec3 chunkSize = {16, 128, 16};	// Size of each chunk
 
 

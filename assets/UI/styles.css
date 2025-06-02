@@ -1,4 +1,4 @@
-body.centered {
+body {
     height: 100%;
     width: 100%;
     display: flex;
@@ -18,5 +18,5 @@ div.fancy-box {
     vertical-align: bottom;
     animation: none;
     position: absolute;
-    bottom: 10px;
+    bottom: 100px;
 }

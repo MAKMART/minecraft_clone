@@ -2,7 +2,6 @@
 #include <cmath>
 #include <memory>
 #include <stdexcept>
-#include <winscard.h>
 #include "../Timer.h"
 #include "defines.h"
 #include "Shader.h"

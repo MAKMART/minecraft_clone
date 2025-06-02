@@ -11,14 +11,15 @@ typedef int          GLint;
 typedef int          GLsizei;
 #endif
 
-#define TEX_SCALE 1023.0f
-
 // ANSI escape codes for color
 #define RESET_COLOR "\033[0m"
 #define RED "\033[31m"
 #define YELLOW "\033[33m"
 #define GREEN "\033[32m"
 #define CYAN "\033[36m"
+
+
+
 
 
 
@@ -50,16 +51,24 @@ extern uint_fast8_t  DEFENSE_BUTTON;
 extern std::filesystem::path WORKING_DIRECTORY;
 // 	Shaders
 extern std::filesystem::path SHADERS_DIRECTORY;
+extern std::filesystem::path PLAYER_VERTEX_SHADER_DIRECTORY;
+extern std::filesystem::path PLAYER_FRAGMENT_SHADER_DIRECTORY;
 extern std::filesystem::path CHUNK_VERTEX_SHADER_DIRECTORY;
 extern std::filesystem::path CHUNK_FRAGMENT_SHADER_DIRECTORY;
 extern std::filesystem::path CROSSHAIR_VERTEX_SHADER_DIRECTORY;
 extern std::filesystem::path CROSSHAIR_FRAGMENT_SHADER_DIRECTORY;
+extern std::filesystem::path UI_VERTEX_SHADER_DIRECTORY;
+extern std::filesystem::path UI_FRAGMENT_SHADER_DIRECTORY;
 // 	Assets
 extern std::filesystem::path ASSETS_DIRECTORY;
+extern std::filesystem::path UI_DIRECTORY;
 extern std::filesystem::path WINDOW_ICON_DIRECTORY;
 extern std::filesystem::path BLOCK_ATLAS_TEXTURE_DIRECTORY;
 extern std::filesystem::path DEFAULT_SKIN_DIRECTORY;
 extern std::filesystem::path ICONS_DIRECTORY;
+extern std::filesystem::path FONTS_DIRECTORY;
+extern std::filesystem::path MAIN_FONT_DIRECTORY;
+extern std::filesystem::path MAIN_DOC_DIRECTORY;
 
 
 // World Attributes
