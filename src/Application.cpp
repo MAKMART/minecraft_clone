@@ -110,7 +110,7 @@ Application::Application(int width, int height)
     } catch (const std::exception& e) {
 	std::cerr << "Error: " << e.what() << std::endl;
     }
-    ui = new UI(width, height, new Shader(UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
+    ui = std::make_unique<UI>(width, height, new Shader(UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
     // Initialize ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -121,8 +121,6 @@ Application::Application(int width, int height)
 }
 Application::~Application(void) {
     // Clean up ImGui and GLFW and UI
-    Rml::Shutdown();
-    delete ui;
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

@@ -3,6 +3,7 @@
 #include <RmlUi/Debugger.h>
 #include <RmlUi/Core/RenderInterface.h>
 #include <RmlUi/Core/FileInterface.h>
+#include <memory>
 #include <unordered_map>
 #include <GL/glew.h> // or glad
 #include <vector>
@@ -86,6 +87,10 @@ public:
     Rml::Context* context = nullptr;
     int GetKeyModifiers(void);
     Rml::Input::KeyIdentifier MapKey(int glfw_key);
+
+    std::unique_ptr<FileInterface> fileInterface;
+    std::unique_ptr<SystemInterface> systemInterface;
+
 private:
     struct Geometry {
         GLuint vao, vbo, ebo;

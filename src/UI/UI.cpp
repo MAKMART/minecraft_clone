@@ -6,9 +6,15 @@
 #include <stdexcept>
 
 UI::UI(int width, int height, Shader* ui_shader, std::filesystem::path fontPath, std::filesystem::path docPath) : viewport_width(width), viewport_height(height) {
+
+
+    // System and file interfaces owned by UI (RAII)
+    systemInterface = std::make_unique<SystemInterface>();
+    fileInterface = std::make_unique<FileInterface>();
+
     Rml::SetRenderInterface(this);
-    Rml::SetSystemInterface(new SystemInterface());
-    Rml::SetFileInterface(new FileInterface());
+    Rml::SetSystemInterface(systemInterface.get());
+    Rml::SetFileInterface(fileInterface.get());
     shader = ui_shader;
     Rml::Initialise();
 
@@ -41,7 +47,10 @@ UI::~UI() {
     }
     Rml::RemoveContext("main");
     context = nullptr;
-    delete shader;
+    Rml::SetRenderInterface(nullptr);
+    Rml::SetSystemInterface(nullptr);
+    Rml::SetFileInterface(nullptr);
+    Rml::Shutdown();
 }
 
 Rml::CompiledGeometryHandle UI::CompileGeometry(Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices) {

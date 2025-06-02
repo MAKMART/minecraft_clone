@@ -39,7 +39,7 @@ private:
     b8 isFullscreen = false;
     b8 FREE_CURSOR = false;
     b8 mouseClickEnabled = false;
-    b8 renderUI = true;
+    b8 renderUI = false;
     b8 renderTerrain = true;
 
     i32 windowedWidth, windowedHeight;
@@ -52,7 +52,7 @@ private:
     std::unique_ptr<ChunkManager> chunkManager;
     std::unique_ptr<Player> player;
     std::unique_ptr<InputManager> input;
-    UI* ui;
+    std::unique_ptr<UI> ui;
     glm::ivec3 chunkSize = {16, 128, 16};	// Size of each chunk
 
 

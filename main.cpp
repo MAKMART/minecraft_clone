@@ -2,8 +2,7 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
-int main(void)
-{
+int main(void) {
     try {
 	Application app(1920, 1080);
 	app.Run();
