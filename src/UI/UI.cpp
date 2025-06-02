@@ -41,7 +41,6 @@ UI::~UI() {
     }
     Rml::RemoveContext("main");
     context = nullptr;
-    Rml::Shutdown();
     delete shader;
 }
 

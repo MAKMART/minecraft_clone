@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "Core/Core.h"
 #include "Debugger/Debugger.h"
 #include "GLFW/glfw3.h"
 #include "defines.h"
@@ -120,6 +121,7 @@ Application::Application(int width, int height)
 }
 Application::~Application(void) {
     // Clean up ImGui and GLFW and UI
+    Rml::Shutdown();
     delete ui;
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
