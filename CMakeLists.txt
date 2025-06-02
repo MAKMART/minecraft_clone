@@ -76,8 +76,8 @@ set(FREETYPE_INCLUDE_DIRS ${freetype_SOURCE_DIR}/include CACHE INTERNAL "FreeTyp
 add_library(Freetype::Freetype ALIAS freetype)
 find_package(Freetype REQUIRED)
 message(STATUS "Freetype found: ${FREETYPE_FOUND}")
-message(STATUS "Freetype libraries: ${FREETYPE_LIBRARIES}")
-message(STATUS "Freetype include dirs: ${FREETYPE_INCLUDE_DIRS}")
+#message(STATUS "Freetype libraries: ${FREETYPE_LIBRARIES}")
+#message(STATUS "Freetype include dirs: ${FREETYPE_INCLUDE_DIRS}")
 if(NOT FREETYPE_FOUND)
   message(FATAL_ERROR "Freetype not found by find_package(Freetype)")
 endif()
@@ -100,11 +100,10 @@ set(RMLUI_SHELL OFF CACHE BOOL "Force disabling shell" FORCE)
 set(CMAKE_MESSAGE_LOG_LEVEL TRACE CACHE STRING "Set log level to TRACE for verbose output" FORCE)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "Enable verbose output" FORCE)
 FetchContent_MakeAvailable(RmlUi)
-message(STATUS "RmlUi fetched from: ${RmlUi_SOURCE_DIR}")
+#message(STATUS "RmlUi fetched from: ${RmlUi_SOURCE_DIR}")
 if(NOT TARGET RmlUi::Core)
   message(FATAL_ERROR "RmlUi::Core target not found after FetchContent_MakeAvailable(RmlUi). Check _deps/rmlui-src/Source/CMakeLists.txt or CMake/Dependencies.cmake for errors.")
 endif()
-message(STATUS "RmlUi::RmlCore target exists: $<TARGET_EXISTS:RmlUi::RmlCore>")
 
 
 # Then manually add a pre-release label
@@ -224,18 +223,12 @@ target_sources(${PROJECT_NAME} PRIVATE
 set(SHADERS_DIR "${CMAKE_SOURCE_DIR}/shaders")
 set(ASSETS_DIR "${CMAKE_SOURCE_DIR}/assets")
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}")
-elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}")
-endif()
-# Define custom command to copy shaders
 add_custom_command(
     TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${SHADERS_DIR}" "${OUTPUT_DIR}/shaders"
+        "${SHADERS_DIR}" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${ASSETS_DIR}" "${OUTPUT_DIR}/assets"
-    COMMENT "Copying shaders and assets to output directory..."
+        "${ASSETS_DIR}" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+    COMMENT "Copying shaders and assets to executable directory"
 )
 
