@@ -4,7 +4,7 @@
 in vec2 TexCoord;
 
 // Texture sampler (assigned in the application)
-layout (binding = 2) uniform sampler2D texture2;
+layout (binding = 1) uniform sampler2D texture2;
 
 // Output color (to the framebuffer)
 out vec4 FragColor;

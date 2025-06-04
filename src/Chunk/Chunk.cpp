@@ -155,9 +155,6 @@ bool Chunk::isFaceVisible(const Block& block, int x, int y, int z) const
 
 }
 void Chunk::renderChunk(std::unique_ptr<Shader> &shader) {
-    if (faces.empty()) 
-	return;
-    shader->use();
     shader->setMat4("model", getModelMatrix());
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO); // Ensure SSBO is bound
     DrawArraysWrapper(GL_TRIANGLES, 0, faces.size() * 6);	// 6 faces per Voxel/Cube

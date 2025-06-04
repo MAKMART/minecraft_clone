@@ -4,6 +4,7 @@
 #include <cstring>
 #include <GLFW/glfw3.h>
 #include <stdexcept>
+#include "defines.h"
 
 UI::UI(int width, int height, Shader* ui_shader, std::filesystem::path fontPath, std::filesystem::path docPath) : viewport_width(width), viewport_height(height) {
 
@@ -95,26 +96,30 @@ void UI::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f transl
     glm::mat4 final_model = model * translation_matrix; // Apply SetTransform's model first, then translation
 
     shader->use();
-    //shader->setMat4("uProjection", projection);
-    //shader->setMat4("uModel", final_model);
+    shader->setMat4("uModel", final_model);
 
     shader->setInt("uHasTexture", texture != 0 ? 1 : 0);
 
     if (texture != 0) {
 	auto tex = texture_map.find(texture);
 	if (tex != texture_map.end()) {
-	    tex->second.Bind(1);
+	    tex->second.Bind(3);
 	} else {
 	    // Invalid handle, maybe unbind texture or log error
-	    glBindTextureUnit(1, 0);  // Unbind texture unit 1
+	    //tex->second.Unbind(3);
 	    // Or log warning
-	    std::cerr << "[UI] Warning: Invalid texture handle " << texture << std::endl;
+	    throw std::runtime_error("Invalid texture");
 	}
+	Geometry& geo = it->second;
+	glBindVertexArray(geo.vao);
+	DrawElementsWrapper(GL_TRIANGLES, geo.index_count, GL_UNSIGNED_INT, nullptr);
+	tex->second.Unbind(3);
     }
-
-    Geometry& geo = it->second;
-    glBindVertexArray(geo.vao);
-    glDrawElements(GL_TRIANGLES, geo.index_count, GL_UNSIGNED_INT, nullptr);
+    else {
+	Geometry& geo = it->second;
+	glBindVertexArray(geo.vao);
+	DrawElementsWrapper(GL_TRIANGLES, geo.index_count, GL_UNSIGNED_INT, nullptr);
+    }
 }
 
 void UI::ReleaseGeometry(Rml::CompiledGeometryHandle handle) {
@@ -177,7 +182,6 @@ void UI::SetViewportSize(int width, int height) {
     viewport_height = height;
     projection = glm::ortho(0.0f, (float)viewport_width, (float)viewport_height, 0.0f, -1.0f, 1.0f);
     glViewport(0, 0, width, height);
-    shader->use();
     shader->setMat4("uProjection", projection);
     context->SetDimensions({width, height});
     context->Update();

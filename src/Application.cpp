@@ -111,6 +111,7 @@ Application::Application(int width, int height)
 	std::cerr << "Error: " << e.what() << std::endl;
     }
     ui = std::make_unique<UI>(width, height, new Shader(UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
+    ui->SetViewportSize(width, height);
     // Initialize ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -346,17 +347,6 @@ void Application::handleFullscreenToggle(GLFWwindow* window) {
     }
 }
 void Application::Run(void) {
-    if(!crossHairshader)
-    {
-	throw std::runtime_error("Crosshair shader not initialized!");
-	return;
-    }
-    if(!playerShader)
-    {
-	throw std::runtime_error("Player shader not initialized!");
-	return;
-    }
-
     while(!glfwWindowShouldClose(window) && window) {
 	// --- Time Management ---
 	float currentFrame = static_cast<float>(glfwGetTime());
@@ -381,10 +371,10 @@ void Application::Run(void) {
 
 	// --- Render World ---
 	if(renderTerrain) {
-	  chunkManager->renderChunks(player->getPos(), player->render_distance, *player->_camera);
-	  //chunkManager->chunkShader->setFloat("time", glfwGetTime());	// yk maybe don't do it here 
-									// would be better if you do it in the ChunkManger class directly
-									// TODO: FIX it
+	    chunkManager->renderChunks(player->getPos(), player->render_distance, *player->_camera);
+	    //chunkManager->chunkShader->setFloat("time", glfwGetTime());	// yk maybe don't do it here 
+	    // would be better if you do it in the ChunkManger class directly
+	    // TODO: FIX it
 	}
 	// -- Render Player -- (BEFORE UI pass)
 	if(player->renderSkin) {
@@ -400,15 +390,16 @@ void Application::Run(void) {
 	    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	    crossHairshader->setMat4("uProjection", orthoProj);
 
-	    crossHairTexture->Bind(1);	//INFO: MAKE SURE TO BIND IT TO THE CORRECT TEXTURE BINDING!!!
+	    crossHairTexture->Bind(2);	//INFO: MAKE SURE TO BIND IT TO THE CORRECT TEXTURE BINDING!!!
 	    crossHairshader->use();
 	    glBindVertexArray(crosshairVAO);
 	    DrawElementsWrapper(GL_TRIANGLES, sizeof(CrosshairIndices) / sizeof(CrosshairIndices[0]), GL_UNSIGNED_INT, nullptr);
 	    glBindVertexArray(0);
+	    crossHairTexture->Unbind(2);
 	    // --- ---
 
 	    //render the ui before IMGUI
-	    
+
 	    ui->render();
 	    //other UI stuff...
 	}
@@ -434,32 +425,32 @@ void Application::Run(void) {
 	    glm::ivec3 chunkCoords = Chunk::worldToChunk(player->position, chunkSize);
 	    glm::ivec3 localCoords = Chunk::worldToLocal(player->position, chunkSize);
 	    {
-	    ImGui::Begin("DEBUG", NULL, ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_::ImGuiWindowFlags_NoMove | ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
-	    ImGui::Text("FPS: %f", getFPS(deltaTime));
-	    RenderFrametimeGraph();
-	    ImGui::Text("Draw Calls: %d", g_drawCallCount);
-	    ImGui::Text("Player position: %f, %f, %f", player->position.x, player->position.y, player->position.z);
-	    ImGui::Text("Player is in chunk: %i, %i, %i", chunkCoords.x, chunkCoords.y, chunkCoords.z);
-	    ImGui::Text("Player local position: %d, %d, %d", localCoords.x, localCoords.y, localCoords.z);
-	    ImGui::Text("Player velocity: %f, %f, %f", player->velocity.x, player->velocity.y, player->velocity.z);
-	    ImGui::Text("Camera position: %f, %f, %f", player->_camera->Position.x, player->_camera->Position.y, player->_camera->Position.z);
-	    ImGui::Text("Player MODE: %s", player->getMode());
-	    ImGui::Text("Player STATE: %s", player->getState());
-	    /*
-	    ImGui::Text("is OnGround: %s", player->isOnGround == true ? "TRUE" : "FALSE");
-	    ImGui::Text("is Damageable: %s", player->isDamageable == true ? "TRUE" : "FALSE");
-	    ImGui::Text("is Running: %s", player->isRunning == true ? "TRUE" : "FALSE");
-	    ImGui::Text("is Flying: %s", player->isFlying == true ? "TRUE" : "FALSE");
-	    ImGui::Text("is Swimming: %s", player->isSwimming == true ? "TRUE" : "FALSE");
-	    ImGui::Text("is Walking: %s", player->isWalking == true ? "TRUE" : "FALSE");
-	    ImGui::Text("is Crouched: %s", player->isCrouched == true ? "TRUE" : "FALSE");
-	    ImGui::Text("Player can place blocks: %s", player->canPlaceBlocks == true ? "TRUE" : "FALSE");
-	    ImGui::Text("Player can break blocks: %s", player->canBreakBlocks == true ? "TRUE" : "FALSE");
-	    */
-	    ImGui::Text("is Player third-person: %s", player->isThirdPerson == true ? "TRUE" : "FALSE");
-	    ImGui::Text("is camera third-person: %s", player->_camera->isThirdPerson == true ? "TRUE" : "FALSE");
-	    ImGui::Text("renderSkin: %s", player->renderSkin == true ? "TRUE" : "FALSE");
-	    ImGui::Text("Selected block: %s", Block::toString(player->selectedBlock));
+		ImGui::Begin("DEBUG", NULL, ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_::ImGuiWindowFlags_NoMove | ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
+		ImGui::Text("FPS: %f", getFPS(deltaTime));
+		RenderFrametimeGraph();
+		ImGui::Text("Draw Calls: %d", g_drawCallCount);
+		ImGui::Text("Player position: %f, %f, %f", player->position.x, player->position.y, player->position.z);
+		ImGui::Text("Player is in chunk: %i, %i, %i", chunkCoords.x, chunkCoords.y, chunkCoords.z);
+		ImGui::Text("Player local position: %d, %d, %d", localCoords.x, localCoords.y, localCoords.z);
+		ImGui::Text("Player velocity: %f, %f, %f", player->velocity.x, player->velocity.y, player->velocity.z);
+		ImGui::Text("Camera position: %f, %f, %f", player->_camera->Position.x, player->_camera->Position.y, player->_camera->Position.z);
+		ImGui::Text("Player MODE: %s", player->getMode());
+		ImGui::Text("Player STATE: %s", player->getState());
+		/*
+		   ImGui::Text("is OnGround: %s", player->isOnGround == true ? "TRUE" : "FALSE");
+		   ImGui::Text("is Damageable: %s", player->isDamageable == true ? "TRUE" : "FALSE");
+		   ImGui::Text("is Running: %s", player->isRunning == true ? "TRUE" : "FALSE");
+		   ImGui::Text("is Flying: %s", player->isFlying == true ? "TRUE" : "FALSE");
+		   ImGui::Text("is Swimming: %s", player->isSwimming == true ? "TRUE" : "FALSE");
+		   ImGui::Text("is Walking: %s", player->isWalking == true ? "TRUE" : "FALSE");
+		   ImGui::Text("is Crouched: %s", player->isCrouched == true ? "TRUE" : "FALSE");
+		   ImGui::Text("Player can place blocks: %s", player->canPlaceBlocks == true ? "TRUE" : "FALSE");
+		   ImGui::Text("Player can break blocks: %s", player->canBreakBlocks == true ? "TRUE" : "FALSE");
+		   */
+		ImGui::Text("is Player third-person: %s", player->isThirdPerson == true ? "TRUE" : "FALSE");
+		ImGui::Text("is camera third-person: %s", player->_camera->isThirdPerson == true ? "TRUE" : "FALSE");
+		ImGui::Text("renderSkin: %s", player->renderSkin == true ? "TRUE" : "FALSE");
+		ImGui::Text("Selected block: %s", Block::toString(player->selectedBlock));
 	    }
 
 	    if(renderUI && !mouseClickEnabled) {
@@ -478,16 +469,16 @@ void Application::Run(void) {
 		ImGui::SliderFloat3("armOffset", &player->armOffset.x, -5.0f, 5.0f);
 		// --- Player Model Attributes ---
 		/*
-		ImGui::SliderFloat3("headSize", &player->headSize.x, 0.0f, 50.0f);
-		ImGui::SliderFloat3("torsoSize", &player->torsoSize.x, 0.0f, 50.0f);
-		ImGui::SliderFloat3("limbSize", &player->limbSize.x, 0.0f, 50.0f);
-		ImGui::SliderFloat3("headOffset", &player->headOffset.x, -10.0f, 50.0f);
-		ImGui::SliderFloat3("torsoOffset", &player->torsoOffset.x, -10.0f, 50.0f);
-		ImGui::SliderFloat3("rightArmOffset", &player->rightArmOffset.x, -10.0f, 50.0f);
-		ImGui::SliderFloat3("leftArmOffset", &player->leftArmOffset.x, -10.0f, 50.0f);
-		ImGui::SliderFloat3("rightLegOffset", &player->rightLegOffset.x, -10.0f, 50.0f);
-		ImGui::SliderFloat3("leftLegOffset", &player->leftLegOffset.x, -10.0f, 50.0f);
-		*/
+		   ImGui::SliderFloat3("headSize", &player->headSize.x, 0.0f, 50.0f);
+		   ImGui::SliderFloat3("torsoSize", &player->torsoSize.x, 0.0f, 50.0f);
+		   ImGui::SliderFloat3("limbSize", &player->limbSize.x, 0.0f, 50.0f);
+		   ImGui::SliderFloat3("headOffset", &player->headOffset.x, -10.0f, 50.0f);
+		   ImGui::SliderFloat3("torsoOffset", &player->torsoOffset.x, -10.0f, 50.0f);
+		   ImGui::SliderFloat3("rightArmOffset", &player->rightArmOffset.x, -10.0f, 50.0f);
+		   ImGui::SliderFloat3("leftArmOffset", &player->leftArmOffset.x, -10.0f, 50.0f);
+		   ImGui::SliderFloat3("rightLegOffset", &player->rightLegOffset.x, -10.0f, 50.0f);
+		   ImGui::SliderFloat3("leftLegOffset", &player->leftLegOffset.x, -10.0f, 50.0f);
+		   */
 		ImGui::SliderFloat("Camera Distance", &player->_camera->Distance, 1.0f, 20.0f);
 		ImGui::Checkbox("renderTerrain", &renderTerrain);
 		ImGui::Checkbox("renderPlayer", &player->renderSkin);
@@ -506,7 +497,7 @@ void Application::Run(void) {
 #endif
 
 	// other UI things...
-	
+
 
 
 

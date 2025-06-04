@@ -2,6 +2,7 @@
 #include "defines.h"
 #include <cstdint>
 #include <stdexcept>
+#include <glm/glm.hpp>
 
 ChunkManager::ChunkManager(glm::ivec3 size, int renderDistance, std::optional<siv::PerlinNoise::seed_type> seed) : chunkSize(size) { 
     // Initialize Perlin noise
@@ -108,6 +109,19 @@ void ChunkManager::updateBlock(glm::vec3 worldPos, Block::blocks newType) {
     // Add y-boundary checks if needed
 }
 
+float ChunkManager::LayeredPerlin(float x, float z, int octaves, float baseFreq, float baseAmp, float lacunarity, float persistence) {
+    float total = 0.0f;
+    float frequency = baseFreq;
+    float amplitude = baseAmp;
+
+    for (int i = 0; i < octaves; ++i) {
+        total += (perlin.noise2D(x * frequency, z * frequency)) * amplitude; // Not the _01 variant, so it's in [-1, 1]
+        frequency *= lacunarity;
+        amplitude *= persistence;
+    }
+
+    return total; // raw value, unnormalized
+}
 
 void ChunkManager::loadChunksAroundPlayer(glm::vec3 playerPosition, int renderDistance)
 {
@@ -135,10 +149,11 @@ void ChunkManager::loadChunksAroundPlayer(glm::vec3 playerPosition, int renderDi
 		    for (int x = 0; x < chunkSize.x; ++x) {
 			float worldX = (chunkX * chunkSize.x + x);
 			float worldZ = (chunkZ * chunkSize.z + z);
-			float frequency = 0.007f;
-			float noiseValue = perlin.octave2D_01(worldX * frequency, worldZ * frequency, 5);
-			noiseValue *= noiseValue * noiseValue;
-			noiseMap[z * chunkSize.x + x] = noiseValue;
+			float frequency = 0.005f;
+			//float noiseValue = perlin.octave2D_01(worldX * frequency, worldZ * frequency, 5);
+			float rawNoise = LayeredPerlin(worldX, worldZ, 5, 0.002f, 1.0f); // returns in [-some, +some]
+			float redistributed = pow(abs(rawNoise), 1.3f) * (int)glm::sign(rawNoise);
+			noiseMap[z * chunkSize.x + x] = redistributed;
 		    }
 		}
 		std::shared_ptr<Chunk> newChunk = chunks[chunkKey];
@@ -273,5 +288,6 @@ void ChunkManager::renderChunks(glm::vec3 player_position, unsigned int render_d
         chunk->renderChunk(chunkShader);
     }
     glBindVertexArray(0);
+    chunksTexture->Unbind(0);
 
 }

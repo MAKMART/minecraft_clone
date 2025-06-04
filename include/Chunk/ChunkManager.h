@@ -109,6 +109,7 @@ private:
     // Size of each chunk
     glm::ivec3 chunkSize;
 
+    float LayeredPerlin(float x, float z, int octaves, float baseFreq, float baseAmp, float lacunarity = 2.0f, float persistence = 0.5f);
 
     // Buffers
     GLuint VAO;

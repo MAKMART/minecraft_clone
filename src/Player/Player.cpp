@@ -9,6 +9,7 @@
 #include "defines.h"
 #include <memory>
 #include <numbers>
+#include <stdexcept>
 
 // Constructor
 Player::Player(glm::vec3 spawnPos, glm::ivec3& chunksize, GLFWwindow* window)
@@ -311,14 +312,13 @@ void Player::handleCollisions(glm::vec3& newPosition, glm::vec3& velocity,
 }
 void Player::render(unsigned int shaderProgram) {
     if (!skinTexture) {
-	std::cerr << "Error: skinTexture is null!" << std::endl;
+	throw std::runtime_error("Error: skinTexture is null!");
 	return;
     }
 
-    skinTexture->Bind(2);
+    skinTexture->Bind(1);
 
-    if(isThirdPerson)
-    {
+    if(isThirdPerson) {
 	// Calculate the total height of the player model (torso + head, scaled)
 	//float modelHeight = (torsoSize.y + headSize.y) * scaleFactor;  // Total height in Minecraft units, scaled
 
@@ -351,8 +351,7 @@ void Player::render(unsigned int shaderProgram) {
 	    glm::mat4 transform = baseTransform * glm::translate(glm::mat4(1.0f), part.offset) * part.transform;
 	    part.cube->render(shaderProgram, transform);
 	}
-    }
-    else{
+    } else{
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
 	const auto& rightArm = bodyParts[2]; // Right arm at index 2
@@ -374,11 +373,12 @@ void Player::render(unsigned int shaderProgram) {
 
 	rightArm.cube->render(shaderProgram, armTransform);
 	glEnable(GL_BLEND);
-	if(DEPTH_TEST) {
+	/*if(DEPTH_TEST) {
 	    glEnable(GL_DEPTH_TEST);
 	    glDepthFunc(GL_LEQUAL);
-	}
+	}*/
     }
+    skinTexture->Unbind(1);
 }
 const char* Player::getState(void) const {
     if (dynamic_cast<WalkingState*>(currentState.get())) return "WALKING";

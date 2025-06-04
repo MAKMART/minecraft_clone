@@ -3,7 +3,7 @@
 in vec2 vTexCoord; // Interpolated texture coordinates
 out vec4 FragColor;
 
-layout (binding = 1)  uniform sampler2D uTexture; // Texture sampler
+layout (binding = 2)  uniform sampler2D uTexture; // Texture sampler
 
 void main()
 {

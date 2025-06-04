@@ -1,7 +1,7 @@
 #version 460 core
 in vec4 vColor;
 in vec2 TexCoord;
-uniform sampler2D uTexture;
+layout (binding = 3) uniform sampler2D uTexture;
 uniform int uHasTexture;    // Flag to check if texture is used
 out vec4 FragColor;
 
