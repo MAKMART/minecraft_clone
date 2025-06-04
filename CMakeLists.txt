@@ -29,6 +29,11 @@ FetchContent_MakeAvailable(glew)
 #message(STATUS "GLEW (CMake version) fetched from: ${glew_SOURCE_DIR}")
 #message(STATUS "GLEW build dir: ${glew_BINARY_DIR}")
 
+set(GLFW_BUILD_WAYLAND ON CACHE BOOL "..." FORCE)
+set(GLFW_BUILD_X11 OFF CACHE BOOL "..." FORCE)
+
+
+
 # GLFW
 FetchContent_Declare(
   glfw
@@ -130,9 +135,22 @@ endif()
 # Find Required Packages
 find_package(OpenGL REQUIRED)
 
-if (NOT OpenGL_FOUND)
+if(UNIX AND DEFINED ENV{WAYLAND_DISPLAY})
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(EGL REQUIRED egl)
+
+    include_directories(${EGL_INCLUDE_DIRS})
+    link_directories(${EGL_LIBRARY_DIRS})
+
+
+endif()
+
+if(NOT OpenGL_FOUND)
     message(FATAL_ERROR "OpenGL package not found!")
 endif()
+
+
+
 
 # Output Directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -190,10 +208,17 @@ if (WIN32)
 	PRIVATE libglew_static glfw glm::glm freetype RmlUi::Core RmlUi::Debugger opengl32
     )
 elseif (UNIX)
-    target_link_libraries(${PROJECT_NAME} 
-	PUBLIC OpenGL::GL 
-	PRIVATE libglew_static glfw glm::glm freetype RmlUi::Core RmlUi::Debugger GL X11 Xext
-    )
+    if (DEFINED ENV{WAYLAND_DISPLAY})
+	target_link_libraries(${PROJECT_NAME} 
+	    PUBLIC OpenGL::GL 
+	    PRIVATE libglew_static glfw glm::glm freetype RmlUi::Core RmlUi::Debugger ${EGL_LIBRARIES}
+	)
+    else()
+	target_link_libraries(${PROJECT_NAME} 
+	    PUBLIC OpenGL::GL 
+	    PRIVATE libglew_static glfw glm::glm freetype RmlUi::Core RmlUi::Debugger GL X11 Xext
+	)
+    endif()
 endif()
 
 # Include Paths
