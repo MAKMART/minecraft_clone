@@ -67,14 +67,37 @@ Texture::Texture(const std::filesystem::path& path, GLenum format, GLenum wrapMo
     glTextureParameteri(ID, GL_TEXTURE_MAG_FILTER, filterMode);
     stbi_image_free(data);
 }
+// Move constructor
+Texture::Texture(Texture&& other) noexcept
+    : ID(other.ID), width(other.width), height(other.height) {
+    other.ID = 0;      // Take ownership, invalidate the old object
+    other.width = 0;
+    other.height = 0;
+}
 
+// Move assignment operator
+Texture& Texture::operator=(Texture&& other) noexcept {
+    if (this != &other) {
+        if (ID != 0) {
+            glDeleteTextures(1, &ID);
+        }
+        ID = other.ID;
+        width = other.width;
+        height = other.height;
+
+        other.ID = 0;   // Steal ownership, reset old
+        other.width = 0;
+        other.height = 0;
+    }
+    return *this;
+}
 bool Texture::createEmpty(int width, int height, GLenum internalFormat) {
 
     if (ID != 0) {
 	glDeleteTextures(1, &ID);
-	ID = 0;
-	this->width = 0;
-	this->height = 0;
+	//ID = 0;
+	//this->width = 0;
+	//this->height = 0;
     }
     if (width <= 0 || height <= 0) {
 	std::string error = "Invalid texture dimensions: " + std::to_string(width) + " x " + std::to_string(height);
@@ -97,14 +120,13 @@ bool Texture::createEmpty(int width, int height, GLenum internalFormat) {
 Texture::~Texture(void) {
     if (ID != 0) {
 	glDeleteTextures(1, &ID);
-	ID = 0; // Mark it as "dead"
     }
 }
 
 void Texture::Bind(int unit) const {
     if (ID == 0) {
-	std::cerr << "[Texture] Warning: Attempt to bind invalid texture ID 0 on unit " << unit << std::endl;
-	glBindTextureUnit(unit, 0); // Unbind
+	std::string error = "[Texture] Warning: Attempt to bind invalid texture ID 0 on unit " + std::to_string(unit);
+	throw std::runtime_error(error);
 	return;
     }
     glBindTextureUnit(unit, ID);

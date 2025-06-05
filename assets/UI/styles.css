@@ -20,3 +20,17 @@ div.fancy-box {
     position: absolute;
     bottom: 100px;
 }
+
+.fancy-box.image-crop {
+  width: 700px;       /* your desired crop width */
+  height: 700px;      /* your desired crop height */
+  overflow: hidden;   /* hide the rest of the image */
+  position: relative;
+}
+
+.fancy-box.image-crop img {
+  width: auto;
+  height: 200px;      /* move and scale image as needed */
+  object-fit: none;   /* disable fitting */
+  object-position: -50px -30px; /* shift image to crop */
+}

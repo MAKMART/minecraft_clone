@@ -27,6 +27,19 @@ public:
     int getWidth(void) const { return width; }
     int getHeight(void) const { return height; }
 
+
+    // Delete copy semantics (prevent copying)
+    Texture(const Texture&) = delete;
+    Texture& operator=(const Texture&) = delete;
+
+    // Implement move semantics (allow moving)
+    Texture(Texture&& other) noexcept;
+    Texture& operator=(Texture&& other) noexcept;
+
+
+
+
+
 private:
     GLuint ID;
     int width, height;

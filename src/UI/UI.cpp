@@ -1,4 +1,5 @@
 #include "UI.h"
+#include "Shader.h"
 #include "glm/gtc/type_ptr.hpp"
 #include <iostream>
 #include <cstring>
@@ -6,6 +7,7 @@
 #include <stdexcept>
 #include "defines.h"
 
+using namespace Rml::Input;
 UI::UI(int width, int height, Shader* ui_shader, std::filesystem::path fontPath, std::filesystem::path docPath) : viewport_width(width), viewport_height(height) {
 
 
@@ -23,8 +25,9 @@ UI::UI(int width, int height, Shader* ui_shader, std::filesystem::path fontPath,
 #ifdef DEBUG
     Rml::Debugger::Initialise(context);
 #endif
-    Rml::LoadFontFace(fontPath.string());
-
+    if (!Rml::LoadFontFace(fontPath.string())) {
+	throw std::runtime_error("Failed to load font: " + fontPath.string());
+    }
     doc = context->LoadDocument(docPath.string());
     if (!doc) {
 	throw std::runtime_error("Failed to load RML document: " + docPath.string());
@@ -40,9 +43,8 @@ UI::~UI() {
         glDeleteBuffers(1, &geo.vbo);
         glDeleteBuffers(1, &geo.ebo);
     }
-    // No manual deletion needed for textures, Texture destructor handles it
-    texture_map.clear();  // This calls ~Texture for each texture, freeing their OpenGL resources
 
+    // No texture_map clearing needed since RmlUI handles it internally
     if (doc) {
 	doc->Close();
     }
@@ -119,6 +121,7 @@ void UI::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f transl
 	Geometry& geo = it->second;
 	glBindVertexArray(geo.vao);
 	DrawElementsWrapper(GL_TRIANGLES, geo.index_count, GL_UNSIGNED_INT, nullptr);
+	glBindVertexArray(0);
     }
 }
 
@@ -141,6 +144,7 @@ Rml::TextureHandle UI::LoadTexture(Rml::Vector2i& out_dimensions, const Rml::Str
 
     Rml::TextureHandle handle = next_texture_handle++;
     texture_map.emplace(handle, std::move(tex));
+    std::cout << "[UI] Loaded texture handle " << handle << " from " << source << std::endl;
     return handle;
 }
 
@@ -158,12 +162,18 @@ Rml::TextureHandle UI::GenerateTexture(Rml::Span<const Rml::byte> source, Rml::V
 
     Rml::TextureHandle handle = next_texture_handle++;
     texture_map.emplace(handle, std::move(tex));  // Store the full Texture object
-
+    std::cout << "[UI] Generated texture handle " << handle << std::endl;
     return handle;
 }
 
 void UI::ReleaseTexture(Rml::TextureHandle handle) {
-    texture_map.erase(handle);
+    auto it = texture_map.find(handle);
+    if (it != texture_map.end()) {
+	std::cout << "[UI] Releasing texture handle " << handle << std::endl;
+	texture_map.erase(it);
+    } else {
+	std::cerr << "[UI] Warning: Attempt to release invalid texture handle " << handle << std::endl;
+    }
 }
 
 void UI::EnableScissorRegion(bool enable) {
@@ -283,16 +293,16 @@ int UI::GetKeyModifiers(void) {
 Rml::Input::KeyIdentifier UI::MapKey(int glfw_key) {
 
     switch (glfw_key) {
-	case GLFW_KEY_A: return Rml::Input::KI_A;
-	case GLFW_KEY_B: return Rml::Input::KI_B;
-	case GLFW_KEY_ENTER: return Rml::Input::KI_RETURN;
-	case GLFW_KEY_ESCAPE: return Rml::Input::KI_ESCAPE;
-	case GLFW_KEY_LEFT: return Rml::Input::KI_LEFT;
-	case GLFW_KEY_RIGHT: return Rml::Input::KI_RIGHT;
-	case GLFW_KEY_UP:    return Rml::Input::KI_UP;
-	case GLFW_KEY_DOWN:  return Rml::Input::KI_DOWN;
-			     // ... Map more keys ...
-	default: return Rml::Input::KI_UNKNOWN;
+	case GLFW_KEY_A: 	return KI_A;
+	case GLFW_KEY_B: 	return KI_B;
+	case GLFW_KEY_ENTER: 	return KI_RETURN;
+	case GLFW_KEY_ESCAPE: 	return KI_ESCAPE;
+	case GLFW_KEY_LEFT: 	return KI_LEFT;
+	case GLFW_KEY_RIGHT: 	return KI_RIGHT;
+	case GLFW_KEY_UP:    	return KI_UP;
+	case GLFW_KEY_DOWN:  	return KI_DOWN;
+
+	default: return KI_UNKNOWN;
     }
 
 }

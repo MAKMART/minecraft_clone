@@ -11,7 +11,7 @@
 
 Application::Application(int width, int height)
     : title(std::string(PROJECT_NAME) + " " + PROJECT_VERSION),
-    width(width), height(height), backgroundColor(0.11f, 0.67f, 0.7f, 1.0f),
+    width(width), height(height), /*backgroundColor(0.11f, 0.67f, 0.7f, 1.0f),*/ backgroundColor(0.0f, 0.0f, 0.0f, 1.0f),
     nbFrames(0), deltaTime(0.0f), lastFrame(0.0f), 
     mouseClickEnabled(true), frametimes(frametime_max, 0.0f) {
 
@@ -110,7 +110,11 @@ Application::Application(int width, int height)
     } catch (const std::exception& e) {
 	std::cerr << "Error: " << e.what() << std::endl;
     }
-    ui = std::make_unique<UI>(width, height, new Shader(UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
+    try {
+	ui = std::make_unique<UI>(width, height, new Shader(UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
+    } catch (const std::exception &e) {
+	std::cerr << "\nError initializing UI class: " << e.what() << std::endl;
+    }
     ui->SetViewportSize(width, height);
     // Initialize ImGui
     IMGUI_CHECKVERSION();
@@ -395,7 +399,6 @@ void Application::Run(void) {
 	    glBindVertexArray(crosshairVAO);
 	    DrawElementsWrapper(GL_TRIANGLES, sizeof(CrosshairIndices) / sizeof(CrosshairIndices[0]), GL_UNSIGNED_INT, nullptr);
 	    glBindVertexArray(0);
-	    crossHairTexture->Unbind(2);
 	    // --- ---
 
 	    //render the ui before IMGUI
