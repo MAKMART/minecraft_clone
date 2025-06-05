@@ -9,7 +9,7 @@ To build this project, you’ll need:
 
 Make sure both are installed and added to your system's PATH if you're on Windows.
 ## Cloning the Repo
-Open a terminal in wathever folder you want and run:
+Open a terminal in whatever folder you want and run:
 ```
 mkdir MyGameFolder
 cd MyGameFolder
