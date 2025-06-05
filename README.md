@@ -28,7 +28,7 @@ Choose the configuration type depending on your goal.
   cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release .
   ninja -C build
 ```
-All the build files are sored in the build directory --- duhh ---
+All the build files are stored in the build directory --- duhh ---
 
 The final binary will be located in build/bin/debug/ or build/bin/release/ depending on your build type.
 ## Troubleshooting
