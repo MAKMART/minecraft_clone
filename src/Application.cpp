@@ -1,6 +1,4 @@
 #include "Application.h"
-#include "Core/Core.h"
-#include "Debugger/Debugger.h"
 #include "GLFW/glfw3.h"
 #include "defines.h"
 #include "imgui.h"
@@ -320,7 +318,7 @@ void Application::processInput() {
 
     if (input->isPressed(MENU_KEY))
     {
-	player->_camera->setMouseTracking(FREE_CURSOR);
+	player->getCamera()->setMouseTracking(FREE_CURSOR);
 	Rml::Debugger::SetVisible(!FREE_CURSOR);
 	glfwSetInputMode(window, GLFW_CURSOR, FREE_CURSOR ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
 	mouseClickEnabled = !mouseClickEnabled;
@@ -369,13 +367,13 @@ void Application::Run(void) {
 	glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT);
 
 	// --- Player Update && Third-Person Rendering ---
-	playerShader->setMat4("projection", player->_camera->GetProjectionMatrix());
-	playerShader->setMat4("view", player->_camera->GetViewMatrix());
+	playerShader->setMat4("projection", player->getCamera()->GetProjectionMatrix());
+	playerShader->setMat4("view", player->getCamera()->GetViewMatrix());
 	player->update(deltaTime, *chunkManager);
 
 	// --- Render World ---
 	if(renderTerrain) {
-	    chunkManager->renderChunks(player->getPos(), player->render_distance, *player->_camera);
+	    chunkManager->renderChunks(player->getPos(), player->render_distance, *player->getCamera());
 	    //chunkManager->chunkShader->setFloat("time", glfwGetTime());	// yk maybe don't do it here 
 	    // would be better if you do it in the ChunkManger class directly
 	    // TODO: FIX it
@@ -425,70 +423,88 @@ void Application::Run(void) {
 	    ImGui_ImplOpenGL3_NewFrame();
 	    ImGui_ImplGlfw_NewFrame();
 	    ImGui::NewFrame();
-	    glm::ivec3 chunkCoords = Chunk::worldToChunk(player->position, chunkSize);
-	    glm::ivec3 localCoords = Chunk::worldToLocal(player->position, chunkSize);
-	    {
-		ImGui::Begin("DEBUG", NULL, ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_::ImGuiWindowFlags_NoMove | ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
-		ImGui::Text("FPS: %f", getFPS(deltaTime));
-		RenderFrametimeGraph();
-		ImGui::Text("Draw Calls: %d", g_drawCallCount);
-		ImGui::Text("Player position: %f, %f, %f", player->position.x, player->position.y, player->position.z);
-		ImGui::Text("Player is in chunk: %i, %i, %i", chunkCoords.x, chunkCoords.y, chunkCoords.z);
-		ImGui::Text("Player local position: %d, %d, %d", localCoords.x, localCoords.y, localCoords.z);
-		ImGui::Text("Player velocity: %f, %f, %f", player->velocity.x, player->velocity.y, player->velocity.z);
-		ImGui::Text("Camera position: %f, %f, %f", player->_camera->Position.x, player->_camera->Position.y, player->_camera->Position.z);
-		ImGui::Text("Player MODE: %s", player->getMode());
-		ImGui::Text("Player STATE: %s", player->getState());
-		/*
-		   ImGui::Text("is OnGround: %s", player->isOnGround == true ? "TRUE" : "FALSE");
-		   ImGui::Text("is Damageable: %s", player->isDamageable == true ? "TRUE" : "FALSE");
-		   ImGui::Text("is Running: %s", player->isRunning == true ? "TRUE" : "FALSE");
-		   ImGui::Text("is Flying: %s", player->isFlying == true ? "TRUE" : "FALSE");
-		   ImGui::Text("is Swimming: %s", player->isSwimming == true ? "TRUE" : "FALSE");
-		   ImGui::Text("is Walking: %s", player->isWalking == true ? "TRUE" : "FALSE");
-		   ImGui::Text("is Crouched: %s", player->isCrouched == true ? "TRUE" : "FALSE");
-		   ImGui::Text("Player can place blocks: %s", player->canPlaceBlocks == true ? "TRUE" : "FALSE");
-		   ImGui::Text("Player can break blocks: %s", player->canBreakBlocks == true ? "TRUE" : "FALSE");
-		   */
-		ImGui::Text("is Player third-person: %s", player->isThirdPerson == true ? "TRUE" : "FALSE");
-		ImGui::Text("is camera third-person: %s", player->_camera->isThirdPerson == true ? "TRUE" : "FALSE");
-		ImGui::Text("renderSkin: %s", player->renderSkin == true ? "TRUE" : "FALSE");
-		ImGui::Text("Selected block: %s", Block::toString(player->selectedBlock));
-	    }
+	    glm::ivec3 chunkCoords = Chunk::worldToChunk(player->getPos(), chunkSize);
+	    glm::ivec3 localCoords = Chunk::worldToLocal(player->getPos(), chunkSize);
+	    ImGui::Begin("DEBUG", NULL, ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_::ImGuiWindowFlags_NoMove | ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
+	    ImGui::Text("FPS: %f", getFPS(deltaTime));
+	    RenderFrametimeGraph();
+	    ImGui::Spacing();
+	    ImGui::PushFont(ImGui::GetFont()); // Or use a bold/large font if you have one
+
+	    ImGui::PushStyleColor(ImGuiCol_Header,        ImVec4(0.30f, 0.30f, 0.30f, 1.0f));
+
+	    ImGui::Selectable("Rendering Infos:", false, ImGuiSelectableFlags_Disabled);
+
+	    ImGui::PopStyleColor(1);
+	    ImGui::PopFont();
+	    ImGui::Text("Draw Calls: %d", g_drawCallCount);
+	    ImGui::Text("Player position: %f, %f, %f", player->getPos().x, player->getPos().y, player->getPos().z);
+	    ImGui::Text("Player is in chunk: %i, %i, %i", chunkCoords.x, chunkCoords.y, chunkCoords.z);
+	    ImGui::Text("Player local position: %d, %d, %d", localCoords.x, localCoords.y, localCoords.z);
+	    ImGui::Text("Player velocity: %f, %f, %f", player->velocity.x, player->velocity.y, player->velocity.z);
+	    ImGui::Text("Camera position: %f, %f, %f", player->getCamera()->Position.x, player->getCamera()->Position.y, player->getCamera()->Position.z);
+	    ImGui::Text("Player MODE: %s", player->getMode());
+	    ImGui::Text("Player STATE: %s", player->getState());
+	    /*
+	       ImGui::Text("is OnGround: %s", player->isOnGround == true ? "TRUE" : "FALSE");
+	       ImGui::Text("is Damageable: %s", player->isDamageable == true ? "TRUE" : "FALSE");
+	       ImGui::Text("is Running: %s", player->isRunning == true ? "TRUE" : "FALSE");
+	       ImGui::Text("is Flying: %s", player->isFlying == true ? "TRUE" : "FALSE");
+	       ImGui::Text("is Swimming: %s", player->isSwimming == true ? "TRUE" : "FALSE");
+	       ImGui::Text("is Walking: %s", player->isWalking == true ? "TRUE" : "FALSE");
+	       ImGui::Text("is Crouched: %s", player->isCrouched == true ? "TRUE" : "FALSE");
+	       ImGui::Text("Player can place blocks: %s", player->canPlaceBlocks == true ? "TRUE" : "FALSE");
+	       ImGui::Text("Player can break blocks: %s", player->canBreakBlocks == true ? "TRUE" : "FALSE");
+	       */
+	    ImGui::Text("is Player third-person: %s", player->isThirdPerson == true ? "TRUE" : "FALSE");
+	    ImGui::Text("is camera third-person: %s", player->getCamera()->isThirdPerson == true ? "TRUE" : "FALSE");
+	    ImGui::Text("renderSkin: %s", player->renderSkin == true ? "TRUE" : "FALSE");
+	    ImGui::Text("Selected block: %s", Block::toString(player->selectedBlock));
 
 	    if(renderUI && !mouseClickEnabled) {
-		ImGui::SliderFloat("Player walking speed ", &player->walking_speed, 0.0f, 100.0f);
-		ImGui::SliderFloat("Player flying speed", &player->flying_speed, 0.0f, 100.0f);
-		ImGui::SliderFloat("Player running speed increment", &player->running_speed_increment, 0.0f, 100.0f);
-		ImGui::SliderInt("Render distance", (int*)&player->render_distance, 0, 30);
-		ImGui::SliderFloat("Max Interaction Distance", &player->max_interaction_distance, 0.0f, 100.0f);
-		ImGui::SliderFloat("Sensitivity", &player->_camera->MouseSensitivity, 0.0f, 1.5f);
-		ImGui::SliderFloat("FOV", &player->_camera->FOV, 0.001f, 179.899f);
-		ImGui::SliderFloat("Near Clip Plane", &player->_camera->NEAR_PLANE, 0.001f, 1.5f);
-		ImGui::SliderFloat("Far Clip Plane", &player->_camera->FAR_PLANE, 1.5f, 1000000.0f);
-		ImGui::SliderFloat("LINE_WIDTH", &LINE_WIDTH, 0.001f, 9.0f);
-		ImGui::SliderFloat("GRAVITY", &GRAVITY, -10.0f, 30.0f);
-		ImGui::SliderFloat3("BACKGROUND COLOR", &backgroundColor.r, 0.0f, 1.0f);
-		ImGui::SliderFloat3("armOffset", &player->armOffset.x, -5.0f, 5.0f);
-		// --- Player Model Attributes ---
-		/*
-		   ImGui::SliderFloat3("headSize", &player->headSize.x, 0.0f, 50.0f);
-		   ImGui::SliderFloat3("torsoSize", &player->torsoSize.x, 0.0f, 50.0f);
-		   ImGui::SliderFloat3("limbSize", &player->limbSize.x, 0.0f, 50.0f);
-		   ImGui::SliderFloat3("headOffset", &player->headOffset.x, -10.0f, 50.0f);
-		   ImGui::SliderFloat3("torsoOffset", &player->torsoOffset.x, -10.0f, 50.0f);
-		   ImGui::SliderFloat3("rightArmOffset", &player->rightArmOffset.x, -10.0f, 50.0f);
-		   ImGui::SliderFloat3("leftArmOffset", &player->leftArmOffset.x, -10.0f, 50.0f);
-		   ImGui::SliderFloat3("rightLegOffset", &player->rightLegOffset.x, -10.0f, 50.0f);
-		   ImGui::SliderFloat3("leftLegOffset", &player->leftLegOffset.x, -10.0f, 50.0f);
-		   */
-		ImGui::SliderFloat("Camera Distance", &player->_camera->Distance, 1.0f, 20.0f);
-		ImGui::Checkbox("renderTerrain", &renderTerrain);
-		ImGui::Checkbox("renderPlayer", &player->renderSkin);
-		static bool debug = false;
-		ImGui::Checkbox("debug", &debug); // Updates the value
-		chunkManager->chunkShader->setBool("debug", debug);
+		if (ImGui::CollapsingHeader("Settings")) {
+		    if (ImGui::TreeNode("Player")) {
+			ImGui::SliderFloat("Player walking speed ", &player->walking_speed, 0.0f, 100.0f);
+			ImGui::SliderFloat("Player flying speed", &player->flying_speed, 0.0f, 100.0f);
+			ImGui::SliderFloat("Player running speed increment", &player->running_speed_increment, 0.0f, 100.0f);
+			ImGui::SliderInt("Render distance", (int*)&player->render_distance, 0, 30);
+			ImGui::SliderFloat("Max Interaction Distance", &player->max_interaction_distance, 0.0f, 100.0f);
+			ImGui::TreePop();
+		    }
+		    if (ImGui::TreeNode("Camera")) {
+			ImGui::SliderFloat("Sensitivity", &player->getCamera()->MouseSensitivity, 0.0f, 1.5f);
+			ImGui::SliderFloat("FOV", &player->getCamera()->FOV, 0.001f, 179.899f);
+			ImGui::SliderFloat("Near Clip Plane", &player->getCamera()->NEAR_PLANE, 0.001f, 1.5f);
+			ImGui::SliderFloat("Far Clip Plane", &player->getCamera()->FAR_PLANE, 1.5f, 1000000.0f);
+			ImGui::SliderFloat("LINE_WIDTH", &LINE_WIDTH, 0.001f, 9.0f);
+			ImGui::SliderFloat("Camera Distance", &player->getCamera()->Distance, 1.0f, 20.0f);
+			ImGui::TreePop();
+		    }
+		    if (ImGui::TreeNode("Miscellaneous")) {
 
+			ImGui::SliderFloat("GRAVITY", &GRAVITY, -10.0f, 30.0f);
+			ImGui::SliderFloat3("BACKGROUND COLOR", &backgroundColor.r, 0.0f, 1.0f);
+			ImGui::SliderFloat3("armOffset", &player->armOffset.x, -5.0f, 5.0f);
+			// --- Player Model Attributes ---
+			/*
+			   ImGui::SliderFloat3("headSize", &player->headSize.x, 0.0f, 50.0f);
+			   ImGui::SliderFloat3("torsoSize", &player->torsoSize.x, 0.0f, 50.0f);
+			   ImGui::SliderFloat3("limbSize", &player->limbSize.x, 0.0f, 50.0f);
+			   ImGui::SliderFloat3("headOffset", &player->headOffset.x, -10.0f, 50.0f);
+			   ImGui::SliderFloat3("torsoOffset", &player->torsoOffset.x, -10.0f, 50.0f);
+			   ImGui::SliderFloat3("rightArmOffset", &player->rightArmOffset.x, -10.0f, 50.0f);
+			   ImGui::SliderFloat3("leftArmOffset", &player->leftArmOffset.x, -10.0f, 50.0f);
+			   ImGui::SliderFloat3("rightLegOffset", &player->rightLegOffset.x, -10.0f, 50.0f);
+			   ImGui::SliderFloat3("leftLegOffset", &player->leftLegOffset.x, -10.0f, 50.0f);
+			   */
+			ImGui::Checkbox("renderTerrain", &renderTerrain);
+			ImGui::Checkbox("renderPlayer", &player->renderSkin);
+			static bool debug = false;
+			ImGui::Checkbox("debug", &debug); // Updates the value
+			chunkManager->chunkShader->setBool("debug", debug);
+			ImGui::TreePop();
+		    }
+		}
 	    }
 	    ImGui::End();
 
@@ -526,7 +542,7 @@ void Application::framebuffer_size_callback(GLFWwindow* window, int width, int h
     }
     if (app) {
 	app->aspectRatio = static_cast<float>(width) / height;
-	app->player->_camera->setAspectRatio(app->aspectRatio);
+	app->player->getCamera()->setAspectRatio(app->aspectRatio);
 	app->ui->SetViewportSize(width, height);
     }
 }

@@ -150,8 +150,7 @@ void ChunkManager::loadChunksAroundPlayer(glm::vec3 playerPosition, int renderDi
 			float worldX = (chunkX * chunkSize.x + x);
 			float worldZ = (chunkZ * chunkSize.z + z);
 			float frequency = 0.005f;
-			//float noiseValue = perlin.octave2D_01(worldX * frequency, worldZ * frequency, 5);
-			float rawNoise = LayeredPerlin(worldX, worldZ, 5, 0.002f, 1.0f); // returns in [-some, +some]
+			float rawNoise = LayeredPerlin(worldX, worldZ, 7, 0.003f, 1.2f); // returns in [-some, +some]
 			float redistributed = pow(abs(rawNoise), 1.3f) * (int)glm::sign(rawNoise);
 			noiseMap[z * chunkSize.x + x] = redistributed;
 		    }

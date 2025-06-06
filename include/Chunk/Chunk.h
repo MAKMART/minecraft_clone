@@ -11,7 +11,7 @@
 
 class Shader;
 struct Block {
-    enum class blocks { AIR, DIRT, GRASS, STONE, LAVA, WATER, WOOD, MAX_BLOCKS };	// Up to 512 blocks
+    enum class blocks { AIR, DIRT, GRASS, STONE, LAVA, WATER, WOOD, LEAVES, MAX_BLOCKS };	// Up to 512 blocks
     blocks type = blocks::AIR;
 
     // Compile-time function for converting enum to string
@@ -24,6 +24,7 @@ struct Block {
 	    case blocks::LAVA:  return "LAVA";
 	    case blocks::WATER: return "WATER";
 	    case blocks::WOOD:  return "WOOD";
+	    case blocks::LEAVES:return "LEAVES";
 	    default:            return "UNKNOWN BLOCK TYPE";
 	}
     }
@@ -36,6 +37,7 @@ struct Block {
 	    case 4:	return "LAVA";
 	    case 5:	return "WATER";
 	    case 6:	return "WOOD";
+	    case 7:	return "LEAVES";
 	    default:	return "UNKNOWN BLOCK TYPE";
 	}
     }
@@ -94,7 +96,7 @@ class Chunk
 	void generate(const std::vector<float>& noiseMap);
 	void updateMesh(void);
 	//Function to generate vertex data for a single Block
-	void generateBlockFace(const Block& block, int x, int y, int z, std::vector<Face>& faces);
+	void generateBlockFace(const Block& block, int x, int y, int z);
 	//Function to get the index of a block in the Chunk
 	inline int getBlockIndex(int x, int y, int z) const noexcept {
 #ifdef DEBUG
@@ -177,5 +179,8 @@ class Chunk
 	std::vector<Block> chunkData;
 	std::vector<unsigned int> indices;
 	int bufferSize;
+
+
+	void generateTreeAt(int x, int y, int z);
 
 };

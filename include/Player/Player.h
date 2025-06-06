@@ -99,7 +99,8 @@ public:
     float running_speed = walking_speed + running_speed_increment;
     float swimming_speed = 8.0f;
     float flying_speed = 17.5f;
-    float JUMP_FORCE = 4.8f;
+    float JUMP_FORCE = 4.5f;
+    const float h = 1.252f;	// Height of the jump of the player
     float max_interaction_distance = 10.0f;
     unsigned int render_distance = 5;
 

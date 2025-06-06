@@ -1,6 +1,8 @@
 #pragma once
 #include <RmlUi/Core.h>
+#ifdef DEBUG
 #include <RmlUi/Debugger.h>
+#endif
 #include <RmlUi/Core/RenderInterface.h>
 #include <RmlUi/Core/FileInterface.h>
 #include <memory>

@@ -21,16 +21,20 @@ div.fancy-box {
     bottom: 100px;
 }
 
+/* Crop container */
 .fancy-box.image-crop {
-  width: 700px;       /* your desired crop width */
-  height: 700px;      /* your desired crop height */
-  overflow: hidden;   /* hide the rest of the image */
-  position: relative;
+    width: 700px;
+    height: 700px;
+    overflow: hidden;
+    position: relative;
+    padding: 0; /* Make sure padding doesn't mess with layout */
 }
 
+/* Image positioning with transform */
 .fancy-box.image-crop img {
-  width: auto;
-  height: 200px;      /* move and scale image as needed */
-  object-fit: none;   /* disable fitting */
-  object-position: -50px -30px; /* shift image to crop */
+    position: absolute;
+    width: auto;
+    height: 200px;
+    transform: translate(-50px, -30px);
 }
+

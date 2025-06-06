@@ -419,7 +419,7 @@ void Player::update(float deltaTime, ChunkManager& chunkManager) {
 
     // Apply gravity if not flying
     if (!isFlying && !isOnGround)
-        velocity.y -= GRAVITY * deltaTime;
+        velocity.y += GRAVITY * deltaTime;
     else if (isOnGround && velocity.y < 0.0f)
         velocity.y = 0.0f;
 
@@ -463,7 +463,7 @@ void Player::update(float deltaTime) {
 
     // Apply gravity if not flying
     if (!isFlying && !isOnGround)
-        velocity.y -= GRAVITY * deltaTime;
+        velocity.y += GRAVITY * deltaTime;
     else if (isOnGround && velocity.y < 0.0f)
         velocity.y = 0.0f;
 
@@ -490,11 +490,11 @@ void Player::updateCameraPosition(void) {
 // Handle jumping
 void Player::jump(void) {
     if (isOnGround && !isFlying) {
-        velocity.y = JUMP_FORCE;
+        velocity.y = /*JUMP_FORCE*/ std::sqrt(2 * std::abs(GRAVITY) * h);	// Maybe precalculate this at compile time or smth but please do not use sqrt()
         isOnGround = false;
     }
 }
-//ERROR: FIX THIS!!!!!!!
+// ERROR: FIX THIS!!!!!!!
 /*void Player::crouch(void) {
     if (!isCrouched) {
         prevPlayerHeight = playerHeight;

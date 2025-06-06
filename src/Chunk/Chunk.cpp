@@ -5,6 +5,8 @@
 #include "../Timer.h"
 #include "defines.h"
 #include "Shader.h"
+#include <cstdlib>
+#include <ctime>
 
 Chunk::Chunk(const glm::ivec3& chunkPos, glm::ivec3 size)
     : position(chunkPos), _size(size), SSBO(0), nonAirBlockCount(0), blockCount(0), bufferSize(0) {
@@ -18,11 +20,48 @@ Chunk::Chunk(const glm::ivec3& chunkPos, glm::ivec3 size)
 	logSizeY = static_cast<int>(std::log2(size.y));
 
 	glCreateBuffers(1, &SSBO);
+	srand(static_cast<unsigned int>(time(0))); // Seed once
 }
 Chunk::~Chunk(void)
 {
     if(SSBO)	glDeleteBuffers(1, &SSBO);
 }
+
+void Chunk::generateTreeAt(int x, int y, int z) {
+    const int trunkHeight = 4 + rand() % 2; // height 4 or 5
+    const int leafRadius = 2;
+
+    // Place trunk
+    for (int i = 0; i < trunkHeight; ++i) {
+        int index = getBlockIndex(x, y + i, z);
+        if (index != -1) {
+            chunkData[index].type = Block::blocks::WOOD;
+            nonAirBlockCount++;
+            blockCount++;
+        }
+    }
+
+    // Place leaves - simple cube or spherical cap
+    for (int dy = -leafRadius; dy <= leafRadius; ++dy) {
+        for (int dx = -leafRadius; dx <= leafRadius; ++dx) {
+            for (int dz = -leafRadius; dz <= leafRadius; ++dz) {
+                if (dx * dx + dy * dy + dz * dz <= leafRadius * leafRadius + 1) {
+                    int lx = x + dx;
+                    int ly = y + trunkHeight + dy;
+                    int lz = z + dz;
+
+                    int index = getBlockIndex(lx, ly, lz);
+                    if (index != -1 && chunkData[index].type == Block::blocks::AIR) {
+                        chunkData[index].type = Block::blocks::LEAVES;
+                        nonAirBlockCount++;
+                        blockCount++;
+                    }
+                }
+            }
+        }
+    }
+}
+
 void Chunk::generate(const std::vector<float>& noiseMap) {
     // Reset counters
     nonAirBlockCount = 0;
@@ -69,6 +108,26 @@ void Chunk::generate(const std::vector<float>& noiseMap) {
         }
     }
 
+
+
+    // Tree pass
+
+    for (int z = 0; z < _size.z; ++z) {
+	for (int x = 0; x < _size.x; ++x) {
+	    int noiseIndex = z * _size.x + x;
+	    int height = static_cast<int>(noiseMap[noiseIndex] * _size.y);
+	    height = std::clamp(height, 0, _size.y - 1);
+
+	    // Rough condition for tree placement: 1 in 20 chance
+	    if (chunkData[getBlockIndex(x, height, z)].type == Block::blocks::GRASS &&
+		    rand() % 35 == 0) {
+
+		generateTreeAt(x, height + 1, z); // +1 so it grows *on top* of the grass
+	    }
+	}
+    }
+
+
     updateMesh();
 }
 
@@ -101,7 +160,7 @@ void Chunk::updateMesh(void) {
             }
             for (int y = 0; y <= maxHeight + 1; ++y) {
                 int index = getBlockIndex(x, y, z);
-                generateBlockFace(chunkData[index], x, y, z, faces);
+                generateBlockFace(chunkData[index], x, y, z);
                 if (chunkData[index].type == Block::blocks::AIR) {
                     blockCount++;
                 } else {
@@ -121,7 +180,7 @@ bool Chunk::isFaceVisible(const Block& block, int x, int y, int z) const
     // Check if the position is within the current chunk
     if (x >= 0 && x < _size.x && y >= 0 && y < _size.y && z >= 0 && z < _size.z) {
 	return getBlockAt(x, y, z).type == Block::blocks::AIR ||
-	    getBlockAt(x, y, z).type == Block::blocks::WATER;
+	    getBlockAt(x, y, z).type == Block::blocks::WATER || getBlockAt(x, y, z).type == Block::blocks::LEAVES;
     }
 
     // Handle boundary cases using neighbor references
@@ -159,11 +218,11 @@ void Chunk::renderChunk(std::unique_ptr<Shader> &shader) {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO); // Ensure SSBO is bound
     DrawArraysWrapper(GL_TRIANGLES, 0, faces.size() * 6);	// 6 faces per Voxel/Cube
 }
-void Chunk::generateBlockFace(const Block& block, int x, int y, int z, std::vector<Face>& faces)
+void Chunk::generateBlockFace(const Block& block, int x, int y, int z)
 {
     // Lambda to push a face into the vector.
-    auto pushFace = [&faces](int x, int y, int z, int u, int v, int face, int block_type) {
-	faces.emplace_back(Face(x, y, z, u, v, face, block_type));
+    auto pushFace = [this](int x, int y, int z, int u, int v, int face, int block_type) {
+	this->faces.emplace_back(Face(x, y, z, u, v, face, block_type));
     };
 
     uint8_t visibilityMask = 
@@ -240,6 +299,15 @@ void Chunk::generateBlockFace(const Block& block, int x, int y, int z, std::vect
 	    if(visibilityMask & (1 << 3)) pushFace(x, y, z, X, Y, 3, block.toInt());
 	    if(visibilityMask & (1 << 4)) pushFace(x, y, z, topandBotX, topandBotY, 4, block.toInt());
 	    if(visibilityMask & (1 << 5)) pushFace(x, y, z, topandBotX, topandBotY, 5, block.toInt());
+	    break;
+	case Block::blocks::LEAVES:
+	    X = 0, Y = 2;
+	    if(visibilityMask & (1 << 0)) pushFace(x, y, z, X, Y, 0, block.toInt());
+	    if(visibilityMask & (1 << 1)) pushFace(x, y, z, X, Y, 1, block.toInt());
+	    if(visibilityMask & (1 << 2)) pushFace(x, y, z, X, Y, 2, block.toInt());
+	    if(visibilityMask & (1 << 3)) pushFace(x, y, z, X, Y, 3, block.toInt());
+	    if(visibilityMask & (1 << 4)) pushFace(x, y, z, X, Y, 4, block.toInt());
+	    if(visibilityMask & (1 << 5)) pushFace(x, y, z, X, Y, 5, block.toInt());
 	    break;
 	default:
 	    std::cerr << "UNHANDLED BLOCK CASE: " << block.toString() << "# " << block.toInt() << std::endl;
