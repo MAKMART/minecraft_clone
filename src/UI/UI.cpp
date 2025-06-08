@@ -102,6 +102,14 @@ void UI::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f transl
 
     shader->setInt("uHasTexture", texture != 0 ? 1 : 0);
 
+    // Enable stencil testing for masking
+    if (clip_mask_enabled) {
+	glEnable(GL_STENCIL_TEST);
+	glStencilFunc(GL_EQUAL, 1, 0xFF);
+	glStencilMask(0x00);
+    } else {
+	glDisable(GL_STENCIL_TEST);
+    }
     if (texture != 0) {
 	auto tex = texture_map.find(texture);
 	if (tex != texture_map.end()) {
@@ -121,8 +129,9 @@ void UI::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f transl
 	Geometry& geo = it->second;
 	glBindVertexArray(geo.vao);
 	DrawElementsWrapper(GL_TRIANGLES, geo.index_count, GL_UNSIGNED_INT, nullptr);
-	glBindVertexArray(0);
     }
+    glBindVertexArray(0);
+    glDisable(GL_STENCIL_TEST);
 }
 
 void UI::ReleaseGeometry(Rml::CompiledGeometryHandle handle) {
@@ -178,13 +187,24 @@ void UI::ReleaseTexture(Rml::TextureHandle handle) {
 
 void UI::EnableScissorRegion(bool enable) {
     if (enable)
-        glEnable(GL_SCISSOR_TEST);
+	glEnable(GL_SCISSOR_TEST);
     else
-        glDisable(GL_SCISSOR_TEST);
+	glDisable(GL_SCISSOR_TEST);
 }
 
 void UI::SetScissorRegion(Rml::Rectanglei region) {
-    glScissor(region.Left(), viewport_height - region.Top() - region.Height(), region.Width(), region.Height());
+    if (region.Valid())
+	glEnable(GL_SCISSOR_TEST);
+    else
+	glDisable(GL_SCISSOR_TEST);
+
+    if (region.Valid()) {
+	// Some render APIs don't like offscreen positions (WebGL in particular), so clamp them to the viewport.
+	const int x = Rml::Math::Clamp(region.Left(), 0, viewport_width);
+	const int y = Rml::Math::Clamp(viewport_height - region.Bottom(), 0, viewport_height);
+
+	glScissor(x, y, region.Width(), region.Height());
+    }
 }
 
 void UI::SetViewportSize(int width, int height) {
@@ -199,18 +219,67 @@ void UI::SetViewportSize(int width, int height) {
 // Optional functions default implementations
 
 void UI::EnableClipMask(bool enable) {
-    // Default: no clip mask support, just disable OpenGL scissor test for clip mask.
-    //if (enable) {
-        // You could enable stencil buffer here if you want real clip masks
-        // but for now, just disable to be safe.
-        //glDisable(GL_SCISSOR_TEST);
-    //}
+    clip_mask_enabled = enable;
+     if (enable) {
+        glEnable(GL_STENCIL_TEST);
+    } else {
+        glDisable(GL_STENCIL_TEST);
+    }
 }
-
 void UI::RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation) {
-    // No clip mask support implemented
-    (void)operation; (void)geometry; (void)translation;
-    // Do nothing
+    auto it = geometry_map.find(geometry);
+    if (it == geometry_map.end())
+        return;
+
+    Geometry& geo = it->second;
+
+    // Setup transform
+    glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(translation.x, translation.y, 0.0f));
+    glm::mat4 final_model = model * translation_matrix;
+
+    shader->use();
+    shader->setMat4("uModel", final_model);
+    shader->setMat4("uProjection", projection);
+    shader->setInt("uHasTexture", 0); // Mask geometry doesn't use textures
+
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE); // Don't write colors
+    glDepthMask(GL_FALSE);                               // Don't write depth
+    glEnable(GL_STENCIL_TEST);
+    const bool clear_stencil = (operation == Rml::ClipMaskOperation::Set || operation == Rml::ClipMaskOperation::SetInverse);
+    if (clear_stencil)
+    {
+	// @performance Increment the reference value instead of clearing each time.
+	glClearStencil(0);
+	glClear(GL_STENCIL_BUFFER_BIT);
+    }
+    // Configure stencil ops based on operation
+    switch (operation) {
+        case Rml::ClipMaskOperation::Set:
+            glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+            glStencilFunc(GL_ALWAYS, 1, 0xFF);
+            glStencilMask(0xFF); // Allow writing stencil
+            break;
+
+        case Rml::ClipMaskOperation::Intersect:
+            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+            glStencilFunc(GL_EQUAL, 1, 0xFF); // Keep only where stencil == 1
+            glStencilMask(0x00); // Don’t modify stencil
+            break;
+	case Rml::ClipMaskOperation::SetInverse:
+	    glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+	    glStencilFunc(GL_ALWAYS, 0, 0xFF); // Set to 0
+	    glStencilMask(0xFF);
+	    break;
+    }
+
+    glBindVertexArray(geo.vao);
+    DrawElementsWrapper(GL_TRIANGLES, geo.index_count, GL_UNSIGNED_INT, nullptr);
+    glBindVertexArray(0);
+
+    // Restore state
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
+    glStencilMask(0x00); // Prevent further stencil writes unless re-enabled
 }
 
 void UI::SetTransform(const Rml::Matrix4f* transform) {

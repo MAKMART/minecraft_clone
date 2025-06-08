@@ -6,6 +6,9 @@
 #include "../InputManager.h"
 #include "ChunkManager.h"
 #include "Cube.h"
+#include "AABB.h"
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/string_cast.hpp>
 
 class PlayerState;
 class PlayerMode;
@@ -27,7 +30,6 @@ public:
     void changeMode(std::unique_ptr<PlayerMode> newMode);
     void changeState(std::unique_ptr<PlayerState> newState);
     void update(float deltaTime, ChunkManager& chunkManager);
-    void update(float deltaTime);
     void render(unsigned int shaderProgram);
     void loadSkin(const std::string &path);
     void loadSkin(const std::filesystem::path &path);
@@ -39,10 +41,33 @@ public:
     void jump(void);
     void crouch(void);
 
+    glm::mat4 modelMat;
+
+    const glm::mat4 &getModelMatrix(void) const {
+	return modelMat;
+    }
 
     float halfWidth = 0.4f;
     float halfDepth = 0.4f;
     float halfHeight;
+
+    AABB aabb;
+    const AABB &getAABB(void) const {
+	return aabb;
+    }
+    void updateBoundingBox(void) {
+	updatePlayerBoundingBox(position); 
+    }
+    void updatePlayerBoundingBox(const glm::vec3 &pos) {
+	glm::vec3 min = pos - glm::vec3(halfWidth, 0.0f, halfDepth);
+	glm::vec3 max = pos + glm::vec3(halfWidth, playerHeight, halfDepth);
+	aabb = AABB(min, max);
+    }
+    AABB getBoundingBoxAt(const glm::vec3 &pos) const {
+	glm::vec3 min = pos - glm::vec3(halfWidth, 0.0f, halfDepth);
+	glm::vec3 max = pos + glm::vec3(halfWidth, playerHeight, halfDepth);
+	return AABB(min, max);
+    }
 
 
     std::optional<glm::ivec3> raycastVoxel(ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance);
@@ -52,7 +77,8 @@ public:
     bool isInsidePlayerBoundingBox(const glm::vec3& checkPos) const;
     void breakBlock(ChunkManager& chunkManager);
     void placeBlock(ChunkManager& chunkManager);
-
+    void moveWithSubsteps(glm::vec3& newPosition, glm::vec3& velocity,
+                              const glm::vec3& oldPosition, ChunkManager& cm);
 
     // Public members
     std::unique_ptr<PlayerState> currentState;
@@ -64,7 +90,7 @@ public:
     glm::vec3 position;
     glm::vec3 prevPosition;
     glm::vec3 velocity;
-    glm::vec3 chunkSize;
+    glm::ivec3 chunkSize;
     glm::vec3 pendingMovement = glm::vec3(0.0f);
 
 
@@ -104,7 +130,7 @@ public:
     float max_interaction_distance = 10.0f;
     unsigned int render_distance = 5;
 
-    float playerHeight = 0.0f;
+    float playerHeight = 1.8f;
     float prevPlayerHeight;
     float eyeHeight;
     int selectedBlock = 1;

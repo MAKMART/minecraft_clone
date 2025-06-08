@@ -45,12 +45,12 @@ public:
     // Destructor to clear all the chunks before deleting the ChunkManager
     ~ChunkManager(void);
 
-    std::vector<int> getChunkVertices(glm::vec3 worldPos) {
-	return getChunk(worldPos)->getChunkVertices();
-    }
     
     std::vector<Block> getChunkData(glm::vec3 worldPos) { return getChunk(worldPos)->getChunkData(); }
 
+    std::unordered_map<std::tuple<int, int, int>, std::shared_ptr<Chunk>> getChunks(void) {
+	return chunks;
+    }
     
     void updateChunk(glm::vec3 worldPos) {
 	Chunk* chunk = getChunk(worldPos, true);

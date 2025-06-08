@@ -8,6 +8,7 @@
 #include <iostream>
 #include <memory>
 #include <PerlinNoise.hpp>
+#include "AABB.h"
 
 class Shader;
 struct Block {
@@ -68,35 +69,71 @@ struct Face {
 	tex_coord = (tex_u & 0x3FF) | ((tex_v & 0x3FF) << 10) | ((face & 0x7) << 20) | ((block_type & 0x1FF) << 23);
     }
 };
-class Chunk
-{
-    public:
+class Chunk {
+public:
 	glm::ivec3 position;  // Store chunk grid position (chunkX, chunkY, chunkZ)
 	glm::ivec3 _size;	// Must be a power of 2
-	Chunk(const glm::ivec3& chunkPos, glm::ivec3 size);
-	~Chunk(void);
-	std::vector<Block>& getChunkData(void) { return chunkData; }
-	Block getBlockAt(int x, int y, int z) const
-	{
-	    return chunkData[getBlockIndex(x, y, z)];
+	AABB aabb;	// Axis Aligned Bounding Box for the chunk
+	AABB getAABB(void) const {
+	    return aabb;
 	}
-	//std::vector<int> getChunkVertices(void) { return faces; };
-	std::vector<int> getChunkVertices(void) {
-	    std::vector<int> intVertices;
-	    intVertices.reserve(faces.size() * 2);  // Pre-allocate space for the faces
+	Chunk(const glm::ivec3& chunkPos, glm::ivec3 size);
+	
+	~Chunk(void);
+	
+	std::vector<Block>& getChunkData(void) { return chunkData; }
 
-	    // Iterate through each Face and extract its data into the integer vector
-	    for (const Face& v : faces) {
-		intVertices.emplace_back(v.position);
-		intVertices.emplace_back(v.tex_coord);
+	Block getBlockAt(int x, int y, int z) const {
+	    if (x >= 0 && x < _size.x &&
+		    y >= 0 && y < _size.y &&
+		    z >= 0 && z < _size.z) {
+
+		int index = getBlockIndex(x, y, z);
+		if (index != -1) {
+		    return chunkData[index];
+		}
+		return Block(); // fallback (shouldn't happen)
 	    }
 
-	    return intVertices;
+	    // OUT OF BOUNDS – resolve neighbor chunk
+	    std::shared_ptr<Chunk> neighbor;
+	    glm::ivec3 localPos(x, y, z);
+
+	    if (x < 0) {
+		neighbor = leftChunk.lock();
+		localPos.x = _size.x + x;
+	    } else if (x >= _size.x) {
+		neighbor = rightChunk.lock();
+		localPos.x = x - _size.x;
+	    } else if (z < 0) {
+		neighbor = backChunk.lock();
+		localPos.z = _size.z + z;
+	    } else if (z >= _size.z) {
+		neighbor = frontChunk.lock();
+		localPos.z = z - _size.z;
+	    } else {
+		// Y-axis out-of-bounds — you might add topChunk/bottomChunk later
+		return Block(Block::blocks::AIR);
+	    }
+
+	    if (!neighbor) {
+		// Neighbor doesn't exist — treat as air
+		return Block(Block::blocks::AIR);
+	    }
+
+	    return neighbor->getBlockAt(localPos.x, localPos.y, localPos.z);
 	}
+
+	
+	bool setBlockAt(int x, int y, int z, Block::blocks type);
+	
 	void generate(const std::vector<float>& noiseMap);
+	
 	void updateMesh(void);
+	
 	//Function to generate vertex data for a single Block
 	void generateBlockFace(const Block& block, int x, int y, int z);
+	
 	//Function to get the index of a block in the Chunk
 	inline int getBlockIndex(int x, int y, int z) const noexcept {
 #ifdef DEBUG
@@ -115,11 +152,10 @@ class Chunk
 	bool isFaceVisible(const Block& block, int x, int y, int z) const;
 	// Convert world coordinates to chunk coordinates
 	static glm::ivec3 worldToChunk(const glm::vec3& worldPos, const glm::vec3& chunkSize) {
-	    return glm::ivec3(
-		    static_cast<int>(std::floor(worldPos.x / chunkSize.x)),
-		    static_cast<int>(std::floor(worldPos.y / chunkSize.y)),
-		    static_cast<int>(std::floor(worldPos.z / chunkSize.z))
-		    );
+	    return glm::ivec3(static_cast<int>(std::floor(worldPos.x / chunkSize.x)),
+			      static_cast<int>(std::floor(worldPos.y / chunkSize.y)),
+			      static_cast<int>(std::floor(worldPos.z / chunkSize.z))
+			      );
 	}
 
 	// Get local coordinates within a chunk
@@ -127,28 +163,17 @@ class Chunk
 	    glm::ivec3 chunkPos = worldToChunk(worldPos, chunkSize);
 	    glm::vec3 chunkOrigin = chunkToWorld(chunkPos, chunkSize);
 
-	    return glm::ivec3(
-		    static_cast<int>(std::floor(worldPos.x - chunkOrigin.x)),
-		    static_cast<int>(std::floor(worldPos.y - chunkOrigin.y)),
-		    static_cast<int>(std::floor(worldPos.z - chunkOrigin.z))
-		    );
+	    return glm::ivec3(static_cast<int>(std::floor(worldPos.x - chunkOrigin.x)),
+			      static_cast<int>(std::floor(worldPos.y - chunkOrigin.y)),
+			      static_cast<int>(std::floor(worldPos.z - chunkOrigin.z))
+			      );
 	}
 
 	// Convert chunk coordinates back to world coordinates (chunk's origin position)
 	static glm::vec3 chunkToWorld(const glm::ivec3& chunkPos, const glm::vec3& chunkSize) {
-	    return glm::vec3(
-		    chunkPos.x * chunkSize.x,
-		    chunkPos.y * chunkSize.y,
-		    chunkPos.z * chunkSize.z
-		    );
+	    return glm::vec3(chunkPos.x * chunkSize.x, chunkPos.y * chunkSize.y, chunkPos.z * chunkSize.z);
 	}
-	//static glm::ivec3 worldToChunk(const glm::vec3& worldPos, const glm::vec3& chunkSize);
-	//static glm::ivec3 worldToLocal(const glm::vec3& worldPos, const glm::vec3& chunkSize);
-	//static glm::vec3 chunkToWorld(const glm::ivec3& chunkPos, const glm::vec3& chunkSize);
 	bool isAir(int x, int y, int z) const{
-	    if (x < 0 || x >= _size.x || y < 0 || y >= _size.y || z < 0 || z >= _size.z) {
-		return true; // Out of bounds = Air
-	    }
 	    return chunkData[getBlockIndex(x, y, z)].type == Block::blocks::AIR;
 	}
 
@@ -170,17 +195,13 @@ class Chunk
 	int nonAirBlockCount = 0;
 	int blockCount = 0;
 	void uploadData(void);
-	int getStartX(void) const { return position.x * _size.x; }
-	int getStartZ(void) const { return position.z * _size.z; }
-	int getStartY(void) const { return position.y * _size.y; }
+	//int getStartX(void) const { return position.x * _size.x; }
+	//int getStartZ(void) const { return position.z * _size.z; }
+	//int getStartY(void) const { return position.y * _size.y; }
 	int logSizeX;
 	int logSizeY;
 	std::vector<Face> faces;
 	std::vector<Block> chunkData;
 	std::vector<unsigned int> indices;
-	int bufferSize;
-
-
 	void generateTreeAt(int x, int y, int z);
-
 };

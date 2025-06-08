@@ -9,7 +9,7 @@
 #include <ctime>
 
 Chunk::Chunk(const glm::ivec3& chunkPos, glm::ivec3 size)
-    : position(chunkPos), _size(size), SSBO(0), nonAirBlockCount(0), blockCount(0), bufferSize(0) {
+    : position(chunkPos), _size(size), SSBO(0), nonAirBlockCount(0), blockCount(0) {
 	try {
 	    chunkData.resize(_size.x * _size.y * _size.z);
 	} catch (const std::bad_alloc& e) {
@@ -18,7 +18,10 @@ Chunk::Chunk(const glm::ivec3& chunkPos, glm::ivec3 size)
 
 	logSizeX = static_cast<int>(std::log2(size.x));
 	logSizeY = static_cast<int>(std::log2(size.y));
-
+	// Construct AABB
+	glm::vec3 worldOrigin = chunkToWorld(position, _size);
+	glm::vec3 worldMax = worldOrigin + glm::vec3(_size);
+	aabb = AABB(worldOrigin, worldMax);
 	glCreateBuffers(1, &SSBO);
 	srand(static_cast<unsigned int>(time(0))); // Seed once
 }
@@ -26,7 +29,48 @@ Chunk::~Chunk(void)
 {
     if(SSBO)	glDeleteBuffers(1, &SSBO);
 }
+bool Chunk::setBlockAt(int x, int y, int z, Block::blocks type) {
+    if (x >= 0 && x < _size.x &&
+        y >= 0 && y < _size.y &&
+        z >= 0 && z < _size.z) {
+        
+        int index = getBlockIndex(x, y, z);
+        if (index != -1) {
+            if (chunkData[index].type == Block::blocks::AIR && type != Block::blocks::AIR) {
+                nonAirBlockCount++;
+                blockCount++;
+            }
+            chunkData[index].type = type;
+            return true;
+        }
+        return false;
+    }
 
+    // OUT OF BOUNDS – resolve neighbor chunk
+    std::shared_ptr<Chunk> neighbor;
+    glm::ivec3 localPos(x, y, z);
+
+    if (x < 0) {
+        neighbor = leftChunk.lock();
+        localPos.x = _size.x + x;
+    } else if (x >= _size.x) {
+        neighbor = rightChunk.lock();
+        localPos.x = x - _size.x;
+    } else if (z < 0) {
+        neighbor = backChunk.lock();
+        localPos.z = _size.z + z;
+    } else if (z >= _size.z) {
+        neighbor = frontChunk.lock();
+        localPos.z = z - _size.z;
+    } else {
+        // y bounds? You can handle this later if you support vertical chunks
+        return false;
+    }
+
+    if (!neighbor) return false;
+
+    return neighbor->setBlockAt(localPos.x, localPos.y, localPos.z, type);
+}
 void Chunk::generateTreeAt(int x, int y, int z) {
     const int trunkHeight = 4 + rand() % 2; // height 4 or 5
     const int leafRadius = 2;
@@ -49,13 +93,9 @@ void Chunk::generateTreeAt(int x, int y, int z) {
                     int lx = x + dx;
                     int ly = y + trunkHeight + dy;
                     int lz = z + dz;
-
-                    int index = getBlockIndex(lx, ly, lz);
-                    if (index != -1 && chunkData[index].type == Block::blocks::AIR) {
-                        chunkData[index].type = Block::blocks::LEAVES;
-                        nonAirBlockCount++;
-                        blockCount++;
-                    }
+		    // Only place leaves on Block::blocks::AIR
+                    if (getBlockAt(lx, ly, lz).type == Block::blocks::AIR)
+			setBlockAt(lx, ly, lz, Block::blocks::LEAVES);
                 }
             }
         }

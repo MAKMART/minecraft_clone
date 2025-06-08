@@ -93,6 +93,7 @@ public:
     std::unique_ptr<FileInterface> fileInterface;
     std::unique_ptr<SystemInterface> systemInterface;
 
+    bool clip_mask_enabled = false;
 private:
     struct Geometry {
         GLuint vao, vbo, ebo;
@@ -108,8 +109,6 @@ private:
 
     Rml::CompiledGeometryHandle next_geometry_handle = 1;
     Rml::TextureHandle next_texture_handle = 1;
-
     int viewport_width, viewport_height;
-
 
 };

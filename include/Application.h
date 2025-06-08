@@ -19,6 +19,7 @@
 #include "SwimmingState.h"
 #include "InputManager.h"
 #include "UI.h"
+#include "AABBDebugDrawer.h"
 
 class Application {
 public:
@@ -41,6 +42,7 @@ private:
     b8 mouseClickEnabled = false;
     b8 renderUI = true;
     b8 renderTerrain = true;
+    b8 debugRender = false;
 
     i32 windowedWidth, windowedHeight;
     i32 windowedPosX, windowedPosY;
@@ -53,6 +55,9 @@ private:
     std::unique_ptr<Player> player;
     std::unique_ptr<InputManager> input;
     std::unique_ptr<UI> ui;
+#ifdef DEBUG
+    std::unique_ptr<AABBDebugDrawer> aabbDebugDrawer;
+#endif
     glm::ivec3 chunkSize = {16, 128, 16};	// Size of each chunk
 
 

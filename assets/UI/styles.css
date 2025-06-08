@@ -10,31 +10,43 @@ body {
 
 div.fancy-box {
     font-family: "Hack";
-    background-color: #87af5f;
+    background-color: #ff5f5f;	/*E&000*/
     padding: 20px;
     width: 300px;
     color: black;
     text-align: center;
     vertical-align: bottom;
     animation: none;
-    position: absolute;
-    bottom: 100px;
+    position: absolute;         /* Position relative to the parent (viewport or container) */
+    bottom: 0px;               /* Anchor to the bottom */
+    left: 50%;                 /* Move to the horizontal center */
+    transform: translateX(-50%); /* Offset by half the div's width to center it */
+    text-align: center;        /* Center text or inline content inside the div */
 }
 
 /* Crop container */
 .fancy-box.image-crop {
-    width: 700px;
-    height: 700px;
+    width: 900px;
+    height: 900px;
     overflow: hidden;
     position: relative;
     padding: 0; /* Make sure padding doesn't mess with layout */
 }
 
 /* Image positioning with transform */
-.fancy-box.image-crop img {
+/*.fancy-box.image-crop img {
     position: absolute;
     width: auto;
-    height: 200px;
-    transform: translate(-50px, -30px);
-}
+    height: 90px;
+    transform: translate(-75px, 90px);
+}*/
 
+.fancy-box.image-crop {
+    width: 16px;
+    height: 16px;
+    overflow: hidden;
+    position: absolute;
+    bottom: 0px;
+    left: 50%;
+    margin-left: -8px;
+}
