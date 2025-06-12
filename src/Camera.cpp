@@ -1,5 +1,4 @@
 #include "Camera.h"
-#include <iostream>
 
 // Constructor
 Camera::Camera(glm::vec3 position, glm::vec3 up, float yaw, float pitch)

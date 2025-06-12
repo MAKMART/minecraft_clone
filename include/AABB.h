@@ -18,7 +18,14 @@ struct AABB {
         glm::vec3 halfSize = size * 0.5f;
         return AABB(center - halfSize, center + halfSize);
     }
-
+    // Gets the farthest point from a given normal vector
+    glm::vec3 getFarthestPoint(const glm::vec3& normal) const {
+	return {
+	    (normal.x > 0) ? max.x : min.x,
+		(normal.y > 0) ? max.y : min.y,
+		(normal.z > 0) ? max.z : min.z
+	};
+    }
     // Get the size of the AABB
     glm::vec3 size() const {
         return max - min;

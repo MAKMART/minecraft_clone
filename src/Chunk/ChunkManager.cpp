@@ -214,7 +214,6 @@ void ChunkManager::unloadDistantChunks(glm::vec3 playerPosition, int unloadDista
 std::shared_ptr<Chunk> ChunkManager::getChunk(glm::vec3 worldPos) const
 {
     std::tuple<int, int, int> chunkPosition = getChunkKey(worldPos);
-    auto [chunkX, chunkY, chunkZ] = chunkPosition;
     if (chunks.find(chunkPosition) != chunks.end()) {
         return chunks.find(chunkPosition)->second;
     } else {
@@ -282,7 +281,7 @@ void ChunkManager::renderChunks(glm::vec3 player_position, unsigned int render_d
         glm::vec3 worldPos = glm::vec3(x * chunkSize.x, y * chunkSize.y, z * chunkSize.z);
 
         // Check if chunk is within camera view
-        if (!camera.isChunkVisible(worldPos, chunkSize)) continue;
+        if (!camera.isChunkVisible(chunk->getAABB())) continue;
         // Render the chunk with the current shader
         chunk->renderChunk(chunkShader);
     }

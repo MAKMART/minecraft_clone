@@ -637,6 +637,7 @@ void Application::mouse_callback(GLFWwindow* window, int button, int action, int
 }
 
 void Application::scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+    (void)xoffset;
     auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
 
     if (app)
@@ -646,6 +647,9 @@ void Application::scroll_callback(GLFWwindow* window, double xoffset, double yof
 }
 void Application::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 
+    (void)key;
+    (void)scancode;
+    (void)mods;
     auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
 
     if (!app) return;

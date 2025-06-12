@@ -3,6 +3,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <GL/glew.h>
 #include <array>
+#include "AABB.h"
 enum Camera_Movement {
 	FORWARD,
 	BACKWARD,
@@ -127,33 +128,20 @@ public:
 
 	    return planes;
 	}
+	// Checks if a chunk is visible
+	bool isChunkVisible(const AABB& bounds) const {
+	    const auto planes = extractFrustumPlanes();
 
-	// Check if a chunk is visible
-	bool isChunkVisible(const glm::vec3& chunkPosition, const glm::ivec3& chunkSize) const {
-	    // Define the chunk's bounding box
-	    glm::vec3 min = chunkPosition;
-	    glm::vec3 max = chunkPosition + glm::vec3(chunkSize);
-
-	    // Get the frustum planes
-	    auto planes = extractFrustumPlanes();
-
-	    // Test the bounding box against each frustum plane
 	    for (const auto& plane : planes) {
-		// Find the farthest point from the plane
-		glm::vec3 farthestPoint = {
-		    (plane.normal.x > 0) ? max.x : min.x,
-		    (plane.normal.y > 0) ? max.y : min.y,
-		    (plane.normal.z > 0) ? max.z : min.z
-		};
+		glm::vec3 farthestPoint = bounds.getFarthestPoint(plane.normal);
 
-		// Check if the farthest point is outside the plane
 		float distance = glm::dot(plane.normal, farthestPoint) + plane.distance;
-		if (distance < 0) {
-		    return false; // Chunk is outside this plane
+		if (distance < 0.0f) {
+		    return false; // AABB is fully outside this plane
 		}
 	    }
 
-	    return true; // Chunk is inside all planes
+	    return true; // AABB intersects or is inside all planes
 	}
 
 	// calculates the front vector from the Camera's (updated) Euler Angles
