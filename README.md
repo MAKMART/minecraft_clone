@@ -11,8 +11,6 @@ Make sure both are installed and added to your system's PATH if you're on Window
 ## Cloning the Repo
 Open a terminal in whatever folder you want and run:
 ```
-mkdir MyGameFolder
-cd MyGameFolder
 git clone https://github.com/MAKMART/minecraft_clone.git
 cd minecraft_clone
 ```
