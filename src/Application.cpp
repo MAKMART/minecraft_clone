@@ -41,8 +41,6 @@ Application::Application(int width, int height)
 
 
 
-
-
     initWindow();
     // Set the Application pointer for callbacks.
     glfwSetWindowUserPointer(window, this);
