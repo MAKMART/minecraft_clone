@@ -26,25 +26,12 @@ Application::Application(int width, int height)
 #endif
 #endif
 
-
-
-
-
     // First thing you have to do is fix the damn stencil buffer to allow cropping in RmlUI
-    // Second thing is fixing the AABBs (Maybe use FCL library for collision detection)
-
-
-
-
-
-
-
-
+    // Second thing is fixing the AABBs (Maybe use FCL library for collision detection) or switch the world back to fix the float precision issues
 
     initWindow();
     // Set the Application pointer for callbacks.
     glfwSetWindowUserPointer(window, this);
-
 
     // --- CROSSHAIR STUFF ---
     // Define texture and cell size
@@ -75,7 +62,6 @@ Application::Application(int width, int height)
 	centerX + crosshairSize, centerY + crosshairSize, 1.0f,   uMax, vMax, // Top-right
 	centerX - crosshairSize, centerY + crosshairSize, 1.0f,   uMin, vMax  // Top-left
     };
-
 
     // Generate VAO and Buffers with DSA
     glCreateVertexArrays(1, &crosshairVAO);
