@@ -14,17 +14,17 @@ void FlyingState::handleInput(Player& player, float deltaTime) {
     float speed = player.flying_speed;
 
     if (player.input->isHeld(FORWARD_KEY))
-	movement += player._camera->Front * speed;
+	movement += player._camera->getFront() * speed;
     if (player.input->isHeld(BACKWARD_KEY))
-	movement -= player._camera->Front * speed;
+	movement -= player._camera->getFront() * speed;
     if (player.input->isHeld(LEFT_KEY))
-	movement -= player._camera->Right * speed;
+	movement -= player._camera->getRight() * speed;
     if (player.input->isHeld(RIGHT_KEY))
-	movement += player._camera->Right * speed;
+	movement += player._camera->getRight() * speed;
     if (player.input->isHeld(DOWN_KEY))
-	movement -= player._camera->Up * speed;
+	movement -= player._camera->getUp() * speed;
     if (player.input->isHeld(UP_KEY))
-	movement += player._camera->Up * speed;
+	movement += player._camera->getUp() * speed;
 
     // Normalize movement and apply speed
     if (glm::length(movement) > 0.0f) {

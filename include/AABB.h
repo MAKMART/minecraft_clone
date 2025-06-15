@@ -19,7 +19,7 @@ struct AABB {
         return AABB(center - halfSize, center + halfSize);
     }
     // Gets the farthest point from a given normal vector
-    glm::vec3 getFarthestPoint(const glm::vec3& normal) const {
+    [[nodiscard]] glm::vec3 getFarthestPoint(const glm::vec3& normal) const {
 	return {
 	    (normal.x > 0) ? max.x : min.x,
 		(normal.y > 0) ? max.y : min.y,
@@ -27,26 +27,26 @@ struct AABB {
 	};
     }
     // Get the size of the AABB
-    glm::vec3 size() const {
+    [[nodiscard]] glm::vec3 size() const {
         return max - min;
     }
 
     // Get the center of the AABB
-    glm::vec3 center() const {
+    [[nodiscard]] glm::vec3 center() const {
         return (min + max) * 0.5f;
     }
 
     // Check if this AABB intersects another AABB
-    static bool intersects(const AABB& a, const AABB& b) {
+    [[nodiscard]] static bool intersects(const AABB& a, const AABB& b) {
         return (a.min.x <= b.max.x && a.max.x >= b.min.x) &&
                (a.min.y <= b.max.y && a.max.y >= b.min.y) &&
                (a.min.z <= b.max.z && a.max.z >= b.min.z);
     }
-    bool intersects(const AABB& other) const {
+    [[nodiscard]] bool intersects(const AABB& other) const {
 	return intersects(*this, other);
     }
     // Optional: check if point is inside
-    bool contains(const glm::vec3& point) const {
+    [[nodiscard]] bool contains(const glm::vec3& point) const {
         return (point.x >= min.x && point.x <= max.x) &&
                (point.y >= min.y && point.y <= max.y) &&
                (point.z >= min.z && point.z <= max.z);

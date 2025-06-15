@@ -2,36 +2,32 @@
 
 // Constructor
 Camera::Camera(glm::vec3 position, glm::vec3 up, float yaw, float pitch)
-    : trackMouse(true), Front(glm::vec3(0.0f, 0.0f, -1.0f))
-{
+    : trackMouse(true) {
     Position = position;
     WorldUp = up;
     Yaw = yaw;
     Pitch = pitch;
     Target = position;  // Initially, target is the same as position
     Distance = 5.0f;    // Default third-person distance
-    updateCameraVectors();
 }
 
 // Constructor with scalar values
 Camera::Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch)
-    : trackMouse(true), Front(glm::vec3(0.0f, 0.0f, -1.0f))
-{
+    : trackMouse(true) {
     Position = glm::vec3(posX, posY, posZ);
     WorldUp = glm::vec3(upX, upY, upZ);
     Yaw = yaw;
     Pitch = pitch;
     Target = Position;
     Distance = 5.0f;
-    updateCameraVectors();
 }
 
 // returns the view matrix calculated using Euler Angles and the LookAt Matrix
 glm::mat4 Camera::GetViewMatrix() const {
     if (isThirdPerson) {
-        return glm::lookAt(Position, Target, Up);
+        return glm::lookAt(Position, Target, getUp());
     } else {
-        return glm::lookAt(Position, Position + Front, Up);
+        return glm::lookAt(Position, Position + getFront(), getUp());
     }
 }
 
@@ -44,18 +40,18 @@ glm::mat4 Camera::GetProjectionMatrix() const {
 glm::vec3 Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime, glm::vec3 velocity)
 {
     float speed = MovementSpeed * deltaTime;
-	if (direction == FORWARD)
-	    velocity += Front * speed;
-	if (direction == BACKWARD)
-	    velocity -= Front * speed;
-	if (direction == LEFT)
-	    velocity -= Right * speed;
-	if (direction == RIGHT)
-	    velocity += Right * speed;
-	if (direction == UP)
-	    velocity += Up * speed;
-	if (direction == DOWN)
-	    velocity -= Up * speed;
+	if (direction == Camera_Movement::FORWARD)
+	    velocity += getFront() * speed;
+	if (direction == Camera_Movement::BACKWARD)
+	    velocity -= getFront() * speed;
+	if (direction == Camera_Movement::LEFT)
+	    velocity -= getRight() * speed;
+	if (direction == Camera_Movement::RIGHT)
+	    velocity += getRight() * speed;
+	if (direction == Camera_Movement::UP)
+	    velocity += getUp() * speed;
+	if (direction == Camera_Movement::DOWN)
+	    velocity -= getUp() * speed;
 
 	// Update camera position based on velocity (only in first-person or if not third-person controlling player)
 	if (!isThirdPerson || !trackMouse) {
@@ -75,9 +71,9 @@ glm::vec3 Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime, gl
     if (direction == BACKWARD)
         movement -= glm::vec3(0.0f, 0.0f, 1.0f) * speed; // Ignore Y component
     if (direction == LEFT)
-        movement -= glm::vec3(Right.x, 0.0f, Right.z) * speed; // Ignore Y component
+        movement -= glm::vec3(getRight().x, 0.0f, getRight().z) * speed; // Ignore Y component
     if (direction == RIGHT)
-        movement += glm::vec3(Right.x, 0.0f, Right.z) * speed; // Ignore Y component
+        movement += glm::vec3(getRight().x, 0.0f, getRight().z) * speed; // Ignore Y component
 
     // Normalize movement to maintain constant speed in diagonal directions
     if (glm::length(movement) > 0.0f)
@@ -91,16 +87,16 @@ glm::vec3 Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime, fl
     float speed = movement_velocity * deltaTime;
 
     // Flatten the forward vector to prevent slow movement when looking down/up
-    glm::vec3 flatForward = glm::normalize(glm::vec3(Front.x, 0.0f, Front.z));
-    glm::vec3 right = glm::normalize(glm::vec3(Right.x, 0.0f, Right.z));
+    glm::vec3 flatForward = glm::normalize(glm::vec3(getFront().x, 0.0f, getFront().z));
+    glm::vec3 right = glm::normalize(glm::vec3(getRight().x, 0.0f, getRight().z));
 
-    if (direction == FORWARD)
+    if (direction == Camera_Movement::FORWARD)
         movement += flatForward * speed;
-    if (direction == BACKWARD)
+    if (direction == Camera_Movement::BACKWARD)
         movement -= flatForward * speed;
-    if (direction == LEFT)
+    if (direction == Camera_Movement::LEFT)
         movement -= right * speed;
-    if (direction == RIGHT)
+    if (direction == Camera_Movement::RIGHT)
         movement += right * speed;
 
     // Keep movement speed consistent in diagonal movement
@@ -143,9 +139,6 @@ void Camera::ProcessMouseMovement(float xoffset, float yoffset, GLboolean constr
 	    if (Pitch >= 89.0f) Pitch = 89.0f;
 	    if (Pitch <= -89.0f) Pitch = -89.0f;
 	}
-
-	// Update camera vectors for first-person
-	updateCameraVectors();
     }
 }
 
@@ -178,11 +171,6 @@ void Camera::UpdateThirdPerson(const glm::vec3& target) {
     float z = Target.z + Distance * cos(radPitch) * cos(radYaw);
 
     Position = glm::vec3(x, y, z);
-
-    // Update camera vectors to look at the target
-    Front = glm::normalize(Target - Position);
-    Right = glm::normalize(glm::cross(Front, WorldUp));
-    Up = glm::normalize(glm::cross(Right, Front));
 }
 
 // Switch to third-person mode
@@ -210,19 +198,5 @@ void Camera::SwitchToFirstPerson(const glm::vec3& position) {
     isThirdPerson = false;
     Position = position;
     Target = position; // Reset target to match position
-    Front = glm::vec3(0.0f, 0.0f, -1.0f); // Reset front for first-person
-    updateCameraVectors();
-}
-
-// Update camera vectors (unchanged, but ensure it works for both modes)
-void Camera::updateCameraVectors(void) {
-    glm::vec3 front;
-    front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
-    front.y = sin(glm::radians(Pitch));
-    front.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
-    Front = glm::normalize(front);
-
-    // Recalculate Right and Up vectors
-    Right = glm::normalize(glm::cross(Front, WorldUp));
-    Up = glm::normalize(glm::cross(Right, Front));
+    getFront() = glm::vec3(0.0f, 0.0f, -1.0f); // Reset front for first-person
 }

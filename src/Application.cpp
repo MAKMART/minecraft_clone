@@ -1,17 +1,15 @@
 #include "Application.h"
-#include "AABBDebugDrawer.h"
 #include "GLFW/glfw3.h"
-#include "Player.h"
 #include "Shader.h"
 #include "defines.h"
 #include "imgui.h"
 #include <exception>
-#include <memory>
 #include <stb_image.h>
 #include <stdexcept>
+#include <string>
 
 Application::Application(int width, int height)
-    : title(std::string(PROJECT_NAME) + " " + PROJECT_VERSION),
+    : title(std::string(PROJECT_NAME) + std::string(" ") + std::string(PROJECT_VERSION)),
     width(width), height(height), /*backgroundColor(0.11f, 0.67f, 0.7f, 1.0f),*/ backgroundColor(0.0f, 0.0f, 0.0f, 1.0f),
     nbFrames(0), deltaTime(0.0f), lastFrame(0.0f), 
     mouseClickEnabled(true), frametimes(frametime_max, 0.0f) {
@@ -27,7 +25,7 @@ Application::Application(int width, int height)
 #endif
 
     // First thing you have to do is fix the damn stencil buffer to allow cropping in RmlUI
-    // Second thing is fixing the AABBs (Maybe use FCL library for collision detection) or switch the world back to fix the float precision issues
+    // Second thing is fixing the AABBs (Maybe use FCL library for collision detection) or offset the world back to fix the float precision issues
 
     initWindow();
     // Set the Application pointer for callbacks.
@@ -271,8 +269,7 @@ void Application::initWindow(void) {
 
     aspectRatio = (float)width / (float)height;
 }
-float Application::getFPS(float delta)
-{
+float Application::getFPS(float delta) {
      nbFrames++;
      //if ( delta >= 0.1f ){ // If last cout was more than 1 sec ago
          float fps = float(nbFrames) / delta;

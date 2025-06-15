@@ -47,9 +47,8 @@ public:
 	return modelMat;
     }
 
-    float halfWidth = 0.4f;
-    float halfDepth = 0.4f;
-    float halfHeight;
+    float ExtentX = 0.4f;
+    float ExtentY = 0.4f;
 
     AABB aabb;
     const AABB &getAABB(void) const {
@@ -59,26 +58,25 @@ public:
 	updatePlayerBoundingBox(position); 
     }
     void updatePlayerBoundingBox(const glm::vec3 &pos) {
-	glm::vec3 min = pos - glm::vec3(halfWidth, 0.0f, halfDepth);
-	glm::vec3 max = pos + glm::vec3(halfWidth, playerHeight, halfDepth);
+	glm::vec3 min = pos - glm::vec3(ExtentX, 0.0f, ExtentY);
+	glm::vec3 max = pos + glm::vec3(ExtentX, playerHeight, ExtentY);
 	aabb = AABB(min, max);
     }
     AABB getBoundingBoxAt(const glm::vec3 &pos) const {
-	glm::vec3 min = pos - glm::vec3(halfWidth, 0.0f, halfDepth);
-	glm::vec3 max = pos + glm::vec3(halfWidth, playerHeight, halfDepth);
+	glm::vec3 min = pos - glm::vec3(ExtentX, 0.0f, ExtentY);
+	glm::vec3 max = pos + glm::vec3(ExtentX, playerHeight, ExtentY);
 	return AABB(min, max);
     }
 
 
-    std::optional<glm::ivec3> raycastVoxel(ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance);
     std::optional<std::pair<glm::ivec3, glm::ivec3>> raycastVoxelWithNormal(ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance);
+    std::optional<glm::ivec3> raycastVoxel(ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance);
     void handleCollisions(glm::vec3& newPosition, glm::vec3& velocity, const glm::vec3& oldPosition, ChunkManager& chunkManager);
+    void moveWithSubsteps(glm::vec3& newPosition, glm::vec3& velocity, const glm::vec3& oldPosition, ChunkManager& cm);
     bool isCollidingAt(const glm::vec3& pos, ChunkManager& chunkManager);
     bool isInsidePlayerBoundingBox(const glm::vec3& checkPos) const;
     void breakBlock(ChunkManager& chunkManager);
     void placeBlock(ChunkManager& chunkManager);
-    void moveWithSubsteps(glm::vec3& newPosition, glm::vec3& velocity,
-                              const glm::vec3& oldPosition, ChunkManager& cm);
 
     // Public members
     std::unique_ptr<PlayerState> currentState;

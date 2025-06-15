@@ -18,7 +18,7 @@ const vec3 debugColor[6] = vec3[6](
 
 layout(std430, binding = 0) readonly buffer vertexPullBuffer
 {
-	ivec2 packedMeshData[];
+	uvec2 packedMeshData[];
 };
 
 uniform mat4 projection;
@@ -70,15 +70,15 @@ const vec3 facePositions[6][4] = vec3[6][4](
         vec3(0, 0, 1)
     )
 );
-const int faceIndices[6] = int[6](0, 1, 2, 0, 2, 3);
+const int triangleCornerIndices[6] = int[6](0, 1, 2, 0, 2, 3);
 
 
 void main()
 {
   const int currVertexID = gl_VertexID % 6;
   const int index = gl_VertexID / 6;
-  const int packedPosition = packedMeshData[index].x;
-  const int packedTexCoord = packedMeshData[index].y;
+  const uint packedPosition = packedMeshData[index].x;
+  const uint packedTexCoord = packedMeshData[index].y;
  
   uint x = packedPosition & 0x3FFu;
   uint y = (packedPosition >> 10) & 0x3FFu;
@@ -107,11 +107,11 @@ void main()
     case 6: DebugColor = vec3(0.63f, 0.46f, 0.29f); break;
   }*/
 
-  vec3 position = vec3(x, y, z);
+  ivec3 blockPos = ivec3(x, y, z);
 
-  vec3 localOffset = facePositions[face_id][faceIndices[currVertexID]];
-  position += localOffset;
+  vec3 position = vec3(blockPos) + facePositions[face_id][triangleCornerIndices[currVertexID]];
 
+  
 
   // EFFECTS
 

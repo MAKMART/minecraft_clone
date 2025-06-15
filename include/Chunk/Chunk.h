@@ -60,8 +60,8 @@ struct Block {
 };
 
 struct Face {
-    int32_t position;
-    int32_t tex_coord;	// Bits 0-9: u, 10-19: v, 20-22: face_id, 23-31: block_type
+    uint32_t position;
+    uint32_t tex_coord;	// Bits 0-9: u, 10-19: v, 20-22: face_id, 23-31: block_type
 
     // Constructor
     Face(int vx, int vy, int vz, int tex_u, int tex_v, int face, int block_type) {
@@ -181,6 +181,8 @@ public:
 	    return glm::translate(glm::mat4(1.0f), glm::vec3(position.x * _size.x, position.y * _size.y, position.z * _size.z));
 	}
 
+	void generateTreeAt(int x, int y, int z);
+
 	void cleanup(void) {
 	    if(SSBO)	glDeleteBuffers(1, &SSBO);
 	}
@@ -191,17 +193,14 @@ public:
 	std::weak_ptr<Chunk> frontChunk;  // +z direction
 	std::weak_ptr<Chunk> backChunk;   // -z direction
 
-	GLuint SSBO, EBO;
+	GLuint SSBO/*, EBO*/;
 	int nonAirBlockCount = 0;
 	int blockCount = 0;
 	void uploadData(void);
-	//int getStartX(void) const { return position.x * _size.x; }
-	//int getStartZ(void) const { return position.z * _size.z; }
-	//int getStartY(void) const { return position.y * _size.y; }
 	int logSizeX;
 	int logSizeY;
 	std::vector<Face> faces;
 	std::vector<Block> chunkData;
 	std::vector<unsigned int> indices;
-	void generateTreeAt(int x, int y, int z);
+	glm::mat4 modelMat;	// TODO: actually use this model matrix in the class
 };

@@ -1,10 +1,11 @@
 #pragma once
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <GL/glew.h>
 #include <array>
 #include "AABB.h"
-enum Camera_Movement {
+enum class Camera_Movement {
 	FORWARD,
 	BACKWARD,
 	LEFT,
@@ -20,14 +21,9 @@ const float PITCH = 0.0f;
 class Camera
 {
 public:
-	bool trackMouse;
-	float FAR_PLANE = 1000.0f;
-	float NEAR_PLANE = 0.01f;
 	// camera attributes
 	glm::vec3 Position;
-	glm::vec3 Front;
-	glm::vec3 Up;
-	glm::vec3 Right;
+	glm::quat orientation;
 	glm::vec3 WorldUp;
 	// Euler angles
 	float Yaw;
@@ -37,6 +33,10 @@ public:
 	float MouseSensitivity = 0.2f;
 	float FOV = 90.0f;
 	float aspectRatio = 16.0f / 9.0f;
+	float FAR_PLANE = 1000.0f;
+	float NEAR_PLANE = 0.01f;
+	bool trackMouse;
+
 	void setMouseTracking(bool enabled) { trackMouse = enabled; }
 	void setAspectRatio(float _ratio) {aspectRatio = _ratio; }
 
@@ -57,6 +57,31 @@ public:
 
 	// returns the view matrix calculated using Euler Angles and the LookAt Matrix
 	glm::mat4 GetViewMatrix() const;
+
+
+	// Returns the vector that points where the camera is facing
+	glm::vec3 getFront(void) const {
+	    float yawRad   = glm::radians(Yaw);
+	    float pitchRad = glm::radians(Pitch);
+
+	    return glm::normalize(glm::vec3{
+		    cos(pitchRad) * cos(yawRad),
+		    sin(pitchRad),
+		    cos(pitchRad) * sin(yawRad)
+		    });
+	}
+	// Returns the vector that points at the right of the camera
+	glm::vec3 getRight(void) const {
+	    return glm::normalize(glm::cross(getFront(), WorldUp));
+	}
+
+	// Returns the vector that points at the left of the camera
+	glm::vec3 getUp(void) const {
+	    return glm::normalize(glm::cross(getRight(), getFront()));
+	}
+
+
+
 
 	// return the projection matrix
 	glm::mat4 GetProjectionMatrix() const;
@@ -143,8 +168,5 @@ public:
 
 	    return true; // AABB intersects or is inside all planes
 	}
-
-	// calculates the front vector from the Camera's (updated) Euler Angles
-	void updateCameraVectors(void);
 
 };

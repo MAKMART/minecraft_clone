@@ -16,7 +16,6 @@
 // Constructor
 Player::Player(glm::vec3 spawnPos, glm::ivec3& chunksize, GLFWwindow* window)
     : _camera(new Camera(spawnPos)), position(spawnPos), prevPosition(spawnPos), velocity(0.0f), chunkSize(chunksize), animationTime(0.0f), scaleFactor(0.076f), prevPlayerHeight(playerHeight) {
-    halfHeight = playerHeight / 2.0f;
     eyeHeight = playerHeight * 0.9f;
     lastScaleFactor = scaleFactor;
     input = std::make_unique<InputManager>(window);
@@ -396,7 +395,7 @@ void Player::render(unsigned int shaderProgram) {
 	glm::mat4 baseTransform = glm::translate(glm::mat4(1.0f), position);
 
 	// Rotate the player to face the camera's Front direction
-	glm::vec3 cameraDirection = _camera->Front;
+	glm::vec3 cameraDirection = _camera->getFront();
 	// Flatten the camera direction to ignore Y (vertical) component for horizontal facing
 	cameraDirection.y = 0.0f;
 	cameraDirection = glm::normalize(cameraDirection);
@@ -427,9 +426,9 @@ void Player::render(unsigned int shaderProgram) {
 	const auto& rightArm = bodyParts[2]; // Right arm at index 2
 
 	glm::mat4 armTransform = glm::translate(glm::mat4(1.0f), _camera->Position);
-	glm::vec3 forward = _camera->Front;
-	glm::vec3 up = _camera->Up;
-	glm::vec3 right = _camera->Right;
+	glm::vec3 forward = _camera->getFront();
+	glm::vec3 up = _camera->getUp();
+	glm::vec3 right = _camera->getRight();
 	glm::mat4 viewRotation = glm::mat4(
 		glm::vec4(right, 0.0f),
 		glm::vec4(up, 0.0f),
@@ -538,7 +537,6 @@ void Player::updateCameraPosition(void) {
         _camera->UpdateThirdPerson(position + glm::vec3(0.0f, eyeHeight, 0.0f));
     } else {
         _camera->Position = position + glm::vec3(0.0f, eyeHeight, 0.0f); // Eye level
-        _camera->updateCameraVectors();
     }
 }
 // Handle jumping
@@ -598,7 +596,7 @@ void Player::processMouseInput(ACTION action, ChunkManager& chunkManager)
 }
 void Player::breakBlock(ChunkManager& chunkManager) {
     // Perform a raycast to find the block the player is targeting
-    std::optional<glm::ivec3> hitBlock = raycastVoxel(chunkManager, _camera->Position, _camera->Front, max_interaction_distance);
+    std::optional<glm::ivec3> hitBlock = raycastVoxel(chunkManager, _camera->Position, _camera->getFront(), max_interaction_distance);
 
     if (!hitBlock.has_value()) return;
 
@@ -677,7 +675,7 @@ std::optional<std::pair<glm::ivec3, glm::ivec3>> Player::raycastVoxelWithNormal(
 void Player::placeBlock(ChunkManager& chunkManager) {
     // Perform raycast to find the block the player is looking at
     std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycastVoxelWithNormal(
-        chunkManager, _camera->Position, _camera->Front, max_interaction_distance);
+        chunkManager, _camera->Position, _camera->getFront(), max_interaction_distance);
 
     if (!hitResult.has_value()) return; // No valid block hit, exit
 
