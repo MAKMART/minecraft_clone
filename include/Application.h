@@ -43,8 +43,9 @@ class Application {
     b8 mouseClickEnabled = false;
     b8 renderUI = true;
     b8 renderTerrain = true;
+#ifdef DEBUG
     b8 debugRender = false;
-
+#endif
     i32 windowedWidth, windowedHeight;
     i32 windowedPosX, windowedPosY;
 

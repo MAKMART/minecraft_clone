@@ -359,6 +359,9 @@ void Application::processInput() {
             std::make_unique<WalkingState>()); // Default state in Survival is
                                                // Walking
     }
+    if (input->isPressed(GLFW_KEY_5)) {
+        renderUI = !renderUI;
+    }
     if (input->isPressed(CREATIVE_MODE_KEY)) {
         // Switch to Creative mode
         player->changeMode(std::make_unique<CreativeMode>());
@@ -377,15 +380,17 @@ void Application::processInput() {
     if (input->isPressed(CAMERA_SWITCH_KEY)) {
         player->toggleCameraMode();
     }
-
+#ifdef DEBUG
     // Toggle debug AABB visualization
     if (input->isPressed(GLFW_KEY_8)) {
         debugRender = !debugRender;
     }
-
+#endif
     if (input->isPressed(MENU_KEY)) {
         player->getCamera()->setMouseTracking(FREE_CURSOR);
+#ifdef DEBUG
         Rml::Debugger::SetVisible(!FREE_CURSOR);
+#endif
         glfwSetInputMode(window, GLFW_CURSOR,
                          FREE_CURSOR ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
         mouseClickEnabled = !mouseClickEnabled;
