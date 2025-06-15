@@ -8,13 +8,13 @@
 #include <sstream>
 
 class OpenGLError : public std::runtime_error {
-public:
+  public:
     explicit OpenGLError(GLenum errorCode)
         : std::runtime_error(buildMessage(errorCode)), errorCode(errorCode) {}
 
     GLenum code() const { return errorCode; }
 
-private:
+  private:
     GLenum errorCode;
 
     static std::string buildMessage(GLenum errorCode) {
@@ -24,30 +24,26 @@ private:
     }
 };
 
-
-
-
 // Controls
-uint_fast16_t FORWARD_KEY 		= GLFW_KEY_W;
-uint_fast16_t BACKWARD_KEY 		= GLFW_KEY_S;
-uint_fast16_t RIGHT_KEY 		= GLFW_KEY_D;
-uint_fast16_t LEFT_KEY 			= GLFW_KEY_A;
-uint_fast16_t JUMP_KEY 			= GLFW_KEY_SPACE;
-uint_fast16_t UP_KEY			= GLFW_KEY_LEFT_SHIFT;
-uint_fast16_t SPRINT_KEY 		= GLFW_KEY_LEFT_CONTROL;
-uint_fast16_t DOWN_KEY			= GLFW_KEY_LEFT_CONTROL;
-uint_fast16_t CROUCH_KEY 		= GLFW_KEY_LEFT_SHIFT;
-uint_fast16_t MENU_KEY 			= GLFW_KEY_F10;
-uint_fast16_t EXIT_KEY	 		= GLFW_KEY_ESCAPE;
-uint_fast16_t FULLSCREEN_KEY 		= GLFW_KEY_F11;
-uint_fast16_t WIREFRAME_KEY 		= GLFW_KEY_0;
-uint_fast16_t SURVIVAL_MODE_KEY 	= GLFW_KEY_1;
-uint_fast16_t CREATIVE_MODE_KEY 	= GLFW_KEY_2;
-uint_fast16_t SPECTATOR_MODE_KEY 	= GLFW_KEY_3;
-uint_fast16_t CAMERA_SWITCH_KEY		= GLFW_KEY_R;
-uint_fast8_t  ATTACK_BUTTON 		= GLFW_MOUSE_BUTTON_LEFT;
-uint_fast8_t  DEFENSE_BUTTON 		= GLFW_MOUSE_BUTTON_RIGHT;
-
+uint_fast16_t FORWARD_KEY = GLFW_KEY_W;
+uint_fast16_t BACKWARD_KEY = GLFW_KEY_S;
+uint_fast16_t RIGHT_KEY = GLFW_KEY_D;
+uint_fast16_t LEFT_KEY = GLFW_KEY_A;
+uint_fast16_t JUMP_KEY = GLFW_KEY_SPACE;
+uint_fast16_t UP_KEY = GLFW_KEY_LEFT_SHIFT;
+uint_fast16_t SPRINT_KEY = GLFW_KEY_LEFT_CONTROL;
+uint_fast16_t DOWN_KEY = GLFW_KEY_LEFT_CONTROL;
+uint_fast16_t CROUCH_KEY = GLFW_KEY_LEFT_SHIFT;
+uint_fast16_t MENU_KEY = GLFW_KEY_F10;
+uint_fast16_t EXIT_KEY = GLFW_KEY_ESCAPE;
+uint_fast16_t FULLSCREEN_KEY = GLFW_KEY_F11;
+uint_fast16_t WIREFRAME_KEY = GLFW_KEY_0;
+uint_fast16_t SURVIVAL_MODE_KEY = GLFW_KEY_1;
+uint_fast16_t CREATIVE_MODE_KEY = GLFW_KEY_2;
+uint_fast16_t SPECTATOR_MODE_KEY = GLFW_KEY_3;
+uint_fast16_t CAMERA_SWITCH_KEY = GLFW_KEY_R;
+uint_fast8_t ATTACK_BUTTON = GLFW_MOUSE_BUTTON_LEFT;
+uint_fast8_t DEFENSE_BUTTON = GLFW_MOUSE_BUTTON_RIGHT;
 
 // Paths
 std::filesystem::path WORKING_DIRECTORY = std::filesystem::current_path();
@@ -75,8 +71,7 @@ std::filesystem::path MAIN_DOC_DIRECTORY = UI_DIRECTORY / "main.html";
 // World Attributes
 float GRAVITY = -9.80665f;
 
-
-//Utils for rendering
+// Utils for rendering
 unsigned int g_drawCallCount = 0;
 void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count) {
     glDrawArrays(mode, first, count);
@@ -90,7 +85,7 @@ void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count) {
 #endif
 }
 
-void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void* indices) {
+void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void *indices) {
     glDrawElements(mode, count, type, indices);
     g_drawCallCount++;
 #ifdef DEBUG
@@ -150,9 +145,6 @@ void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei
 #endif
 }*/
 
-
-
-
 float LINE_WIDTH = 1.5f;
 bool WIREFRAME_MODE = false;
 bool DEPTH_TEST = true;
@@ -163,4 +155,3 @@ bool V_SYNC = false;
 bool FACE_CULLING = true;
 bool MSAA = false;
 uint8_t MSAA_STRENGHT = 4; // 4x MSAA Means 4 samples per pixel. Common options are 2, 4, 8, or 16—higher numbers improve quality but increase GPU memory and computation cost.
-

@@ -5,10 +5,10 @@
 
 class Player;
 class PlayerMode {
-public:
+  public:
     virtual ~PlayerMode() = default;
 
-    virtual void enterMode(Player& player) = 0;
-    virtual void exitMode(Player& player) = 0;
-    virtual void updateState(Player& player, std::unique_ptr<PlayerState> newState) = 0;
+    virtual void enterMode(Player &player) = 0;
+    virtual void exitMode(Player &player) = 0;
+    virtual void updateState(Player &player, std::unique_ptr<PlayerState> newState) = 0;
 };

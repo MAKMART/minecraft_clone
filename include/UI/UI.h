@@ -16,47 +16,47 @@
 #include "Texture.h"
 
 class FileInterface : public Rml::FileInterface {
-public:
-    Rml::FileHandle Open(const Rml::String& path) override {
+  public:
+    Rml::FileHandle Open(const Rml::String &path) override {
         return (Rml::FileHandle)fopen(path.c_str(), "rb");
     }
     void Close(Rml::FileHandle file) override {
-        fclose((FILE*)file);
+        fclose((FILE *)file);
     }
-    size_t Read(void* buffer, size_t size, Rml::FileHandle file) override {
-        return fread(buffer, 1, size, (FILE*)file);
+    size_t Read(void *buffer, size_t size, Rml::FileHandle file) override {
+        return fread(buffer, 1, size, (FILE *)file);
     }
     bool Seek(Rml::FileHandle file, long offset, int origin) override {
-        return fseek((FILE*)file, offset, origin) == 0;
+        return fseek((FILE *)file, offset, origin) == 0;
     }
     size_t Tell(Rml::FileHandle file) override {
-        return ftell((FILE*)file);
+        return ftell((FILE *)file);
     }
 };
 
 class UI : public Rml::RenderInterface {
-public:
-    UI(int width, int height, Shader* ui_shader, std::filesystem::path fontPath, std::filesystem::path docPath);
+  public:
+    UI(int width, int height, Shader *ui_shader, std::filesystem::path fontPath, std::filesystem::path docPath);
     ~UI();
 
     Rml::CompiledGeometryHandle CompileGeometry(Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices) override;
     void RenderGeometry(Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation, Rml::TextureHandle texture) override;
     void ReleaseGeometry(Rml::CompiledGeometryHandle geometry) override;
 
-    Rml::TextureHandle LoadTexture(Rml::Vector2i& texture_dimensions, const Rml::String& source) override;
+    Rml::TextureHandle LoadTexture(Rml::Vector2i &texture_dimensions, const Rml::String &source) override;
     Rml::TextureHandle GenerateTexture(Rml::Span<const Rml::byte> source, Rml::Vector2i source_dimensions) override;
     void ReleaseTexture(Rml::TextureHandle texture) override;
 
     void EnableScissorRegion(bool enable) override;
     void SetScissorRegion(Rml::Rectanglei region) override;
 
-    void SetViewportSize(int width, int height); 
+    void SetViewportSize(int width, int height);
 
     void EnableClipMask(bool enable);
 
     void RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation);
 
-    void SetTransform(const Rml::Matrix4f* transform);
+    void SetTransform(const Rml::Matrix4f *transform);
 
     Rml::LayerHandle PushLayer();
 
@@ -68,16 +68,15 @@ public:
 
     Rml::CompiledFilterHandle SaveLayerAsMaskImage();
 
-    Rml::CompiledFilterHandle CompileFilter(const Rml::String& name, const Rml::Dictionary& parameters);
+    Rml::CompiledFilterHandle CompileFilter(const Rml::String &name, const Rml::Dictionary &parameters);
 
     void ReleaseFilter(Rml::CompiledFilterHandle filter);
 
-    Rml::CompiledShaderHandle CompileShader(const Rml::String& name, const Rml::Dictionary& parameters);
+    Rml::CompiledShaderHandle CompileShader(const Rml::String &name, const Rml::Dictionary &parameters);
 
     void RenderShader(Rml::CompiledShaderHandle shader, Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation, Rml::TextureHandle texture);
 
     void ReleaseShader(Rml::CompiledShaderHandle shader);
-
 
     void render(void);
 
@@ -86,7 +85,7 @@ public:
     bool isAltDown = false;
     bool isMetaDown = false;
 
-    Rml::Context* context = nullptr;
+    Rml::Context *context = nullptr;
     int GetKeyModifiers(void);
     Rml::Input::KeyIdentifier MapKey(int glfw_key);
 
@@ -94,14 +93,15 @@ public:
     std::unique_ptr<SystemInterface> systemInterface;
 
     bool clip_mask_enabled = false;
-private:
+
+  private:
     struct Geometry {
         GLuint vao, vbo, ebo;
         GLsizei index_count;
     };
 
-    Rml::ElementDocument* doc = nullptr;
-    Shader* shader = nullptr;
+    Rml::ElementDocument *doc = nullptr;
+    Shader *shader = nullptr;
     glm::mat4 projection = glm::mat4(1.0f);
     glm::mat4 model = glm::mat4(1.0f);
     std::unordered_map<Rml::CompiledGeometryHandle, Geometry> geometry_map;
@@ -110,5 +110,4 @@ private:
     Rml::CompiledGeometryHandle next_geometry_handle = 1;
     Rml::TextureHandle next_texture_handle = 1;
     int viewport_width, viewport_height;
-
 };

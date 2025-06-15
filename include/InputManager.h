@@ -5,10 +5,12 @@
 #include <utility> // for std::pair
 
 class InputManager {
-public:
-    enum class KeyState { RELEASED, PRESSED, HELD };
-    
-    InputManager(GLFWwindow* window);
+  public:
+    enum class KeyState { RELEASED,
+                          PRESSED,
+                          HELD };
+
+    InputManager(GLFWwindow *window);
 
     // --- Keyboard Input ---
     bool isPressed(int_fast16_t key) const;
@@ -36,8 +38,9 @@ public:
     bool isMouseYaxisInverted(void) {
         return invertYAxis;
     }
-private:
-    GLFWwindow* _window;
+
+  private:
+    GLFWwindow *_window;
 
     // Using fixed-size arrays instead of unordered_map for faster lookup
     static constexpr int MAX_KEYS = GLFW_KEY_LAST + 1;
@@ -52,4 +55,3 @@ private:
     double _lastMouseX = 0.0, _lastMouseY = 0.0;
     double _mouseDeltaX = 0.0, _mouseDeltaY = 0.0;
 };
-

@@ -8,8 +8,7 @@
 #include "defines.h"
 
 using namespace Rml::Input;
-UI::UI(int width, int height, Shader* ui_shader, std::filesystem::path fontPath, std::filesystem::path docPath) : viewport_width(width), viewport_height(height) {
-
+UI::UI(int width, int height, Shader *ui_shader, std::filesystem::path fontPath, std::filesystem::path docPath) : viewport_width(width), viewport_height(height) {
 
     // System and file interfaces owned by UI (RAII)
     systemInterface = std::make_unique<SystemInterface>();
@@ -26,19 +25,18 @@ UI::UI(int width, int height, Shader* ui_shader, std::filesystem::path fontPath,
     Rml::Debugger::Initialise(context);
 #endif
     if (!Rml::LoadFontFace(fontPath.string())) {
-	throw std::runtime_error("Failed to load font: " + fontPath.string());
+        throw std::runtime_error("Failed to load font: " + fontPath.string());
     }
     doc = context->LoadDocument(docPath.string());
     if (!doc) {
-	throw std::runtime_error("Failed to load RML document: " + docPath.string());
+        throw std::runtime_error("Failed to load RML document: " + docPath.string());
     } else {
-	doc->Show();
+        doc->Show();
     }
-
 }
 
 UI::~UI() {
-    for (auto& [handle, geo] : geometry_map) {
+    for (auto &[handle, geo] : geometry_map) {
         glDeleteVertexArrays(1, &geo.vao);
         glDeleteBuffers(1, &geo.vbo);
         glDeleteBuffers(1, &geo.ebo);
@@ -46,7 +44,7 @@ UI::~UI() {
 
     // No texture_map clearing needed since RmlUI handles it internally
     if (doc) {
-	doc->Close();
+        doc->Close();
     }
     Rml::RemoveContext("main");
     context = nullptr;
@@ -65,7 +63,6 @@ Rml::CompiledGeometryHandle UI::CompileGeometry(Rml::Span<const Rml::Vertex> ver
     glNamedBufferData(vbo, vertices.size() * sizeof(Rml::Vertex), vertices.data(), GL_STATIC_DRAW);
     glNamedBufferData(ebo, indices.size() * sizeof(int), indices.data(), GL_STATIC_DRAW);
 
-
     glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(Rml::Vertex));
     glEnableVertexArrayAttrib(vao, 0); // pos
     glEnableVertexArrayAttrib(vao, 1); // color
@@ -80,7 +77,7 @@ Rml::CompiledGeometryHandle UI::CompileGeometry(Rml::Span<const Rml::Vertex> ver
     glVertexArrayAttribBinding(vao, 2, 0);
     glVertexArrayElementBuffer(vao, ebo);
 
-    Geometry geo{ vao, vbo, ebo, static_cast<GLsizei>(indices.size()) };
+    Geometry geo{vao, vbo, ebo, static_cast<GLsizei>(indices.size())};
     Rml::CompiledGeometryHandle handle = next_geometry_handle++;
     geometry_map[handle] = geo;
     return handle;
@@ -104,31 +101,30 @@ void UI::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f transl
 
     // Enable stencil testing for masking
     if (clip_mask_enabled) {
-	glEnable(GL_STENCIL_TEST);
-	glStencilFunc(GL_EQUAL, 1, 0xFF);
-	glStencilMask(0x00);
+        glEnable(GL_STENCIL_TEST);
+        glStencilFunc(GL_EQUAL, 1, 0xFF);
+        glStencilMask(0x00);
     } else {
-	glDisable(GL_STENCIL_TEST);
+        glDisable(GL_STENCIL_TEST);
     }
     if (texture != 0) {
-	auto tex = texture_map.find(texture);
-	if (tex != texture_map.end()) {
-	    tex->second.Bind(3);
-	} else {
-	    // Invalid handle, maybe unbind texture or log error
-	    //tex->second.Unbind(3);
-	    // Or log warning
-	    throw std::runtime_error("Invalid texture");
-	}
-	Geometry& geo = it->second;
-	glBindVertexArray(geo.vao);
-	DrawElementsWrapper(GL_TRIANGLES, geo.index_count, GL_UNSIGNED_INT, nullptr);
-	tex->second.Unbind(3);
-    }
-    else {
-	Geometry& geo = it->second;
-	glBindVertexArray(geo.vao);
-	DrawElementsWrapper(GL_TRIANGLES, geo.index_count, GL_UNSIGNED_INT, nullptr);
+        auto tex = texture_map.find(texture);
+        if (tex != texture_map.end()) {
+            tex->second.Bind(3);
+        } else {
+            // Invalid handle, maybe unbind texture or log error
+            // tex->second.Unbind(3);
+            // Or log warning
+            throw std::runtime_error("Invalid texture");
+        }
+        Geometry &geo = it->second;
+        glBindVertexArray(geo.vao);
+        DrawElementsWrapper(GL_TRIANGLES, geo.index_count, GL_UNSIGNED_INT, nullptr);
+        tex->second.Unbind(3);
+    } else {
+        Geometry &geo = it->second;
+        glBindVertexArray(geo.vao);
+        DrawElementsWrapper(GL_TRIANGLES, geo.index_count, GL_UNSIGNED_INT, nullptr);
     }
     glBindVertexArray(0);
     glDisable(GL_STENCIL_TEST);
@@ -137,7 +133,7 @@ void UI::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f transl
 void UI::ReleaseGeometry(Rml::CompiledGeometryHandle handle) {
     auto it = geometry_map.find(handle);
     if (it != geometry_map.end()) {
-        Geometry& geo = it->second;
+        Geometry &geo = it->second;
         glDeleteVertexArrays(1, &geo.vao);
         glDeleteBuffers(1, &geo.vbo);
         glDeleteBuffers(1, &geo.ebo);
@@ -145,7 +141,7 @@ void UI::ReleaseGeometry(Rml::CompiledGeometryHandle handle) {
     }
 }
 
-Rml::TextureHandle UI::LoadTexture(Rml::Vector2i& out_dimensions, const Rml::String& source) {
+Rml::TextureHandle UI::LoadTexture(Rml::Vector2i &out_dimensions, const Rml::String &source) {
 
     Texture tex(source, GL_RGBA, GL_REPEAT, GL_LINEAR);
     out_dimensions.x = tex.getWidth();
@@ -170,7 +166,7 @@ Rml::TextureHandle UI::GenerateTexture(Rml::Span<const Rml::byte> source, Rml::V
     glTextureParameteri(tex.getID(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     Rml::TextureHandle handle = next_texture_handle++;
-    texture_map.emplace(handle, std::move(tex));  // Store the full Texture object
+    texture_map.emplace(handle, std::move(tex)); // Store the full Texture object
     std::cout << "[UI] Generated texture handle " << handle << std::endl;
     return handle;
 }
@@ -178,32 +174,32 @@ Rml::TextureHandle UI::GenerateTexture(Rml::Span<const Rml::byte> source, Rml::V
 void UI::ReleaseTexture(Rml::TextureHandle handle) {
     auto it = texture_map.find(handle);
     if (it != texture_map.end()) {
-	std::cout << "[UI] Releasing texture handle " << handle << std::endl;
-	texture_map.erase(it);
+        std::cout << "[UI] Releasing texture handle " << handle << std::endl;
+        texture_map.erase(it);
     } else {
-	std::cerr << "[UI] Warning: Attempt to release invalid texture handle " << handle << std::endl;
+        std::cerr << "[UI] Warning: Attempt to release invalid texture handle " << handle << std::endl;
     }
 }
 
 void UI::EnableScissorRegion(bool enable) {
     if (enable)
-	glEnable(GL_SCISSOR_TEST);
+        glEnable(GL_SCISSOR_TEST);
     else
-	glDisable(GL_SCISSOR_TEST);
+        glDisable(GL_SCISSOR_TEST);
 }
 
 void UI::SetScissorRegion(Rml::Rectanglei region) {
     if (region.Valid())
-	glEnable(GL_SCISSOR_TEST);
+        glEnable(GL_SCISSOR_TEST);
     else
-	glDisable(GL_SCISSOR_TEST);
+        glDisable(GL_SCISSOR_TEST);
 
     if (region.Valid()) {
-	// Some render APIs don't like offscreen positions (WebGL in particular), so clamp them to the viewport.
-	const int x = Rml::Math::Clamp(region.Left(), 0, viewport_width);
-	const int y = Rml::Math::Clamp(viewport_height - region.Bottom(), 0, viewport_height);
+        // Some render APIs don't like offscreen positions (WebGL in particular), so clamp them to the viewport.
+        const int x = Rml::Math::Clamp(region.Left(), 0, viewport_width);
+        const int y = Rml::Math::Clamp(viewport_height - region.Bottom(), 0, viewport_height);
 
-	glScissor(x, y, region.Width(), region.Height());
+        glScissor(x, y, region.Width(), region.Height());
     }
 }
 
@@ -220,7 +216,7 @@ void UI::SetViewportSize(int width, int height) {
 
 void UI::EnableClipMask(bool enable) {
     clip_mask_enabled = enable;
-     if (enable) {
+    if (enable) {
         glEnable(GL_STENCIL_TEST);
     } else {
         glDisable(GL_STENCIL_TEST);
@@ -231,7 +227,7 @@ void UI::RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometr
     if (it == geometry_map.end())
         return;
 
-    Geometry& geo = it->second;
+    Geometry &geo = it->second;
 
     // Setup transform
     glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(translation.x, translation.y, 0.0f));
@@ -246,30 +242,29 @@ void UI::RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometr
     glDepthMask(GL_FALSE);                               // Don't write depth
     glEnable(GL_STENCIL_TEST);
     const bool clear_stencil = (operation == Rml::ClipMaskOperation::Set || operation == Rml::ClipMaskOperation::SetInverse);
-    if (clear_stencil)
-    {
-	// @performance Increment the reference value instead of clearing each time.
-	glClearStencil(0);
-	glClear(GL_STENCIL_BUFFER_BIT);
+    if (clear_stencil) {
+        // @performance Increment the reference value instead of clearing each time.
+        glClearStencil(0);
+        glClear(GL_STENCIL_BUFFER_BIT);
     }
     // Configure stencil ops based on operation
     switch (operation) {
-        case Rml::ClipMaskOperation::Set:
-            glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
-            glStencilFunc(GL_ALWAYS, 1, 0xFF);
-            glStencilMask(0xFF); // Allow writing stencil
-            break;
+    case Rml::ClipMaskOperation::Set:
+        glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+        glStencilFunc(GL_ALWAYS, 1, 0xFF);
+        glStencilMask(0xFF); // Allow writing stencil
+        break;
 
-        case Rml::ClipMaskOperation::Intersect:
-            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-            glStencilFunc(GL_EQUAL, 1, 0xFF); // Keep only where stencil == 1
-            glStencilMask(0x00); // Don’t modify stencil
-            break;
-	case Rml::ClipMaskOperation::SetInverse:
-	    glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
-	    glStencilFunc(GL_ALWAYS, 0, 0xFF); // Set to 0
-	    glStencilMask(0xFF);
-	    break;
+    case Rml::ClipMaskOperation::Intersect:
+        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+        glStencilFunc(GL_EQUAL, 1, 0xFF); // Keep only where stencil == 1
+        glStencilMask(0x00);              // Don’t modify stencil
+        break;
+    case Rml::ClipMaskOperation::SetInverse:
+        glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+        glStencilFunc(GL_ALWAYS, 0, 0xFF); // Set to 0
+        glStencilMask(0xFF);
+        break;
     }
 
     glBindVertexArray(geo.vao);
@@ -282,7 +277,7 @@ void UI::RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometr
     glStencilMask(0x00); // Prevent further stencil writes unless re-enabled
 }
 
-void UI::SetTransform(const Rml::Matrix4f* transform) {
+void UI::SetTransform(const Rml::Matrix4f *transform) {
     // Store or reset the current transform matrix for use during RenderGeometry.
     if (transform) {
         // Convert Rml::Matrix4f to glm::mat4 (both column-major)
@@ -301,7 +296,10 @@ Rml::LayerHandle UI::PushLayer() {
 
 void UI::CompositeLayers(Rml::LayerHandle source, Rml::LayerHandle destination, Rml::BlendMode blend_mode, Rml::Span<const Rml::CompiledFilterHandle> filters) {
     // No layers or filters support - just ignore
-    (void)source; (void)destination; (void)blend_mode; (void)filters;
+    (void)source;
+    (void)destination;
+    (void)blend_mode;
+    (void)filters;
 }
 
 void UI::PopLayer() {
@@ -318,9 +316,10 @@ Rml::CompiledFilterHandle UI::SaveLayerAsMaskImage() {
     return 0;
 }
 
-Rml::CompiledFilterHandle UI::CompileFilter(const Rml::String& name, const Rml::Dictionary& parameters) {
+Rml::CompiledFilterHandle UI::CompileFilter(const Rml::String &name, const Rml::Dictionary &parameters) {
     // No filters supported, return 0
-    (void)name; (void)parameters;
+    (void)name;
+    (void)parameters;
     return 0;
 }
 
@@ -329,15 +328,19 @@ void UI::ReleaseFilter(Rml::CompiledFilterHandle filter) {
     (void)filter;
 }
 
-Rml::CompiledShaderHandle UI::CompileShader(const Rml::String& name, const Rml::Dictionary& parameters) {
+Rml::CompiledShaderHandle UI::CompileShader(const Rml::String &name, const Rml::Dictionary &parameters) {
     // No shaders supported beyond the default shader
-    (void)name; (void)parameters;
+    (void)name;
+    (void)parameters;
     return 0;
 }
 
 void UI::RenderShader(Rml::CompiledShaderHandle shader, Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation, Rml::TextureHandle texture) {
     // No custom shader support, fallback to RenderGeometry or do nothing
-    (void)shader; (void)geometry; (void)translation; (void)texture;
+    (void)shader;
+    (void)geometry;
+    (void)translation;
+    (void)texture;
 }
 
 void UI::ReleaseShader(Rml::CompiledShaderHandle shader) {
@@ -352,26 +355,38 @@ void UI::render(void) {
 
 int UI::GetKeyModifiers(void) {
     int modifiers = 0;
-    if (isShiftDown) modifiers |= Rml::Input::KM_SHIFT;
-    if (isCtrlDown) modifiers |= Rml::Input::KM_CTRL;
-    if (isAltDown) modifiers |= Rml::Input::KM_ALT;
-    if (isMetaDown) modifiers |= Rml::Input::KM_META;
+    if (isShiftDown)
+        modifiers |= Rml::Input::KM_SHIFT;
+    if (isCtrlDown)
+        modifiers |= Rml::Input::KM_CTRL;
+    if (isAltDown)
+        modifiers |= Rml::Input::KM_ALT;
+    if (isMetaDown)
+        modifiers |= Rml::Input::KM_META;
     return modifiers;
 }
 
 Rml::Input::KeyIdentifier UI::MapKey(int glfw_key) {
 
     switch (glfw_key) {
-	case GLFW_KEY_A: 	return KI_A;
-	case GLFW_KEY_B: 	return KI_B;
-	case GLFW_KEY_ENTER: 	return KI_RETURN;
-	case GLFW_KEY_ESCAPE: 	return KI_ESCAPE;
-	case GLFW_KEY_LEFT: 	return KI_LEFT;
-	case GLFW_KEY_RIGHT: 	return KI_RIGHT;
-	case GLFW_KEY_UP:    	return KI_UP;
-	case GLFW_KEY_DOWN:  	return KI_DOWN;
+    case GLFW_KEY_A:
+        return KI_A;
+    case GLFW_KEY_B:
+        return KI_B;
+    case GLFW_KEY_ENTER:
+        return KI_RETURN;
+    case GLFW_KEY_ESCAPE:
+        return KI_ESCAPE;
+    case GLFW_KEY_LEFT:
+        return KI_LEFT;
+    case GLFW_KEY_RIGHT:
+        return KI_RIGHT;
+    case GLFW_KEY_UP:
+        return KI_UP;
+    case GLFW_KEY_DOWN:
+        return KI_DOWN;
 
-	default: return KI_UNKNOWN;
+    default:
+        return KI_UNKNOWN;
     }
-
 }

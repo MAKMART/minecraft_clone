@@ -1,206 +1,232 @@
 #pragma once
-#include <vector>
+#include "../../defines.h"
+#include "AABB.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <PerlinNoise.hpp>
 #include <glm/glm.hpp>
-#include "../../defines.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <memory>
-#include <PerlinNoise.hpp>
-#include "AABB.h"
+#include <vector>
 
 class Shader;
 struct Block {
-    enum class blocks { AIR, DIRT, GRASS, STONE, LAVA, WATER, WOOD, LEAVES, MAX_BLOCKS };	// Up to 512 blocks
+    enum class blocks {
+        AIR,
+        DIRT,
+        GRASS,
+        STONE,
+        LAVA,
+        WATER,
+        WOOD,
+        LEAVES,
+        MAX_BLOCKS
+    }; // Up to 512 blocks
     blocks type = blocks::AIR;
 
     // Compile-time function for converting enum to string
-    static constexpr const char* toString(blocks type) {
-	switch (type) {
-	    case blocks::AIR:   return "AIR";
-	    case blocks::DIRT:  return "DIRT";
-	    case blocks::GRASS: return "GRASS";
-	    case blocks::STONE: return "STONE";
-	    case blocks::LAVA:  return "LAVA";
-	    case blocks::WATER: return "WATER";
-	    case blocks::WOOD:  return "WOOD";
-	    case blocks::LEAVES:return "LEAVES";
-	    default:            return "UNKNOWN BLOCK TYPE";
-	}
+    static constexpr const char *toString(blocks type) {
+        switch (type) {
+        case blocks::AIR:
+            return "AIR";
+        case blocks::DIRT:
+            return "DIRT";
+        case blocks::GRASS:
+            return "GRASS";
+        case blocks::STONE:
+            return "STONE";
+        case blocks::LAVA:
+            return "LAVA";
+        case blocks::WATER:
+            return "WATER";
+        case blocks::WOOD:
+            return "WOOD";
+        case blocks::LEAVES:
+            return "LEAVES";
+        default:
+            return "UNKNOWN BLOCK TYPE";
+        }
     }
-    static constexpr const char* toString(int type) {
-	switch (type) {
-	    case 0:	return "AIR";
-	    case 1:	return "DIRT";
-	    case 2:	return "GRASS";
-	    case 3:	return "STONE";
-	    case 4:	return "LAVA";
-	    case 5:	return "WATER";
-	    case 6:	return "WOOD";
-	    case 7:	return "LEAVES";
-	    default:	return "UNKNOWN BLOCK TYPE";
-	}
+    static constexpr const char *toString(int type) {
+        switch (type) {
+        case 0:
+            return "AIR";
+        case 1:
+            return "DIRT";
+        case 2:
+            return "GRASS";
+        case 3:
+            return "STONE";
+        case 4:
+            return "LAVA";
+        case 5:
+            return "WATER";
+        case 6:
+            return "WOOD";
+        case 7:
+            return "LEAVES";
+        default:
+            return "UNKNOWN BLOCK TYPE";
+        }
     }
 
     // Instance method that delegates to static constexpr function
-    constexpr const char* toString(void) const {
-	return toString(type);
-    }
-    
+    constexpr const char *toString(void) const { return toString(type); }
+
     // Compile-time function for converting enum to int
-    static constexpr int toInt(blocks type) {
-	return static_cast<int>(type);
-    }
+    static constexpr int toInt(blocks type) { return static_cast<int>(type); }
 
     // Instance method that delegates to static constexpr function
-    constexpr int toInt(void) const {
-	return toInt(type);
-    }
+    constexpr int toInt(void) const { return toInt(type); }
 };
 
 struct Face {
     uint32_t position;
-    uint32_t tex_coord;	// Bits 0-9: u, 10-19: v, 20-22: face_id, 23-31: block_type
+    uint32_t
+        tex_coord; // Bits 0-9: u, 10-19: v, 20-22: face_id, 23-31: block_type
 
     // Constructor
     Face(int vx, int vy, int vz, int tex_u, int tex_v, int face, int block_type) {
-	position = (vx & 0x3FF) | ((vy & 0x3FF) << 10) | ((vz & 0x3FF) << 20);
-	tex_coord = (tex_u & 0x3FF) | ((tex_v & 0x3FF) << 10) | ((face & 0x7) << 20) | ((block_type & 0x1FF) << 23);
+        position = (vx & 0x3FF) | ((vy & 0x3FF) << 10) | ((vz & 0x3FF) << 20);
+        tex_coord = (tex_u & 0x3FF) | ((tex_v & 0x3FF) << 10) |
+                    ((face & 0x7) << 20) | ((block_type & 0x1FF) << 23);
     }
 };
+
 class Chunk {
-public:
-	glm::ivec3 position;  // Store chunk grid position (chunkX, chunkY, chunkZ)
-	glm::ivec3 _size;	// Must be a power of 2
-	AABB aabb;	// Axis Aligned Bounding Box for the chunk
-	AABB getAABB(void) const {
-	    return aabb;
-	}
-	Chunk(const glm::ivec3& chunkPos, glm::ivec3 size);
-	
-	~Chunk(void);
-	
-	std::vector<Block>& getChunkData(void) { return chunkData; }
+  public:
+    Chunk(const glm::ivec3 &chunkPos);
+    ~Chunk(void);
 
-	Block getBlockAt(int x, int y, int z) const {
-	    if (x >= 0 && x < _size.x &&
-		    y >= 0 && y < _size.y &&
-		    z >= 0 && z < _size.z) {
+    std::vector<Block> &getChunkData(void) { return chunkData; }
 
-		int index = getBlockIndex(x, y, z);
-		if (index != -1) {
-		    return chunkData[index];
-		}
-		return Block(); // fallback (shouldn't happen)
-	    }
+    Block getBlockAt(int x, int y, int z) const {
+        if (x >= 0 && x < chunkSize.x && y >= 0 && y < chunkSize.y && z >= 0 &&
+            z < chunkSize.z) {
+            int index = getBlockIndex(x, y, z);
+            if (index != -1) {
+                return chunkData[index];
+            }
+            return Block(); // fallback (shouldn't happen)
+        }
 
-	    // OUT OF BOUNDS – resolve neighbor chunk
-	    std::shared_ptr<Chunk> neighbor;
-	    glm::ivec3 localPos(x, y, z);
+        // OUT OF BOUNDS – resolve neighbor chunk
+        std::shared_ptr<Chunk> neighbor;
+        glm::ivec3 localPos(x, y, z);
 
-	    if (x < 0) {
-		neighbor = leftChunk.lock();
-		localPos.x = _size.x + x;
-	    } else if (x >= _size.x) {
-		neighbor = rightChunk.lock();
-		localPos.x = x - _size.x;
-	    } else if (z < 0) {
-		neighbor = backChunk.lock();
-		localPos.z = _size.z + z;
-	    } else if (z >= _size.z) {
-		neighbor = frontChunk.lock();
-		localPos.z = z - _size.z;
-	    } else {
-		// Y-axis out-of-bounds — you might add topChunk/bottomChunk later
-		return Block(Block::blocks::AIR);
-	    }
+        if (x < 0) {
+            neighbor = leftChunk.lock();
+            localPos.x = chunkSize.x + x;
+        } else if (x >= chunkSize.x) {
+            neighbor = rightChunk.lock();
+            localPos.x = x - chunkSize.x;
+        } else if (z < 0) {
+            neighbor = backChunk.lock();
+            localPos.z = chunkSize.z + z;
+        } else if (z >= chunkSize.z) {
+            neighbor = frontChunk.lock();
+            localPos.z = z - chunkSize.z;
+        } else {
+            // Y-axis out-of-bounds — you might add topChunk/bottomChunk later
+            return Block(Block::blocks::AIR);
+        }
 
-	    if (!neighbor) {
-		// Neighbor doesn't exist — treat as air
-		return Block(Block::blocks::AIR);
-	    }
+        if (!neighbor) {
+            // Neighbor doesn't exist — treat as air
+            return Block(Block::blocks::AIR);
+        }
 
-	    return neighbor->getBlockAt(localPos.x, localPos.y, localPos.z);
-	}
+        return neighbor->getBlockAt(localPos.x, localPos.y, localPos.z);
+    }
 
-	
-	bool setBlockAt(int x, int y, int z, Block::blocks type);
-	
-	void generate(const std::vector<float>& noiseMap);
-	
-	void updateMesh(void);
-	
-	//Function to generate vertex data for a single Block
-	void generateBlockFace(const Block& block, int x, int y, int z);
-	
-	//Function to get the index of a block in the Chunk
-	inline int getBlockIndex(int x, int y, int z) const noexcept {
+    bool setBlockAt(int x, int y, int z, Block::blocks type);
+
+    void generate(const std::vector<float> &noiseMap);
+
+    void updateMesh(void);
+
+    // Function to generate vertex data for a single Block
+    void generateBlockFace(const Block &block, int x, int y, int z);
+
+    // Function to get the index of a block in the Chunk
+    inline int getBlockIndex(int x, int y, int z) const noexcept {
 #ifdef DEBUG
-	    if (x < 0 || x >= _size.x || y < 0 || y >= _size.y || z < 0 || z >= _size.z) {
-		std::cerr << "ACCESSED INDEX OUT OF BOUNDS FOR CURRENT CHUNK!\n";
-		return -1;
-	    }
+        if (x < 0 || x >= chunkSize.x || y < 0 || y >= chunkSize.y || z < 0 ||
+            z >= chunkSize.z) {
+            std::cerr << "ACCESSED INDEX OUT OF BOUNDS FOR CURRENT CHUNK!\n";
+            return -1;
+        }
 #endif
-	    // Return the calculated index, using bit-shifting for efficiency
-	    return x + (y << logSizeX) + (z << (logSizeX + logSizeY));
-	}
+        // Return the calculated index, using bit-shifting for efficiency
+        return x + (y << logSizeX) + (z << (logSizeX + logSizeY));
+    }
 
-	//Function to render a chunk
-	void renderChunk(std::unique_ptr<Shader>  &shader);
+    glm::ivec3 position; // Store chunk's grid position (chunkX, chunkY, chunkZ)
+    AABB aabb;           // Axis Aligned Bounding Box for the chunk
+    AABB getAABB(void) const { return aabb; }
 
-	bool isFaceVisible(const Block& block, int x, int y, int z) const;
-	// Convert world coordinates to chunk coordinates
-	static glm::ivec3 worldToChunk(const glm::vec3& worldPos, const glm::vec3& chunkSize) {
-	    return glm::ivec3(static_cast<int>(std::floor(worldPos.x / chunkSize.x)),
-			      static_cast<int>(std::floor(worldPos.y / chunkSize.y)),
-			      static_cast<int>(std::floor(worldPos.z / chunkSize.z))
-			      );
-	}
+    // Function to render a chunk
+    void renderChunk(std::unique_ptr<Shader> &shader);
 
-	// Get local coordinates within a chunk
-	static glm::ivec3 worldToLocal(const glm::vec3& worldPos, const glm::vec3& chunkSize) {
-	    glm::ivec3 chunkPos = worldToChunk(worldPos, chunkSize);
-	    glm::vec3 chunkOrigin = chunkToWorld(chunkPos, chunkSize);
+    bool isFaceVisible(const Block &block, int x, int y, int z) const;
+    // Convert world coordinates to chunk coordinates
+    static glm::ivec3 worldToChunk(const glm::vec3 &worldPos,
+                                   const glm::vec3 &chunkSize) {
+        return glm::ivec3(static_cast<int>(std::floor(worldPos.x / chunkSize.x)),
+                          static_cast<int>(std::floor(worldPos.y / chunkSize.y)),
+                          static_cast<int>(std::floor(worldPos.z / chunkSize.z)));
+    }
 
-	    return glm::ivec3(static_cast<int>(std::floor(worldPos.x - chunkOrigin.x)),
-			      static_cast<int>(std::floor(worldPos.y - chunkOrigin.y)),
-			      static_cast<int>(std::floor(worldPos.z - chunkOrigin.z))
-			      );
-	}
+    // Get local coordinates within a chunk
+    static glm::ivec3 worldToLocal(const glm::vec3 &worldPos,
+                                   const glm::vec3 &chunkSize) {
+        glm::ivec3 chunkPos = worldToChunk(worldPos, chunkSize);
+        glm::vec3 chunkOrigin = chunkToWorld(chunkPos, chunkSize);
 
-	// Convert chunk coordinates back to world coordinates (chunk's origin position)
-	static glm::vec3 chunkToWorld(const glm::ivec3& chunkPos, const glm::vec3& chunkSize) {
-	    return glm::vec3(chunkPos.x * chunkSize.x, chunkPos.y * chunkSize.y, chunkPos.z * chunkSize.z);
-	}
-	bool isAir(int x, int y, int z) const{
-	    return chunkData[getBlockIndex(x, y, z)].type == Block::blocks::AIR;
-	}
+        return glm::ivec3(static_cast<int>(std::floor(worldPos.x - chunkOrigin.x)),
+                          static_cast<int>(std::floor(worldPos.y - chunkOrigin.y)),
+                          static_cast<int>(std::floor(worldPos.z - chunkOrigin.z)));
+    }
 
-	glm::mat4 getModelMatrix(void) const {
-	    return glm::translate(glm::mat4(1.0f), glm::vec3(position.x * _size.x, position.y * _size.y, position.z * _size.z));
-	}
+    // Convert chunk coordinates back to world coordinates (chunk's origin
+    // position)
+    static glm::vec3 chunkToWorld(const glm::ivec3 &chunkPos,
+                                  const glm::vec3 &chunkSize) {
+        return glm::vec3(chunkPos.x * chunkSize.x, chunkPos.y * chunkSize.y,
+                         chunkPos.z * chunkSize.z);
+    }
+    bool isAir(int x, int y, int z) const {
+        return chunkData[getBlockIndex(x, y, z)].type == Block::blocks::AIR;
+    }
 
-	void generateTreeAt(int x, int y, int z);
+    glm::mat4 getModelMatrix(void) const {
+        return glm::translate(glm::mat4(1.0f), glm::vec3(position.x * chunkSize.x,
+                                                         position.y * chunkSize.y,
+                                                         position.z * chunkSize.z));
+    }
 
-	void cleanup(void) {
-	    if(SSBO)	glDeleteBuffers(1, &SSBO);
-	}
+    void generateTreeAt(int x, int y, int z);
 
-	// References to neighboring chunks
-	std::weak_ptr<Chunk> leftChunk;   // -x direction
-	std::weak_ptr<Chunk> rightChunk;  // +x direction
-	std::weak_ptr<Chunk> frontChunk;  // +z direction
-	std::weak_ptr<Chunk> backChunk;   // -z direction
+    void cleanup(void) {
+        if (SSBO)
+            glDeleteBuffers(1, &SSBO);
+    }
 
-	GLuint SSBO/*, EBO*/;
-	int nonAirBlockCount = 0;
-	int blockCount = 0;
-	void uploadData(void);
-	int logSizeX;
-	int logSizeY;
-	std::vector<Face> faces;
-	std::vector<Block> chunkData;
-	std::vector<unsigned int> indices;
-	glm::mat4 modelMat;	// TODO: actually use this model matrix in the class
+    // References to neighboring chunks
+    std::weak_ptr<Chunk> leftChunk;  // -x direction
+    std::weak_ptr<Chunk> rightChunk; // +x direction
+    std::weak_ptr<Chunk> frontChunk; // +z direction
+    std::weak_ptr<Chunk> backChunk;  // -z direction
+
+    GLuint SSBO /*, EBO*/;
+    int nonAirBlockCount = 0;
+    int blockCount = 0;
+    void uploadData(void);
+    int logSizeX = std::log2(chunkSize.x);
+    int logSizeY = std::log2(chunkSize.y);
+    std::vector<Face> faces;
+    std::vector<Block> chunkData;
+    std::vector<unsigned int> indices;
+    glm::mat4 modelMat; // TODO: actually use this model matrix in the class
 };

@@ -14,27 +14,26 @@ class PlayerState;
 class PlayerMode;
 
 class Player {
-public:
-    Player(glm::vec3 spawnPos, glm::ivec3& chunksize, GLFWwindow* window);
+  public:
+    Player(glm::vec3 spawnPos, GLFWwindow *window);
     ~Player(void);
 
-    enum ACTION { BREAK_BLOCK, PLACE_BLOCK };
-
+    enum ACTION { BREAK_BLOCK,
+                  PLACE_BLOCK };
 
     glm::vec3 getPos(void) const;
-    Camera* getCamera(void) const;
-    const char* getMode(void) const;  // For debugging
-    const char* getState(void) const; // For debugging
+    Camera *getCamera(void) const;
+    const char *getMode(void) const;  // For debugging
+    const char *getState(void) const; // For debugging
 
-    
     void changeMode(std::unique_ptr<PlayerMode> newMode);
     void changeState(std::unique_ptr<PlayerState> newState);
-    void update(float deltaTime, ChunkManager& chunkManager);
+    void update(float deltaTime, ChunkManager &chunkManager);
     void render(unsigned int shaderProgram);
     void loadSkin(const std::string &path);
     void loadSkin(const std::filesystem::path &path);
     void processMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch);
-    void processMouseInput(ACTION action, ChunkManager& chunkManager);
+    void processMouseInput(ACTION action, ChunkManager &chunkManager);
     void processMouseScroll(float yoffset);
     void setPos(glm::vec3 newPos);
     void toggleCameraMode(void);
@@ -44,7 +43,7 @@ public:
     glm::mat4 modelMat;
 
     const glm::mat4 &getModelMatrix(void) const {
-	return modelMat;
+        return modelMat;
     }
 
     float ExtentX = 0.4f;
@@ -52,31 +51,30 @@ public:
 
     AABB aabb;
     const AABB &getAABB(void) const {
-	return aabb;
+        return aabb;
     }
     void updateBoundingBox(void) {
-	updatePlayerBoundingBox(position); 
+        updatePlayerBoundingBox(position);
     }
     void updatePlayerBoundingBox(const glm::vec3 &pos) {
-	glm::vec3 min = pos - glm::vec3(ExtentX, 0.0f, ExtentY);
-	glm::vec3 max = pos + glm::vec3(ExtentX, playerHeight, ExtentY);
-	aabb = AABB(min, max);
+        glm::vec3 min = pos - glm::vec3(ExtentX, 0.0f, ExtentY);
+        glm::vec3 max = pos + glm::vec3(ExtentX, playerHeight, ExtentY);
+        aabb = AABB(min, max);
     }
     AABB getBoundingBoxAt(const glm::vec3 &pos) const {
-	glm::vec3 min = pos - glm::vec3(ExtentX, 0.0f, ExtentY);
-	glm::vec3 max = pos + glm::vec3(ExtentX, playerHeight, ExtentY);
-	return AABB(min, max);
+        glm::vec3 min = pos - glm::vec3(ExtentX, 0.0f, ExtentY);
+        glm::vec3 max = pos + glm::vec3(ExtentX, playerHeight, ExtentY);
+        return AABB(min, max);
     }
 
-
-    std::optional<std::pair<glm::ivec3, glm::ivec3>> raycastVoxelWithNormal(ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance);
-    std::optional<glm::ivec3> raycastVoxel(ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance);
-    void handleCollisions(glm::vec3& newPosition, glm::vec3& velocity, const glm::vec3& oldPosition, ChunkManager& chunkManager);
-    void moveWithSubsteps(glm::vec3& newPosition, glm::vec3& velocity, const glm::vec3& oldPosition, ChunkManager& cm);
-    bool isCollidingAt(const glm::vec3& pos, ChunkManager& chunkManager);
-    bool isInsidePlayerBoundingBox(const glm::vec3& checkPos) const;
-    void breakBlock(ChunkManager& chunkManager);
-    void placeBlock(ChunkManager& chunkManager);
+    std::optional<std::pair<glm::ivec3, glm::ivec3>> raycastVoxelWithNormal(ChunkManager &chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance);
+    std::optional<glm::ivec3> raycastVoxel(ChunkManager &chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance);
+    void handleCollisions(glm::vec3 &newPosition, glm::vec3 &velocity, const glm::vec3 &oldPosition, ChunkManager &chunkManager);
+    void moveWithSubsteps(glm::vec3 &newPosition, glm::vec3 &velocity, const glm::vec3 &oldPosition, ChunkManager &cm);
+    bool isCollidingAt(const glm::vec3 &pos, ChunkManager &chunkManager);
+    bool isInsidePlayerBoundingBox(const glm::vec3 &checkPos) const;
+    void breakBlock(ChunkManager &chunkManager);
+    void placeBlock(ChunkManager &chunkManager);
 
     // Public members
     std::unique_ptr<PlayerState> currentState;
@@ -88,9 +86,7 @@ public:
     glm::vec3 position;
     glm::vec3 prevPosition;
     glm::vec3 velocity;
-    glm::ivec3 chunkSize;
     glm::vec3 pendingMovement = glm::vec3(0.0f);
-
 
     // -- Player Model ---
     struct BodyPart {
@@ -99,7 +95,7 @@ public:
         glm::mat4 transform;
     };
     std::vector<BodyPart> bodyParts;
-    
+
     // Base sizes
     glm::vec3 headSize = glm::vec3(8, 8, 8);
     glm::vec3 torsoSize = glm::vec3(8, 12, 4);
@@ -124,7 +120,7 @@ public:
     float swimming_speed = 8.0f;
     float flying_speed = 17.5f;
     float JUMP_FORCE = 4.5f;
-    const float h = 1.252f;	// Height of the jump of the player
+    const float h = 1.252f; // Height of the jump of the player
     float max_interaction_distance = 10.0f;
     unsigned int render_distance = 5;
 
@@ -132,8 +128,6 @@ public:
     float prevPlayerHeight;
     float eyeHeight;
     int selectedBlock = 1;
-
-
 
     // --- Player Flags ---
     bool isOnGround = false;
@@ -153,8 +147,8 @@ public:
     bool isCrouched = false;
     bool hasHealth = true;
     bool hasInfiniteBlocks = false;
-private:
+
+  private:
     void updateCameraPosition(void);
     void setupBodyParts(void);
 };
-

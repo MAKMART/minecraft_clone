@@ -7,8 +7,8 @@ Camera::Camera(glm::vec3 position, glm::vec3 up, float yaw, float pitch)
     WorldUp = up;
     Yaw = yaw;
     Pitch = pitch;
-    Target = position;  // Initially, target is the same as position
-    Distance = 5.0f;    // Default third-person distance
+    Target = position; // Initially, target is the same as position
+    Distance = 5.0f;   // Default third-person distance
 }
 
 // Constructor with scalar values
@@ -37,28 +37,27 @@ glm::mat4 Camera::GetProjectionMatrix() const {
 }
 
 // Process keyboard input and return updated velocity
-glm::vec3 Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime, glm::vec3 velocity)
-{
+glm::vec3 Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime, glm::vec3 velocity) {
     float speed = MovementSpeed * deltaTime;
-	if (direction == Camera_Movement::FORWARD)
-	    velocity += getFront() * speed;
-	if (direction == Camera_Movement::BACKWARD)
-	    velocity -= getFront() * speed;
-	if (direction == Camera_Movement::LEFT)
-	    velocity -= getRight() * speed;
-	if (direction == Camera_Movement::RIGHT)
-	    velocity += getRight() * speed;
-	if (direction == Camera_Movement::UP)
-	    velocity += getUp() * speed;
-	if (direction == Camera_Movement::DOWN)
-	    velocity -= getUp() * speed;
+    if (direction == Camera_Movement::FORWARD)
+        velocity += getFront() * speed;
+    if (direction == Camera_Movement::BACKWARD)
+        velocity -= getFront() * speed;
+    if (direction == Camera_Movement::LEFT)
+        velocity -= getRight() * speed;
+    if (direction == Camera_Movement::RIGHT)
+        velocity += getRight() * speed;
+    if (direction == Camera_Movement::UP)
+        velocity += getUp() * speed;
+    if (direction == Camera_Movement::DOWN)
+        velocity -= getUp() * speed;
 
-	// Update camera position based on velocity (only in first-person or if not third-person controlling player)
-	if (!isThirdPerson || !trackMouse) {
-	    Position += velocity * deltaTime;
-	}
+    // Update camera position based on velocity (only in first-person or if not third-person controlling player)
+    if (!isThirdPerson || !trackMouse) {
+        Position += velocity * deltaTime;
+    }
 
-	return velocity;
+    return velocity;
 }
 // --- THIS IS FOR FACING DEPENDENT MOVEMENT ---
 /*glm::vec3 Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime, float movement_velocity)
@@ -81,8 +80,7 @@ glm::vec3 Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime, gl
 
     return movement; // Return the calculated movement instead of modifying Position
 }*/
-glm::vec3 Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime, float movement_velocity)
-{
+glm::vec3 Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime, float movement_velocity) {
     glm::vec3 movement(0.0f);
     float speed = movement_velocity * deltaTime;
 
@@ -117,28 +115,31 @@ void Camera::ProcessMouseMovement(float xoffset, float yoffset, GLboolean constr
     if (isThirdPerson) {
         // Rotate around the target (player) in third-person
         // Non-inverted behavior: up moves camera up, down moves camera down
-        Yaw -= xoffset;  // Horizontal rotation (left/right, non-inverted)
-        Pitch -= yoffset;  // Vertical rotation (up/down, non-inverted)
+        Yaw -= xoffset;   // Horizontal rotation (left/right, non-inverted)
+        Pitch -= yoffset; // Vertical rotation (up/down, non-inverted)
 
         // Constrain pitch to avoid flipping
         if (constrainPitch) {
-            if (Pitch > 89.0f) Pitch = 89.0f;
-            if (Pitch < -89.0f) Pitch = -89.0f;
+            if (Pitch > 89.0f)
+                Pitch = 89.0f;
+            if (Pitch < -89.0f)
+                Pitch = -89.0f;
         }
 
         // Update camera position based on new rotation
         UpdateThirdPerson(Target);
-    }
-    else {
-	// Standard first-person rotation
-	// Non-inverted behavior: up moves camera up, down moves camera down
-	Yaw += xoffset;  // Horizontal rotation (left/right, non-inverted)
-	Pitch += yoffset;  // Vertical rotation (up/down, non-inverted)
+    } else {
+        // Standard first-person rotation
+        // Non-inverted behavior: up moves camera up, down moves camera down
+        Yaw += xoffset;   // Horizontal rotation (left/right, non-inverted)
+        Pitch += yoffset; // Vertical rotation (up/down, non-inverted)
 
-	if (constrainPitch) {
-	    if (Pitch >= 89.0f) Pitch = 89.0f;
-	    if (Pitch <= -89.0f) Pitch = -89.0f;
-	}
+        if (constrainPitch) {
+            if (Pitch >= 89.0f)
+                Pitch = 89.0f;
+            if (Pitch <= -89.0f)
+                Pitch = -89.0f;
+        }
     }
 }
 
@@ -154,11 +155,12 @@ void Camera::ProcessMouseScroll(float yoffset) {
         // Adjust movement speed in first-person
         float scroll_speed_multiplier = 1.0f;
         MovementSpeed += yoffset * scroll_speed_multiplier;
-        if (MovementSpeed < 0) MovementSpeed = 0;
+        if (MovementSpeed < 0)
+            MovementSpeed = 0;
     }
 }
 // Update third-person camera position
-void Camera::UpdateThirdPerson(const glm::vec3& target) {
+void Camera::UpdateThirdPerson(const glm::vec3 &target) {
     Target = target;
 
     // Convert angles to radians
@@ -174,7 +176,7 @@ void Camera::UpdateThirdPerson(const glm::vec3& target) {
 }
 
 // Switch to third-person mode
-void Camera::SwitchToThirdPerson(const glm::vec3& target, float distance, float yaw, float pitch) {
+void Camera::SwitchToThirdPerson(const glm::vec3 &target, float distance, float yaw, float pitch) {
     isThirdPerson = true;
     Target = target;
     Distance = distance;
@@ -182,7 +184,7 @@ void Camera::SwitchToThirdPerson(const glm::vec3& target, float distance, float 
     // Use the current Yaw and Pitch from first-person mode if not provided
     if (yaw == -90.0f && pitch == 20.0f) { // Default values indicate no override
         // Keep the current orientation (Yaw and Pitch) from first-person
-        Yaw = Yaw;  // Already set, but explicit for clarity
+        Yaw = Yaw; // Already set, but explicit for clarity
         Pitch = Pitch;
     } else {
         // Use provided yaw and pitch if specified
@@ -194,9 +196,9 @@ void Camera::SwitchToThirdPerson(const glm::vec3& target, float distance, float 
 }
 
 // Switch to first-person mode
-void Camera::SwitchToFirstPerson(const glm::vec3& position) {
+void Camera::SwitchToFirstPerson(const glm::vec3 &position) {
     isThirdPerson = false;
     Position = position;
-    Target = position; // Reset target to match position
+    Target = position;                         // Reset target to match position
     getFront() = glm::vec3(0.0f, 0.0f, -1.0f); // Reset front for first-person
 }

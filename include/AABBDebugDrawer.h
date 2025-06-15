@@ -5,17 +5,17 @@
 #include <memory>
 
 class AABBDebugDrawer {
-public:
+  public:
     AABBDebugDrawer();
     ~AABBDebugDrawer();
 
     void addAABB(const AABB &box, const glm::vec3 &color);
     void draw(const glm::mat4 &viewProj);
 
-private:
+  private:
     struct DebugAABB {
-	AABB box;
-	glm::vec3 color;
+        AABB box;
+        glm::vec3 color;
     };
 
     std::vector<DebugAABB> boxes;

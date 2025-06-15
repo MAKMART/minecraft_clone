@@ -1,13 +1,10 @@
-#include <iostream>
-#include <exception>
-
 class Log {
-    private:
-	enum class LogLevel { LEVEL_INFO, LEVEL_WARNING, LEVEL_ERROR };
+  private:
+    enum class LogLevel { LEVEL_INFO,
+                          LEVEL_WARNING,
+                          LEVEL_ERROR };
 
-    public:
-
-	Log() {};
-	~Log() {};
-
+  public:
+    Log() {};
+    ~Log() {};
 };

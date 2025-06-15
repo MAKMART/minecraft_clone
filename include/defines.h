@@ -1,14 +1,13 @@
 #pragma once
+#include "glm/ext/vector_int3.hpp"
 #include <cstdint>
 #include <filesystem>
-
-
 
 #ifndef GL_TYPES_DEFINED
 #define GL_TYPES_DEFINED
 typedef unsigned int GLenum;
-typedef int          GLint;
-typedef int          GLsizei;
+typedef int GLint;
+typedef int GLsizei;
 #endif
 
 // ANSI escape codes for color
@@ -17,11 +16,6 @@ typedef int          GLsizei;
 #define YELLOW "\033[33m"
 #define GREEN "\033[32m"
 #define CYAN "\033[36m"
-
-
-
-
-
 
 // Controls
 extern uint_fast16_t FORWARD_KEY;
@@ -41,11 +35,8 @@ extern uint_fast16_t SURVIVAL_MODE_KEY;
 extern uint_fast16_t CREATIVE_MODE_KEY;
 extern uint_fast16_t SPECTATOR_MODE_KEY;
 extern uint_fast16_t CAMERA_SWITCH_KEY;
-extern uint_fast8_t  ATTACK_BUTTON;
-extern uint_fast8_t  DEFENSE_BUTTON;
-
-
-
+extern uint_fast8_t ATTACK_BUTTON;
+extern uint_fast8_t DEFENSE_BUTTON;
 
 // Paths
 extern std::filesystem::path WORKING_DIRECTORY;
@@ -70,14 +61,14 @@ extern std::filesystem::path FONTS_DIRECTORY;
 extern std::filesystem::path MAIN_FONT_DIRECTORY;
 extern std::filesystem::path MAIN_DOC_DIRECTORY;
 
-
 // World Attributes
 extern float GRAVITY;
+const glm::ivec3 chunkSize = {16, 128, 16};
 
 // Utils for rendering
 extern unsigned int g_drawCallCount;
 extern void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count);
-extern void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void* indices);
+extern void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void *indices);
 extern void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount);
 extern float LINE_WIDTH;
 extern bool WIREFRAME_MODE;
@@ -102,16 +93,13 @@ typedef signed short i16;
 typedef signed int i32;
 typedef signed long long i64;
 
-
 // Floating point types
 typedef float f32;
 typedef double f64;
 
-
 // Boolean types
 typedef int b32;
 typedef bool b8;
-
 
 // Properly define static assertions
 #if defined(__clang__) || defined(__gcc__)
@@ -120,14 +108,13 @@ typedef bool b8;
 #define STATIC_ASSERT static_assert
 #endif
 
-
 // Ensure all types are of the correct size
-STATIC_ASSERT(sizeof(u8)  == 1, "Expected u8 to be 1 byte.");
+STATIC_ASSERT(sizeof(u8) == 1, "Expected u8 to be 1 byte.");
 STATIC_ASSERT(sizeof(u16) == 2, "Expected u16 to be 2 bytes.");
 STATIC_ASSERT(sizeof(u32) == 4, "Expected u32 to be 4 bytes.");
 STATIC_ASSERT(sizeof(u64) == 8, "Expected u64 to be 8 bytes.");
 
-STATIC_ASSERT(sizeof(i8)  == 1, "Expected i8 to be 1 byte.");
+STATIC_ASSERT(sizeof(i8) == 1, "Expected i8 to be 1 byte.");
 STATIC_ASSERT(sizeof(i16) == 2, "Expected i16 to be 2 bytes.");
 STATIC_ASSERT(sizeof(i32) == 4, "Expected i32 to be 4 bytes.");
 STATIC_ASSERT(sizeof(i64) == 8, "Expected i64 to be 8 bytes.");
@@ -139,7 +126,7 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define FALSE 0
 
 // Platform detection
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
 #define KPLATFORM_WINDOWS 1
 #ifndef _WIN64
 #error "64-bit is required on Windows!"

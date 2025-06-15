@@ -1,7 +1,6 @@
 #include "InputManager.h"
-#include <iostream>
 
-InputManager::InputManager(GLFWwindow* window) : _window(window) {
+InputManager::InputManager(GLFWwindow *window) : _window(window) {
     glfwGetCursorPos(_window, &_lastMouseX, &_lastMouseY);
 }
 
@@ -33,7 +32,7 @@ void InputManager::update(void) {
     // --- Update Mouse Movement (store only once per frame) ---
     double mouseX, mouseY;
     glfwGetCursorPos(_window, &mouseX, &mouseY);
-    
+
     _mouseDeltaX = mouseX - _lastMouseX;
     _mouseDeltaY = mouseY - _lastMouseY;
 
@@ -75,4 +74,3 @@ std::pair<double, double> InputManager::getMousePosition(void) const {
 std::pair<double, double> InputManager::getMouseDelta(void) const {
     return {_mouseDeltaX, _mouseDeltaY};
 }
-

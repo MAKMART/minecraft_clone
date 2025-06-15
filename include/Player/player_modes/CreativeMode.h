@@ -7,22 +7,21 @@
 #include "../player_states/RunningState.h"
 
 class CreativeMode : public PlayerMode {
-public:
-    void enterMode(Player& player) override {
-        player.isDamageable = false;  // No damage
+  public:
+    void enterMode(Player &player) override {
+        player.isDamageable = false; // No damage
         player.hasInfiniteBlocks = true;
-	player.canPlaceBlocks = true;
-	player.canBreakBlocks = true;
+        player.canPlaceBlocks = true;
+        player.canBreakBlocks = true;
     }
 
-    void exitMode(Player& player) override {
+    void exitMode(Player &player) override {
         player.hasInfiniteBlocks = false;
-	player.isDamageable = true;
+        player.isDamageable = true;
     }
 
-    void updateState(Player& player, std::unique_ptr<PlayerState> newState) override {
-	// In Creative mode, allow all possible states
-	player.changeState(std::move(newState));
+    void updateState(Player &player, std::unique_ptr<PlayerState> newState) override {
+        // In Creative mode, allow all possible states
+        player.changeState(std::move(newState));
     }
 };
-
