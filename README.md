@@ -2,6 +2,10 @@
 Yeah, I haven’t named it yet. Suggestions welcome :)
 ## Introduction
 This is a small game project built using modern OpenGL and C++20. Think Minecraft-style voxel fun, but from scratch and fully under your control. The project is in a very early, experimental stage.
+### Some screenshots
+![Screenshot 2025-06-15 221429](https://github.com/user-attachments/assets/b2461d68-5f1a-4081-bac3-c21720d3101f)![Screenshot 2025-06-15 221548](https://github.com/user-attachments/assets/5b00ad8b-644f-4b32-99a5-bc10c30b1473)
+
+
 ## Dependencies
 To build this project, you’ll need:
 - [CMake](https://cmake.org/download/)(>= 3.15)
