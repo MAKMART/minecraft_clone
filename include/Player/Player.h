@@ -5,6 +5,7 @@
 #include "defines.h"
 #include "../InputManager.h"
 #include "ChunkManager.h"
+#include "Camera.h"
 #include "Cube.h"
 #include "AABB.h"
 #define GLM_ENABLE_EXPERIMENTAL

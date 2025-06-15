@@ -1,43 +1,47 @@
 #include "Camera.h"
+#include <glm/common.hpp>
+#include <optional>
 
 // Constructor
-Camera::Camera(glm::vec3 position, glm::vec3 up, float yaw, float pitch)
-    : trackMouse(true) {
+Camera::Camera(glm::vec3 position, glm::vec3 up, glm::quat orient)
+    : orientation(orient), trackMouse(true) {
     Position = position;
     WorldUp = up;
-    Yaw = yaw;
-    Pitch = pitch;
     Target = position; // Initially, target is the same as position
-    Distance = 5.0f;   // Default third-person distance
 }
 
 // Constructor with scalar values
-Camera::Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch)
-    : trackMouse(true) {
+Camera::Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, glm::quat orient)
+    : orientation(orient), trackMouse(true) {
     Position = glm::vec3(posX, posY, posZ);
     WorldUp = glm::vec3(upX, upY, upZ);
-    Yaw = yaw;
-    Pitch = pitch;
     Target = Position;
-    Distance = 5.0f;
 }
 
-// returns the view matrix calculated using Euler Angles and the LookAt Matrix
-glm::mat4 Camera::GetViewMatrix() const {
-    if (isThirdPerson) {
-        return glm::lookAt(Position, Target, getUp());
-    } else {
-        return glm::lookAt(Position, Position + getFront(), getUp());
+void Camera::setPosition(const glm::vec3 &newPos) {
+    if (std::isfinite(newPos.x) && std::isfinite(newPos.y) && std::isfinite(newPos.z)) {
+        Position = newPos;
+        if (isThirdPerson)
+            UpdateThirdPerson(Target); // Maintain third-person consistency
     }
 }
 
-// return the projection matrix
+// Returns the view matrix
+glm::mat4 Camera::GetViewMatrix() const {
+    if (isThirdPerson) {
+        return glm::lookAt(Position, Target, WorldUp);
+    } else {
+        return glm::lookAt(Position, Position + getFront(), WorldUp);
+    }
+}
+
+// Returns the projection matrix
 glm::mat4 Camera::GetProjectionMatrix() const {
     return glm::perspective(glm::radians(FOV), aspectRatio, NEAR_PLANE, FAR_PLANE);
 }
 
 // Process keyboard input and return updated velocity
-glm::vec3 Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime, glm::vec3 velocity) {
+glm::vec3 Camera::ApplyKeyboardPhysics(Camera_Movement direction, float deltaTime, glm::vec3 velocity) {
     float speed = MovementSpeed * deltaTime;
     if (direction == Camera_Movement::FORWARD)
         velocity += getFront() * speed;
@@ -107,39 +111,45 @@ glm::vec3 Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime, fl
 // Process mouse movement input
 void Camera::ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch) {
     if (!trackMouse)
-        return; // Mouse tracking is disabled; ignore mouse movement
-
+        return;
     xoffset *= MouseSensitivity;
     yoffset *= MouseSensitivity;
 
+    // Yaw and pitch rotations
+    glm::quat yawRot = glm::angleAxis(glm::radians(-xoffset), glm::vec3(0, 1, 0));  // Global Y-axis
+    glm::quat pitchRot = glm::angleAxis(glm::radians(yoffset), glm::vec3(1, 0, 0)); // Local right axis
+    orientation = yawRot * orientation * pitchRot;
+    orientation = glm::normalize(orientation);
+
+    // Correct roll by aligning up vector
+    glm::vec3 up = getUp();
+    glm::vec3 right = getRight();
+    glm::vec3 front = getFront();
+    // Recompute up to be orthogonal to front and aligned with WorldUp
+    right = glm::normalize(glm::cross(WorldUp, front));
+    up = glm::normalize(glm::cross(front, right));
+    // Create quaternion to align current orientation
+    orientation = glm::quatLookAt(front, up);
+    orientation = glm::normalize(orientation);
+
+    // Pitch clamping
+    if (constrainPitch) {
+        glm::vec3 front = getFront();
+        float pitch = glm::degrees(std::asin(front.y));
+        if (pitch > 89.0f) {
+            float delta = glm::radians(pitch - 89.0f);
+            glm::quat correction = glm::angleAxis(delta, getRight());
+            orientation = orientation * correction;
+        } else if (pitch < -89.0f) {
+            float delta = glm::radians(pitch + 89.0f);
+            glm::quat correction = glm::angleAxis(delta, getRight());
+            orientation = orientation * correction;
+        }
+        orientation = glm::normalize(orientation);
+    }
+
     if (isThirdPerson) {
-        // Rotate around the target (player) in third-person
-        // Non-inverted behavior: up moves camera up, down moves camera down
-        Yaw -= xoffset;   // Horizontal rotation (left/right, non-inverted)
-        Pitch -= yoffset; // Vertical rotation (up/down, non-inverted)
-
-        // Constrain pitch to avoid flipping
-        if (constrainPitch) {
-            if (Pitch > 89.0f)
-                Pitch = 89.0f;
-            if (Pitch < -89.0f)
-                Pitch = -89.0f;
-        }
-
-        // Update camera position based on new rotation
         UpdateThirdPerson(Target);
-    } else {
-        // Standard first-person rotation
-        // Non-inverted behavior: up moves camera up, down moves camera down
-        Yaw += xoffset;   // Horizontal rotation (left/right, non-inverted)
-        Pitch += yoffset; // Vertical rotation (up/down, non-inverted)
-
-        if (constrainPitch) {
-            if (Pitch >= 89.0f)
-                Pitch = 89.0f;
-            if (Pitch <= -89.0f)
-                Pitch = -89.0f;
-        }
     }
 }
 
@@ -155,43 +165,26 @@ void Camera::ProcessMouseScroll(float yoffset) {
         // Adjust movement speed in first-person
         float scroll_speed_multiplier = 1.0f;
         MovementSpeed += yoffset * scroll_speed_multiplier;
-        if (MovementSpeed < 0)
-            MovementSpeed = 0;
+        constexpr float MIN_SPEED = 0.1f;
+        MovementSpeed = glm::max(MIN_SPEED, MovementSpeed + yoffset * scroll_speed_multiplier);
     }
 }
 // Update third-person camera position
 void Camera::UpdateThirdPerson(const glm::vec3 &target) {
     Target = target;
-
-    // Convert angles to radians
-    float radYaw = glm::radians(Yaw);
-    float radPitch = glm::radians(Pitch);
-
-    // Calculate camera position in spherical coordinates around the target
-    float x = Target.x + Distance * cos(radPitch) * sin(radYaw);
-    float y = Target.y + Distance * sin(radPitch);
-    float z = Target.z + Distance * cos(radPitch) * cos(radYaw);
-
-    Position = glm::vec3(x, y, z);
+    // Offset vector (camera behind target along -Z in local space)
+    glm::vec3 offset = glm::vec3(0, 0, Distance); // +Z to place camera behind target
+    // Rotate offset by orientation
+    offset = orientation * offset;
+    // Set position
+    Position = Target + offset;
 }
-
 // Switch to third-person mode
-void Camera::SwitchToThirdPerson(const glm::vec3 &target, float distance, float yaw, float pitch) {
+void Camera::SwitchToThirdPerson(const glm::vec3 &target, std::optional<float> distance) {
     isThirdPerson = true;
     Target = target;
-    Distance = distance;
-
-    // Use the current Yaw and Pitch from first-person mode if not provided
-    if (yaw == -90.0f && pitch == 20.0f) { // Default values indicate no override
-        // Keep the current orientation (Yaw and Pitch) from first-person
-        Yaw = Yaw; // Already set, but explicit for clarity
-        Pitch = Pitch;
-    } else {
-        // Use provided yaw and pitch if specified
-        Yaw = yaw;
-        Pitch = pitch;
-    }
-
+    if (distance.has_value())
+        Distance = distance.value();
     UpdateThirdPerson(Target);
 }
 
@@ -199,6 +192,54 @@ void Camera::SwitchToThirdPerson(const glm::vec3 &target, float distance, float 
 void Camera::SwitchToFirstPerson(const glm::vec3 &position) {
     isThirdPerson = false;
     Position = position;
-    Target = position;                         // Reset target to match position
-    getFront() = glm::vec3(0.0f, 0.0f, -1.0f); // Reset front for first-person
+    Target = position;
+}
+std::array<Camera::FrustumPlane, 6> Camera::extractFrustumPlanes() const {
+    glm::mat4 viewProj = GetProjectionMatrix() * GetViewMatrix();
+    std::array<FrustumPlane, 6> planes;
+
+    // Left plane
+    planes[0].normal.x = viewProj[0][3] + viewProj[0][0];
+    planes[0].normal.y = viewProj[1][3] + viewProj[1][0];
+    planes[0].normal.z = viewProj[2][3] + viewProj[2][0];
+    planes[0].distance = viewProj[3][3] + viewProj[3][0];
+
+    // Right plane
+    planes[1].normal.x = viewProj[0][3] - viewProj[0][0];
+    planes[1].normal.y = viewProj[1][3] - viewProj[1][0];
+    planes[1].normal.z = viewProj[2][3] - viewProj[2][0];
+    planes[1].distance = viewProj[3][3] - viewProj[3][0];
+
+    // Bottom plane
+    planes[2].normal.x = viewProj[0][3] + viewProj[0][1];
+    planes[2].normal.y = viewProj[1][3] + viewProj[1][1];
+    planes[2].normal.z = viewProj[2][3] + viewProj[2][1];
+    planes[2].distance = viewProj[3][3] + viewProj[3][1];
+
+    // Top plane
+    planes[3].normal.x = viewProj[0][3] - viewProj[0][1];
+    planes[3].normal.y = viewProj[1][3] - viewProj[1][1];
+    planes[3].normal.z = viewProj[2][3] - viewProj[2][1];
+    planes[3].distance = viewProj[3][3] - viewProj[3][1];
+
+    // Near plane
+    planes[4].normal.x = viewProj[0][3] + viewProj[0][2];
+    planes[4].normal.y = viewProj[1][3] + viewProj[1][2];
+    planes[4].normal.z = viewProj[2][3] + viewProj[2][2];
+    planes[4].distance = viewProj[3][3] + viewProj[3][2];
+
+    // Far plane
+    planes[5].normal.x = viewProj[0][3] - viewProj[0][2];
+    planes[5].normal.y = viewProj[1][3] - viewProj[1][2];
+    planes[5].normal.z = viewProj[2][3] - viewProj[2][2];
+    planes[5].distance = viewProj[3][3] - viewProj[3][2];
+
+    // Normalize planes
+    for (auto &plane : planes) {
+        float length = glm::length(plane.normal);
+        plane.normal /= length;
+        plane.distance /= length;
+    }
+
+    return planes;
 }

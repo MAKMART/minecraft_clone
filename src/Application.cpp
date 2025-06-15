@@ -609,8 +609,8 @@ void Application::Run(void) {
             ImGui::PopFont();
             ImGui::Indent();
             ImGui::Text(
-                "Camera position: %f, %f, %f", player->getCamera()->Position.x,
-                player->getCamera()->Position.y, player->getCamera()->Position.z);
+                "Camera position: %f, %f, %f", player->getCamera()->getPosition().x,
+                player->getCamera()->getPosition().y, player->getCamera()->getPosition().z);
             DrawBool("is camera third-person", player->getCamera()->isThirdPerson);
             ImGui::Unindent();
             if (renderUI && !mouseClickEnabled) {
@@ -622,8 +622,7 @@ void Application::Run(void) {
                                            0.0f, 100.0f);
                         ImGui::SliderFloat("Player running speed increment",
                                            &player->running_speed_increment, 0.0f, 100.0f);
-                        ImGui::SliderFloat("Max Interaction Distance",
-                                           &player->max_interaction_distance, 0.0f, 100.0f);
+                        ImGui::SliderFloat("Max Interaction Distance", &player->max_interaction_distance, 0.0f, 100.0f);
                         ImGui::SliderFloat3("armOffset", &player->armOffset.x, -5.0f, 5.0f);
                         ImGui::TreePop();
                     }

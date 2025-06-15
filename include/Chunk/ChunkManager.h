@@ -9,13 +9,13 @@
 #include "../Shader.h"
 #include "../Texture.h"
 #include "Chunk.h"
-#include "../Camera.h"
 #include <functional>
 #include "../defines.h"
 #include <PerlinNoise.hpp>
 #include <random>
 #include <optional>
 
+class Camera;
 namespace std {
 template <>
 struct hash<std::tuple<int, int, int>> {

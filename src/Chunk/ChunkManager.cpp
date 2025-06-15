@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <glm/glm.hpp>
+#include "Camera.h"
 
 ChunkManager::ChunkManager(int renderDistance, std::optional<siv::PerlinNoise::seed_type> seed) {
     // Initialize Perlin noise
