@@ -12,13 +12,13 @@ To build this project, you’ll need:
 - [Ninja](https://github.com/ninja-build/ninja)
 
 Make sure both are installed and added to your system's PATH if you're on Windows.
-## Cloning the Repo
+##  Building the Project
+### Clone the repo
 Open a terminal in whatever folder you want and run:
 ```
 git clone https://github.com/MAKMART/minecraft_clone.git
 cd minecraft_clone
 ```
-##  Building the Project
 Choose the configuration type depending on your goal.
 ### Debug build:
 ```
