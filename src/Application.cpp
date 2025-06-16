@@ -94,19 +94,14 @@ Application::Application(int width, int height)
     // Set the data for the Vertex Array Object (VAO) and Buffers directly
 
     // Buffer data for crosshair VBO
-    glNamedBufferData(crosshairVBO, Crosshairvertices.size() * sizeof(float),
-                      Crosshairvertices.data(), GL_STATIC_DRAW);
+    glNamedBufferData(crosshairVBO, Crosshairvertices.size() * sizeof(float), Crosshairvertices.data(), GL_STATIC_DRAW);
 
     // Buffer data for crosshair EBO
-    glNamedBufferData(crosshairEBO, sizeof(CrosshairIndices), CrosshairIndices,
-                      GL_STATIC_DRAW);
+    glNamedBufferData(crosshairEBO, sizeof(CrosshairIndices), CrosshairIndices, GL_STATIC_DRAW);
 
     // Set up vertex attributes for the VAO using DSA
-    glVertexArrayVertexBuffer(
-        crosshairVAO, 0, crosshairVBO, 0,
-        5 * sizeof(float)); // Specify the vertex buffer for the VAO
-    glVertexArrayElementBuffer(
-        crosshairVAO, crosshairEBO); // Specify the index buffer for the VAO
+    glVertexArrayVertexBuffer(crosshairVAO, 0, crosshairVBO, 0, 5 * sizeof(float)); // Specify the vertex buffer for the VAO
+    glVertexArrayElementBuffer(crosshairVAO, crosshairEBO); // Specify the index buffer for the VAO
 
     // Position attribute
     glVertexArrayAttribFormat(crosshairVAO, 0, 3, GL_FLOAT, GL_FALSE, 0);

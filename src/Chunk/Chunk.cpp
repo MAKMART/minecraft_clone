@@ -14,8 +14,7 @@ Chunk::Chunk(const glm::ivec3 &chunkPos)
     try {
         chunkData.resize(chunkSize.x * chunkSize.y * chunkSize.z);
     } catch (const std::bad_alloc &e) {
-        throw std::runtime_error("Failed to allocate chunkData vector: " +
-                                 std::string(e.what()));
+        throw std::runtime_error("Failed to allocate chunkData vector: " + std::string(e.what()));
     }
 
     // Construct AABB
@@ -23,7 +22,7 @@ Chunk::Chunk(const glm::ivec3 &chunkPos)
     glm::vec3 worldMax = worldOrigin + glm::vec3(chunkSize);
     aabb = AABB(worldOrigin, worldMax);
     glCreateBuffers(1, &SSBO);
-    srand(static_cast<unsigned int>(time(0))); // Seed once
+    srand(static_cast<unsigned int>(position.x ^ position.y ^ position.z));
 }
 Chunk::~Chunk(void) {
     if (SSBO)
@@ -141,12 +140,28 @@ void Chunk::generate(const std::vector<float> &noiseMap) {
                     chunkData[index].type = Block::blocks::AIR;
                     blockCount++;
                 }
+
+            }
+        }
+    }
+
+    // Water pass
+    for (int z = 0; z < chunkSize.z; ++z) {
+        for (int x = 0; x < chunkSize.x; ++x) {
+            int noiseIndex = z * chunkSize.x + x;
+            int height = static_cast<int>(noiseMap[noiseIndex] * chunkSize.y);
+            height = std::clamp(height, 0, chunkSize.y - 1);
+
+            // Fill from height up to sea level with water (if below sea level)
+            for (int y = height + 1; y <= seaLevel && y < chunkSize.y; ++y) {
+                Block &block = chunkData[getBlockIndex(x, y, z)];
+                if (block.type == Block::blocks::AIR)
+                    setBlockAt(x, y, z, Block::blocks::WATER);
             }
         }
     }
 
     // Tree pass
-
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
             int noiseIndex = z * chunkSize.x + x;
@@ -154,10 +169,8 @@ void Chunk::generate(const std::vector<float> &noiseMap) {
             height = std::clamp(height, 0, chunkSize.y - 1);
 
             // Rough condition for tree placement: 1 in 20 chance
-            if (chunkData[getBlockIndex(x, height, z)].type == Block::blocks::GRASS &&
-                rand() % 35 == 0) {
-                generateTreeAt(x, height + 1,
-                               z); // +1 so it grows *on top* of the grass
+            if (chunkData[getBlockIndex(x, height, z)].type == Block::blocks::GRASS && height > seaLevel && rand() % 90 == 0) {
+                generateTreeAt(x, height + 1, z); // +1 so it grows *on top* of the grass
             }
         }
     }
@@ -179,78 +192,212 @@ void Chunk::uploadData(void) {
                       GL_DYNAMIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
 }
-
-void Chunk::updateMesh(void) {
+void Chunk::updateMesh() {
     faces.clear();
     nonAirBlockCount = 0;
     blockCount = 0;
 
+    // Opaque pass (non-water blocks)
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
             int maxHeight = 0;
             for (int y = 0; y < chunkSize.y; ++y) {
                 int index = getBlockIndex(x, y, z);
-                if (chunkData[index].type != Block::blocks::AIR) {
+                if (chunkData[index].type != Block::blocks::AIR && chunkData[index].type != Block::blocks::WATER) {
                     maxHeight = y;
                 }
             }
             for (int y = 0; y <= maxHeight + 1; ++y) {
                 int index = getBlockIndex(x, y, z);
-                generateBlockFace(chunkData[index], x, y, z);
-                if (chunkData[index].type == Block::blocks::AIR) {
-                    blockCount++;
-                } else {
-                    nonAirBlockCount++;
+                const Block &block = chunkData[index];
+                if (block.type != Block::blocks::WATER) {
+                    generateBlockFace(block, x, y, z);
+                    if (block.type == Block::blocks::AIR)
+                        blockCount++;
+                    else
+                        nonAirBlockCount++;
                 }
             }
             blockCount += chunkSize.y - (maxHeight + 2);
         }
     }
+
+    // Transparent pass (water blocks)
+    for (int z = 0; z < chunkSize.z; ++z) {
+        for (int x = 0; x < chunkSize.x; ++x) {
+            for (int y = 0; y < seaLevel; ++y) {
+                int index = getBlockIndex(x, y, z);
+                const Block &block = chunkData[index];
+                if (block.type == Block::blocks::WATER) {
+                    generateSeaBlockFace(block, x, y, z);
+                }
+            }
+        }
+    }
+
     uploadData();
 }
+// Helper function to check if a face under the water is visible
+bool Chunk::isSeaFaceVisible(const Block &block, int x, int y, int z) {
+    // Face is visible ONLY if neighbor block is NOT transparent
+    return Block::isTransparent(getBlockAt(x, y, z).type);
+}
+void Chunk::generateSeaBlockFace(const Block &block, int x, int y, int z) {
+    // Lambda to push a face into the vector.
+    auto pushFace = [this](int x, int y, int z, int u, int v, int face,
+                           int block_type) {
+        this->faces.emplace_back(Face(x, y, z, u, v, face, block_type));
+    };
+
+    uint8_t visibilityMask =
+        (isSeaFaceVisible(block, x, y, z + 1) << 0) | // Front Face
+        (isSeaFaceVisible(block, x, y, z - 1) << 1) | // Back Face
+        (isSeaFaceVisible(block, x - 1, y, z) << 2) | // Left Face
+        (isSeaFaceVisible(block, x + 1, y, z) << 3) | // Right Face
+        (isSeaFaceVisible(block, x, y + 1, z) << 4) | // Top Face
+        (isSeaFaceVisible(block, x, y - 1, z) << 5);  // Bottom Face
+
+    int topX, topY, botX, botY, X, Y, topandBotX, topandBotY;
+    switch (block.type) {
+    case Block::blocks::AIR:
+        return; // No geometry for AIR
+    case Block::blocks::DIRT:
+        X = 0, Y = 0;
+        if (visibilityMask & (1 << 0))
+            pushFace(x, y, z, X, Y, 0, block.toInt());
+        if (visibilityMask & (1 << 1))
+            pushFace(x, y, z, X, Y, 1, block.toInt());
+        if (visibilityMask & (1 << 2))
+            pushFace(x, y, z, X, Y, 2, block.toInt());
+        if (visibilityMask & (1 << 3))
+            pushFace(x, y, z, X, Y, 3, block.toInt());
+        if (visibilityMask & (1 << 4))
+            pushFace(x, y, z, X, Y, 4, block.toInt());
+        if (visibilityMask & (1 << 5))
+            pushFace(x, y, z, X, Y, 5, block.toInt());
+        break;
+    case Block::blocks::GRASS:
+        topX = 1;
+        topY = 1;
+        botX = 0;
+        botY = 0;
+        X = 1;
+        Y = 0;
+        if (visibilityMask & (1 << 0))
+            pushFace(x, y, z, X, Y, 0, block.toInt());
+        if (visibilityMask & (1 << 1))
+            pushFace(x, y, z, X, Y, 1, block.toInt());
+        if (visibilityMask & (1 << 2))
+            pushFace(x, y, z, X, Y, 2, block.toInt());
+        if (visibilityMask & (1 << 3))
+            pushFace(x, y, z, X, Y, 3, block.toInt());
+        if (visibilityMask & (1 << 4))
+            pushFace(x, y, z, topX, topY, 4, block.toInt());
+        if (visibilityMask & (1 << 5))
+            pushFace(x, y, z, botX, botY, 5, block.toInt());
+        break;
+    case Block::blocks::STONE:
+        X = 0, Y = 1;
+        if (visibilityMask & (1 << 0))
+            pushFace(x, y, z, X, Y, 0, block.toInt());
+        if (visibilityMask & (1 << 1))
+            pushFace(x, y, z, X, Y, 1, block.toInt());
+        if (visibilityMask & (1 << 2))
+            pushFace(x, y, z, X, Y, 2, block.toInt());
+        if (visibilityMask & (1 << 3))
+            pushFace(x, y, z, X, Y, 3, block.toInt());
+        if (visibilityMask & (1 << 4))
+            pushFace(x, y, z, X, Y, 4, block.toInt());
+        if (visibilityMask & (1 << 5))
+            pushFace(x, y, z, X, Y, 5, block.toInt());
+        break;
+    case Block::blocks::LAVA:
+        X = 5, Y = 0;
+        if (visibilityMask & (1 << 0))
+            pushFace(x, y, z, X, Y, 0, block.toInt());
+        if (visibilityMask & (1 << 1))
+            pushFace(x, y, z, X, Y, 1, block.toInt());
+        if (visibilityMask & (1 << 2))
+            pushFace(x, y, z, X, Y, 2, block.toInt());
+        if (visibilityMask & (1 << 3))
+            pushFace(x, y, z, X, Y, 3, block.toInt());
+        if (visibilityMask & (1 << 4))
+            pushFace(x, y, z, X, Y, 4, block.toInt());
+        if (visibilityMask & (1 << 5))
+            pushFace(x, y, z, X, Y, 5, block.toInt());
+        break;
+    case Block::blocks::WATER:
+        X = 0, Y = 4;
+        if (visibilityMask & (1 << 0))
+            pushFace(x, y, z, X, Y, 0, block.toInt());
+        if (visibilityMask & (1 << 1))
+            pushFace(x, y, z, X, Y, 1, block.toInt());
+        if (visibilityMask & (1 << 2))
+            pushFace(x, y, z, X, Y, 2, block.toInt());
+        if (visibilityMask & (1 << 3))
+            pushFace(x, y, z, X, Y, 3, block.toInt());
+        if (visibilityMask & (1 << 4))
+            pushFace(x, y, z, X, Y, 4, block.toInt());
+        if (visibilityMask & (1 << 5))
+            pushFace(x, y, z, X, Y, 5, block.toInt());
+        break;
+    case Block::blocks::WOOD:
+        X = 2;
+        Y = 0;
+        topandBotX = 2;
+        topandBotY = 1;
+        if (visibilityMask & (1 << 0))
+            pushFace(x, y, z, X, Y, 0, block.toInt());
+        if (visibilityMask & (1 << 1))
+            pushFace(x, y, z, X, Y, 1, block.toInt());
+        if (visibilityMask & (1 << 2))
+            pushFace(x, y, z, X, Y, 2, block.toInt());
+        if (visibilityMask & (1 << 3))
+            pushFace(x, y, z, X, Y, 3, block.toInt());
+        if (visibilityMask & (1 << 4))
+            pushFace(x, y, z, topandBotX, topandBotY, 4, block.toInt());
+        if (visibilityMask & (1 << 5))
+            pushFace(x, y, z, topandBotX, topandBotY, 5, block.toInt());
+        break;
+    case Block::blocks::LEAVES:
+        X = 0, Y = 2;
+        if (visibilityMask & (1 << 0))
+            pushFace(x, y, z, X, Y, 0, block.toInt());
+        if (visibilityMask & (1 << 1))
+            pushFace(x, y, z, X, Y, 1, block.toInt());
+        if (visibilityMask & (1 << 2))
+            pushFace(x, y, z, X, Y, 2, block.toInt());
+        if (visibilityMask & (1 << 3))
+            pushFace(x, y, z, X, Y, 3, block.toInt());
+        if (visibilityMask & (1 << 4))
+            pushFace(x, y, z, X, Y, 4, block.toInt());
+        if (visibilityMask & (1 << 5))
+            pushFace(x, y, z, X, Y, 5, block.toInt());
+        break;
+    case Block::blocks::SAND:
+        X = 4, Y = 0;
+        if (visibilityMask & (1 << 0))
+            pushFace(x, y, z, X, Y, 0, block.toInt());
+        if (visibilityMask & (1 << 1))
+            pushFace(x, y, z, X, Y, 1, block.toInt());
+        if (visibilityMask & (1 << 2))
+            pushFace(x, y, z, X, Y, 2, block.toInt());
+        if (visibilityMask & (1 << 3))
+            pushFace(x, y, z, X, Y, 3, block.toInt());
+        if (visibilityMask & (1 << 4))
+            pushFace(x, y, z, X, Y, 4, block.toInt());
+        if (visibilityMask & (1 << 5))
+            pushFace(x, y, z, X, Y, 5, block.toInt());
+        break;
+    default:
+        std::cerr << "UNHANDLED BLOCK CASE: " << block.toString() << "# "
+                  << block.toInt() << std::endl;
+        break;
+    }
+}
 // Helper function to check if a face is visible
-bool Chunk::isFaceVisible(const Block &block, int x, int y, int z) const {
-    if (block.type == Block::blocks::AIR)
-        return false; // No faces for air blocks
-
-    // Check if the position is within the current chunk
-    if (x >= 0 && x < chunkSize.x && y >= 0 && y < chunkSize.y && z >= 0 &&
-        z < chunkSize.z) {
-        return getBlockAt(x, y, z).type == Block::blocks::AIR ||
-               getBlockAt(x, y, z).type == Block::blocks::WATER ||
-               getBlockAt(x, y, z).type == Block::blocks::LEAVES;
-    }
-
-    // Handle boundary cases using neighbor references
-    std::shared_ptr<Chunk> neighbor;
-    glm::ivec3 localPos;
-
-    if (x < 0) { // Left neighbor (-x)
-        neighbor = leftChunk.lock();
-        localPos = glm::ivec3(chunkSize.x - 1, y, z);
-    } else if (x >= chunkSize.x) { // Right neighbor (+x)
-        neighbor = rightChunk.lock();
-        localPos = glm::ivec3(0, y, z);
-    } else if (z < 0) { // Back neighbor (-z)
-        neighbor = backChunk.lock();
-        localPos = glm::ivec3(x, y, chunkSize.z - 1);
-    } else if (z >= chunkSize.z) { // Front neighbor (+z)
-        neighbor = frontChunk.lock();
-        localPos = glm::ivec3(x, y, 0);
-    } else if (y < 0 || y >= chunkSize.y) { // Vertical boundaries (if needed)
-        // Handle y-boundaries if chunks exist above/below
-        // For now, assume air for simplicity
-        return true;
-    }
-
-    if (!neighbor) {
-        return true; // Neighbor not loaded, assume air
-    }
-
-    return neighbor->getBlockAt(localPos.x, localPos.y, localPos.z).type ==
-               Block::blocks::AIR ||
-           neighbor->getBlockAt(localPos.x, localPos.y, localPos.z).type ==
-               Block::blocks::WATER;
+bool Chunk::isFaceVisible(const Block &block, int x, int y, int z) {
+    return Block::isTransparent(getBlockAt(x, y, z).type);
 }
 void Chunk::renderChunk(std::unique_ptr<Shader> &shader) {
     shader->setMat4("model", getModelMatrix());
@@ -377,6 +524,21 @@ void Chunk::generateBlockFace(const Block &block, int x, int y, int z) {
         break;
     case Block::blocks::LEAVES:
         X = 0, Y = 2;
+        if (visibilityMask & (1 << 0))
+            pushFace(x, y, z, X, Y, 0, block.toInt());
+        if (visibilityMask & (1 << 1))
+            pushFace(x, y, z, X, Y, 1, block.toInt());
+        if (visibilityMask & (1 << 2))
+            pushFace(x, y, z, X, Y, 2, block.toInt());
+        if (visibilityMask & (1 << 3))
+            pushFace(x, y, z, X, Y, 3, block.toInt());
+        if (visibilityMask & (1 << 4))
+            pushFace(x, y, z, X, Y, 4, block.toInt());
+        if (visibilityMask & (1 << 5))
+            pushFace(x, y, z, X, Y, 5, block.toInt());
+        break;
+    case Block::blocks::SAND:
+        X = 4, Y = 0;
         if (visibilityMask & (1 << 0))
             pushFace(x, y, z, X, Y, 0, block.toInt());
         if (visibilityMask & (1 << 1))

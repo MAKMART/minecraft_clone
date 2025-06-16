@@ -158,14 +158,22 @@ void ChunkManager::loadChunksAroundPlayer(glm::vec3 playerPosition, int renderDi
                     }
                 }
                 std::shared_ptr<Chunk> newChunk = chunks[chunkKey];
-                // Generate chunk data
-                newChunk->generate(noiseMap);
 
                 // Set neighbor references for the new chunk
                 newChunk->leftChunk = getChunk({(chunkX - 1) * chunkSize.x, 0, chunkZ * chunkSize.z});
                 newChunk->rightChunk = getChunk({(chunkX + 1) * chunkSize.x, 0, chunkZ * chunkSize.z});
                 newChunk->frontChunk = getChunk({chunkX * chunkSize.x, 0, (chunkZ + 1) * chunkSize.z});
                 newChunk->backChunk = getChunk({chunkX * chunkSize.x, 0, (chunkZ - 1) * chunkSize.z});
+
+                // Log existence of neighbor chunks
+                std::cout << "Chunk (" << chunkX << ", 0, " << chunkZ << ") neighbors: "
+                          << "left=" << (newChunk->leftChunk.lock() ? "exists" : "null") << ", "
+                          << "right=" << (newChunk->rightChunk.lock() ? "exists" : "null") << ", "
+                          << "front=" << (newChunk->frontChunk.lock() ? "exists" : "null") << ", "
+                          << "back=" << (newChunk->backChunk.lock() ? "exists" : "null") << "\n";
+
+                // Generate chunk data
+                newChunk->generate(noiseMap);
 
                 // Update neighbor references for adjacent chunks
                 if (auto left = newChunk->leftChunk.lock()) {

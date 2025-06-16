@@ -21,6 +21,7 @@ struct Block {
         WATER,
         WOOD,
         LEAVES,
+        SAND,
         MAX_BLOCKS
     }; // Up to 512 blocks
     blocks type = blocks::AIR;
@@ -44,6 +45,8 @@ struct Block {
             return "WOOD";
         case blocks::LEAVES:
             return "LEAVES";
+        case blocks::SAND:
+            return "SAND";
         default:
             return "UNKNOWN BLOCK TYPE";
         }
@@ -66,9 +69,17 @@ struct Block {
             return "WOOD";
         case 7:
             return "LEAVES";
+        case 8:
+            return "SAND";
         default:
             return "UNKNOWN BLOCK TYPE";
         }
+    }
+
+    static constexpr bool isTransparent(blocks type) {
+        return type == Block::blocks::AIR ||
+           type == Block::blocks::LEAVES ||
+           type == Block::blocks::WATER;
     }
 
     // Instance method that delegates to static constexpr function
@@ -146,6 +157,8 @@ class Chunk {
 
     void updateMesh(void);
 
+    void generateSeaBlockFace(const Block &block, int x, int y, int z);
+
     // Function to generate vertex data for a single Block
     void generateBlockFace(const Block &block, int x, int y, int z);
 
@@ -169,7 +182,9 @@ class Chunk {
     // Function to render a chunk
     void renderChunk(std::unique_ptr<Shader> &shader);
 
-    bool isFaceVisible(const Block &block, int x, int y, int z) const;
+    bool isSeaFaceVisible(const Block &block, int x, int y, int z);
+
+    bool isFaceVisible(const Block &block, int x, int y, int z);
     // Convert world coordinates to chunk coordinates
     static glm::ivec3 worldToChunk(const glm::vec3 &worldPos,
                                    const glm::vec3 &chunkSize) {
@@ -218,7 +233,7 @@ class Chunk {
     std::weak_ptr<Chunk> rightChunk; // +x direction
     std::weak_ptr<Chunk> frontChunk; // +z direction
     std::weak_ptr<Chunk> backChunk;  // -z direction
-
+    const int seaLevel = 4;
     GLuint SSBO /*, EBO*/;
     int nonAirBlockCount = 0;
     int blockCount = 0;
