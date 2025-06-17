@@ -1,11 +1,11 @@
 #include "ChunkManager.h"
 #include "defines.h"
-#include <cstdint>
+#include <cmath>
 #include <stdexcept>
 #include <glm/glm.hpp>
 #include "Camera.h"
 
-ChunkManager::ChunkManager(int renderDistance, std::optional<siv::PerlinNoise::seed_type> seed) {
+ChunkManager::ChunkManager(int renderDistance, const glm::vec3 &player_pos, std::optional<siv::PerlinNoise::seed_type> seed) {
     // Initialize Perlin noise
     if (seed.has_value()) {
         perlin = siv::PerlinNoise(seed.value());
@@ -34,8 +34,8 @@ ChunkManager::ChunkManager(int renderDistance, std::optional<siv::PerlinNoise::s
         throw std::invalid_argument("chunkSize too large: " + std::to_string(totalSize) + " elements");
     }
 
-    lastChunkX = -1; // Initialize with a value that is not equal to any valid chunk position.
-    lastChunkZ = -1;
+    lastChunkX = player_pos.x; // Initialize with a value that is not equal to any valid chunk position.
+    lastChunkZ = player_pos.z;
 
     glCreateVertexArrays(1, &VAO);
 
@@ -131,74 +131,79 @@ void ChunkManager::loadChunksAroundPlayer(glm::vec3 playerPosition, int renderDi
     if (renderDistance <= 0)
         return;
 
-    int playerChunkX = static_cast<int>(floor(playerPosition.x / chunkSize.x));
-    int playerChunkZ = static_cast<int>(floor(playerPosition.z / chunkSize.z));
+    const int playerChunkX = static_cast<int>(floor(playerPosition.x / chunkSize.x));
+    const int playerChunkZ = static_cast<int>(floor(playerPosition.z / chunkSize.z));
+
+    const size_t noiseMapSize = chunkSize.x * chunkSize.z;
+    if (noiseMap.size() != noiseMapSize)
+        noiseMap.resize(noiseMapSize);
 
     for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
         for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
-            int chunkX = playerChunkX + dx;
-            int chunkZ = playerChunkZ + dz;
+            const int chunkX = playerChunkX + dx;
+            const int chunkZ = playerChunkZ + dz;
+            const int worldX = chunkX * chunkSize.x;
+            const int worldZ = chunkZ * chunkSize.z;
 
-            std::tuple<int, int, int> chunkKey = {chunkX, 0, chunkZ}; // Avoid std::make_tuple()
+            const std::tuple<int, int, int> chunkKey{chunkX, 0, chunkZ};
+
             try {
-                auto [it, inserted] = chunks.emplace(chunkKey, std::make_shared<Chunk>(glm::ivec3(chunkX, 0, chunkZ)));
-                if (!inserted)
-                    continue; // Chunk already exists
-                // Generate noise map
-                noiseMap.resize(chunkSize.x * chunkSize.z);
+                auto [it, inserted] = chunks.emplace(chunkKey, nullptr);
+                if (!inserted && it->second) continue; // Already exists
 
+                auto& chunkPtr = it->second;
+                chunkPtr = std::make_shared<Chunk>(glm::ivec3(chunkX, 0, chunkZ));
+
+                // Generate noise for this chunk
                 for (int z = 0; z < chunkSize.z; ++z) {
                     for (int x = 0; x < chunkSize.x; ++x) {
-                        float worldX = (chunkX * chunkSize.x + x);
-                        float worldZ = (chunkZ * chunkSize.z + z);
-                        float frequency = 0.005f;
-                        float rawNoise = LayeredPerlin(worldX, worldZ, 7, 0.003f, 1.2f); // returns in [-some, +some]
-                        float redistributed = pow(abs(rawNoise), 1.3f) * (int)glm::sign(rawNoise);
+                        const float wx = static_cast<float>(worldX + x);
+                        const float wz = static_cast<float>(worldZ + z);
+                        const float rawNoise = LayeredPerlin(wx, wz, 7, 0.003f, 1.2f);
+                        const float redistributed = std::pow(std::abs(rawNoise), 1.3f) * glm::sign(rawNoise);
                         noiseMap[z * chunkSize.x + x] = redistributed;
                     }
                 }
-                std::shared_ptr<Chunk> newChunk = chunks[chunkKey];
 
-                // Set neighbor references for the new chunk
-                newChunk->leftChunk = getChunk({(chunkX - 1) * chunkSize.x, 0, chunkZ * chunkSize.z});
-                newChunk->rightChunk = getChunk({(chunkX + 1) * chunkSize.x, 0, chunkZ * chunkSize.z});
-                newChunk->frontChunk = getChunk({chunkX * chunkSize.x, 0, (chunkZ + 1) * chunkSize.z});
-                newChunk->backChunk = getChunk({chunkX * chunkSize.x, 0, (chunkZ - 1) * chunkSize.z});
+                // Set up neighbor references
+                chunkPtr->leftChunk  = getChunk({(chunkX - 1) * chunkSize.x, 0, worldZ});
+                chunkPtr->rightChunk = getChunk({(chunkX + 1) * chunkSize.x, 0, worldZ});
+                chunkPtr->frontChunk = getChunk({worldX, 0, (chunkZ + 1) * chunkSize.z});
+                chunkPtr->backChunk  = getChunk({worldX, 0, (chunkZ - 1) * chunkSize.z});
 
-                // Log existence of neighbor chunks
                 std::cout << "Chunk (" << chunkX << ", 0, " << chunkZ << ") neighbors: "
-                          << "left=" << (newChunk->leftChunk.lock() ? "exists" : "null") << ", "
-                          << "right=" << (newChunk->rightChunk.lock() ? "exists" : "null") << ", "
-                          << "front=" << (newChunk->frontChunk.lock() ? "exists" : "null") << ", "
-                          << "back=" << (newChunk->backChunk.lock() ? "exists" : "null") << "\n";
+                          << "left=" << (chunkPtr->leftChunk.lock()  ? "exists" : "null") << ", "
+                          << "right=" << (chunkPtr->rightChunk.lock() ? "exists" : "null") << ", "
+                          << "front=" << (chunkPtr->frontChunk.lock() ? "exists" : "null") << ", "
+                          << "back=" << (chunkPtr->backChunk.lock()  ? "exists" : "null") << "\n";
 
-                // Generate chunk data
-                newChunk->generate(noiseMap);
+                chunkPtr->generate(noiseMap);
 
-                // Update neighbor references for adjacent chunks
-                if (auto left = newChunk->leftChunk.lock()) {
-                    left->rightChunk = newChunk;
+                // Connect this chunk back to its neighbors
+                if (auto left = chunkPtr->leftChunk.lock()) {
+                    left->rightChunk = chunkPtr;
                     left->updateMesh();
                 }
-                if (auto right = newChunk->rightChunk.lock()) {
-                    right->leftChunk = newChunk;
+                if (auto right = chunkPtr->rightChunk.lock()) {
+                    right->leftChunk = chunkPtr;
                     right->updateMesh();
                 }
-                if (auto front = newChunk->frontChunk.lock()) {
-                    front->backChunk = newChunk;
+                if (auto front = chunkPtr->frontChunk.lock()) {
+                    front->backChunk = chunkPtr;
                     front->updateMesh();
                 }
-                if (auto back = newChunk->backChunk.lock()) {
-                    back->frontChunk = newChunk;
+                if (auto back = chunkPtr->backChunk.lock()) {
+                    back->frontChunk = chunkPtr;
                     back->updateMesh();
                 }
 
-            } catch (const std::exception &e) {
-                std::cerr << "Failed to create chunk at (" << chunkX << ", 0, " << chunkZ << "): " << e.what() << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "Failed to create chunk at (" << chunkX << ", 0, " << chunkZ << "): " << e.what() << '\n';
             }
         }
     }
 }
+
 void ChunkManager::unloadDistantChunks(glm::vec3 playerPosition, int unloadDistance) {
     int playerChunkX = static_cast<int>(floor(playerPosition.x / chunkSize.x));
     int playerChunkY = static_cast<int>(floor(playerPosition.y / chunkSize.y));

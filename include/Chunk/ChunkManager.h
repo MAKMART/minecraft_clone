@@ -41,7 +41,7 @@ struct ivec3Comparator {
 class ChunkManager {
   public:
     // Constructor to initialize the manager
-    ChunkManager(int renderDistance, std::optional<siv::PerlinNoise::seed_type> seed = std::nullopt);
+    ChunkManager(int renderDistance, const glm::vec3 &player_pos, std::optional<siv::PerlinNoise::seed_type> seed = std::nullopt);
     // Destructor to clear all the chunks before deleting the ChunkManager
     ~ChunkManager(void);
 

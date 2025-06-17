@@ -134,7 +134,7 @@ Application::Application(int width, int height)
         glm::vec3(0.0f, (float)(chunkSize.y) - 1.0f, 0.0f), window);
     std::cout << "Initializing Chunk Manager...\n";
     try {
-        chunkManager = std::make_unique<ChunkManager>(player->render_distance);
+        chunkManager = std::make_unique<ChunkManager>(player->render_distance, player->getPos());
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
@@ -366,7 +366,7 @@ void Application::processInput() {
         player->changeMode(std::make_unique<SpectatorMode>());
     }
     if (input->isPressed(SPRINT_KEY) && !player->isFlying &&
-        !player->isSwimming && player->isOnGround)
+        !player->isSwimming && player->isOnGround && glm::length(glm::vec2(player->velocity.x, player->velocity.z)) >= player->walking_speed - 0.01)    // Tiny epsilon
         player->changeState(std::make_unique<RunningState>());
     if (input->isReleased(SPRINT_KEY) && !player->isFlying && !player->isSwimming)
         player->changeState(std::make_unique<WalkingState>());
