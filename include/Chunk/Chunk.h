@@ -11,6 +11,14 @@
 #include <vector>
 
 class Shader;
+
+enum class ChunkState {
+    Empty,
+    Generated,
+    TreesPlaced,
+    Meshed
+};
+
 struct Block {
     enum class blocks {
         AIR,
@@ -157,6 +165,8 @@ class Chunk {
 
     void updateMesh(void);
 
+    void genTrees(const std::vector<float> &noiseMap);
+
     void generateSeaBlockFace(const Block &block, int x, int y, int z);
 
     // Function to generate vertex data for a single Block
@@ -177,6 +187,7 @@ class Chunk {
 
     glm::ivec3 position; // Store chunk's grid position (chunkX, chunkY, chunkZ)
     AABB aabb;           // Axis Aligned Bounding Box for the chunk
+    ChunkState state = ChunkState::Empty;
     AABB getAABB(void) const { return aabb; }
 
     // Function to render a chunk

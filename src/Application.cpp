@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "GLFW/glfw3.h"
 #include "Shader.h"
+#include "Timer.h"
 #include "defines.h"
 #include "imgui.h"
 #include <exception>
@@ -14,8 +15,7 @@ Application::Application(int width, int height)
       width(width), height(height),
       /*backgroundColor(0.11f, 0.67f, 0.7f, 1.0f),*/ backgroundColor(
           0.0f, 0.0f, 0.0f, 1.0f),
-      nbFrames(0), deltaTime(0.0f), lastFrame(0.0f), mouseClickEnabled(true),
-      frametimes(frametime_max, 0.0f) {
+      nbFrames(0), deltaTime(0.0f), lastFrame(0.0f), mouseClickEnabled(true) {
 #ifdef DEBUG
     std::cout
         << "----------------------------DEBUG MODE----------------------------\n";
@@ -545,20 +545,21 @@ void Application::Run(void) {
                     ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus |
                     ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
             ImGui::PushFont(
-                ImGui::GetFont()); // Or use a bold/large font if you have one
+            ImGui::GetFont()); // Or use a bold/large font if you have one
             ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-            ImGui::Selectable("Rendering Infos:", false,
-                              ImGuiSelectableFlags_Disabled);
+            ImGui::Selectable("Rendering Infos:", false, ImGuiSelectableFlags_Disabled);
             ImGui::PopStyleColor(1);
             ImGui::PopFont();
             ImGui::Indent();
-            ImGui::Text("FPS: %f", getFPS(deltaTime));
-            RenderFrametimeGraph();
+            //ImGui::Text("FPS: %f", getFPS(deltaTime));
             ImGui::Text("Draw Calls: %d", g_drawCallCount);
+            RenderTimings();
             ImGui::Unindent();
+
+
             ImGui::Spacing();
             ImGui::PushFont(
-                ImGui::GetFont()); // Or use a bold/large font if you have one
+            ImGui::GetFont()); // Or use a bold/large font if you have one
             ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
             ImGui::Selectable("Player:", false, ImGuiSelectableFlags_Disabled);
             ImGui::PopStyleColor(1);

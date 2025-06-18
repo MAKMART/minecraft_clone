@@ -277,53 +277,6 @@ bool Player::isCollidingAt(const glm::vec3 &pos, ChunkManager &chunkManager) {
 bool Player::isInsidePlayerBoundingBox(const glm::vec3 &checkPos) const {
     return aabb.intersects({glm::vec3(checkPos), glm::vec3(checkPos) + 1.0f});
 }
-/*
-void Player::handleCollisions(glm::vec3& newPosition, glm::vec3& velocity,
-                              const glm::vec3& oldPosition, ChunkManager& chunkManager) {
-    // --- Full movement collision check ---
-    glm::vec3 testPos = newPosition;
-    if (isCollidingAt(testPos, chunkManager)) {
-        // Try Y-axis first (vertical collision)
-        testPos = newPosition;
-        testPos.x = oldPosition.x;
-        testPos.z = oldPosition.z;
-        if (isCollidingAt(testPos, chunkManager)) {
-            if (velocity.y < 0)
-                isOnGround = true;
-            newPosition.y = oldPosition.y;
-            velocity.y = 0.0f;
-        } else {
-            isOnGround = false;
-        }
-
-        // Test X-axis (horizontal collision)
-        testPos = newPosition;
-        testPos.z = oldPosition.z;
-        if (isCollidingAt(testPos, chunkManager)) {
-            newPosition.x = oldPosition.x;
-            velocity.x = 0.0f;
-        }
-
-        // Test Z-axis (horizontal collision)
-        testPos = newPosition;
-        testPos.x = oldPosition.x;
-        if (isCollidingAt(testPos, chunkManager)) {
-            newPosition.z = oldPosition.z;
-            velocity.z = 0.0f;
-        }
-    } else {
-        isOnGround = false;
-    }
-
-    // Ground check for standing still
-    if (velocity.y == 0.0f) {
-        glm::vec3 groundCheckPos = newPosition;
-        groundCheckPos.y -= 0.001f;
-        if (isCollidingAt(groundCheckPos, chunkManager)) {
-            isOnGround = true;
-        }
-    }
-}*/
 void Player::handleCollisions(glm::vec3 &newPosition, glm::vec3 &velocity,
                               const glm::vec3 &oldPosition, ChunkManager &chunkManager) {
     glm::vec3 testPos = newPosition;
@@ -521,7 +474,8 @@ void Player::update(float deltaTime, ChunkManager &chunkManager) {
 
     // Handle collisions unless flying in Creative/Spectator
     if (dynamic_cast<SurvivalMode *>(currentMode.get()) || dynamic_cast<CreativeMode *>(currentMode.get()))
-        moveWithSubsteps(newPosition, velocity, position, chunkManager);
+        //moveWithSubsteps(newPosition, velocity, position, chunkManager);
+        handleCollisions(newPosition, velocity, position, chunkManager);
 
     if (newPosition != position) {
         position = newPosition;

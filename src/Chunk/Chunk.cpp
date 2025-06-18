@@ -102,6 +102,7 @@ void Chunk::generateTreeAt(int x, int y, int z) {
 }
 
 void Chunk::generate(const std::vector<float> &noiseMap) {
+    Timer generation_timer("Chunk::generate");
     // Reset counters
     nonAirBlockCount = 0;
     blockCount = 0;
@@ -161,6 +162,9 @@ void Chunk::generate(const std::vector<float> &noiseMap) {
         }
     }
 
+}
+void Chunk::genTrees(const std::vector<float> &noiseMap) {
+    Timer tree_timer("trees_pass");
     // Tree pass
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
@@ -174,10 +178,7 @@ void Chunk::generate(const std::vector<float> &noiseMap) {
             }
         }
     }
-
-    updateMesh();
 }
-
 void Chunk::uploadData(void) {
     if (faces.empty()) {
         std::cerr << "Empty faces buffer for chunk (" << position.x << ", "
@@ -328,18 +329,18 @@ void Chunk::generateSeaBlockFace(const Block &block, int x, int y, int z) {
         break;
     case Block::blocks::WATER:
         X = 0, Y = 4;
-        if (visibilityMask & (1 << 0))
-            pushFace(x, y, z, X, Y, 0, block.toInt());
-        if (visibilityMask & (1 << 1))
-            pushFace(x, y, z, X, Y, 1, block.toInt());
-        if (visibilityMask & (1 << 2))
-            pushFace(x, y, z, X, Y, 2, block.toInt());
-        if (visibilityMask & (1 << 3))
-            pushFace(x, y, z, X, Y, 3, block.toInt());
+        //if (visibilityMask & (1 << 0))
+        //    pushFace(x, y, z, X, Y, 0, block.toInt());
+        //if (visibilityMask & (1 << 1))
+        //    pushFace(x, y, z, X, Y, 1, block.toInt());
+        //if (visibilityMask & (1 << 2))
+        //    pushFace(x, y, z, X, Y, 2, block.toInt());
+        //if (visibilityMask & (1 << 3))
+        //    pushFace(x, y, z, X, Y, 3, block.toInt());
         if (visibilityMask & (1 << 4))
             pushFace(x, y, z, X, Y, 4, block.toInt());
-        if (visibilityMask & (1 << 5))
-            pushFace(x, y, z, X, Y, 5, block.toInt());
+        //if (visibilityMask & (1 << 5))
+        //    pushFace(x, y, z, X, Y, 5, block.toInt());
         break;
     case Block::blocks::WOOD:
         X = 2;

@@ -20,6 +20,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <memory>
+#include "Timer.h"
 
 class Application {
   public:
@@ -87,35 +88,7 @@ class Application {
 
     unsigned int crosshairVAO, crosshairVBO, crosshairEBO;
 
-    // Constants
-    const int frametime_max = 100; // Store last 100 frame times
-    std::vector<float> frametimes; // Declare without initialization here
-    int frameIndex = 0;
-    // Call this every frame
-    void UpdateFrametimeGraph(float deltaTime) {
-        // Convert deltaTime to milliseconds
-        float frametimeMs = deltaTime * 1000.0f;
-
-        // float smoothedFrametime = (frametimeMs + frametimes[(frameIndex - 1 +
-        // MAX_FRAMETIMES) % MAX_FRAMETIMES]) / 2.0f;
-
-        // Store in circular buffer
-        frametimes[frameIndex] = frametimeMs;
-        frameIndex = (frameIndex + 1) % frametime_max; // Wrap around
-    }
-    // Render ImGui graph
-    void RenderFrametimeGraph(void) {
-
-        // Display the graph
-        ImGui::PlotLines("##frametime", frametimes.data(), frametime_max,
-                         frameIndex, "Frametime (ms)", 0.0f, 48.0f, ImVec2(0, 100));
-
-        // Show latest frame time
-        float lastFrametime =
-            frametimes[(frameIndex - 1 + frametime_max) % frametime_max];
-        ImGui::Text("Last Frametime: %.2f ms", lastFrametime);
-        ImGui::Text("FPS: %.1f", 1000.0f / lastFrametime);
-    }
+    
     static void MessageCallback(GLenum source, GLenum type, GLuint id,
                                 GLenum severity, GLsizei length,
                                 const GLchar *message, const void *userParam);

@@ -71,6 +71,9 @@ class ChunkManager {
     // Function returning a raw pointer (Chunk*) with a flag
     Chunk *getChunk(glm::vec3 worldPos, bool returnRawPointer) const;
 
+    // Get a chunk and if it fails create it
+    std::shared_ptr<Chunk> getOrCreateChunk(glm::vec3 worldPos);
+
     // Unload a chunk at the given world position
     void unloadChunk(glm::vec3 worldPos);
 
@@ -78,6 +81,14 @@ class ChunkManager {
     void clearChunks(void) {
         chunks.clear();
     }
+
+
+    bool neighborsAreGenerated(const std::shared_ptr<Chunk>& chunk);
+
+    bool isGenerated(const std::shared_ptr<Chunk>& chunk);
+
+
+
 
     void updateBlock(glm::vec3 worldPos, Block::blocks newType);
 
