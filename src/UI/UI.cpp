@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include <stdexcept>
 #include "defines.h"
+#include "logger.hpp"
 
 using namespace Rml::Input;
 UI::UI(int width, int height, Shader *ui_shader, std::filesystem::path fontPath, std::filesystem::path docPath) : viewport_width(width), viewport_height(height) {
@@ -21,7 +22,7 @@ UI::UI(int width, int height, Shader *ui_shader, std::filesystem::path fontPath,
     Rml::Initialise();
 
     context = Rml::CreateContext("main", {width, height});
-#ifdef DEBUG
+#if defined(DEBUG)
     Rml::Debugger::Initialise(context);
 #endif
     if (!Rml::LoadFontFace(fontPath.string())) {
@@ -149,7 +150,7 @@ Rml::TextureHandle UI::LoadTexture(Rml::Vector2i &out_dimensions, const Rml::Str
 
     Rml::TextureHandle handle = next_texture_handle++;
     texture_map.emplace(handle, std::move(tex));
-    std::cout << "[UI] Loaded texture handle " << handle << " from " << source << std::endl;
+    log::system_info("UI", "Loaded texture handle {} from {}", handle, source);
     return handle;
 }
 
@@ -167,17 +168,17 @@ Rml::TextureHandle UI::GenerateTexture(Rml::Span<const Rml::byte> source, Rml::V
 
     Rml::TextureHandle handle = next_texture_handle++;
     texture_map.emplace(handle, std::move(tex)); // Store the full Texture object
-    std::cout << "[UI] Generated texture handle " << handle << std::endl;
+    log::system_info("UI", "Generated texture handle {}", handle);
     return handle;
 }
 
 void UI::ReleaseTexture(Rml::TextureHandle handle) {
     auto it = texture_map.find(handle);
     if (it != texture_map.end()) {
-        std::cout << "[UI] Releasing texture handle " << handle << std::endl;
+        log::system_info("UI", "Releasing texture handle {}", handle);
         texture_map.erase(it);
     } else {
-        std::cerr << "[UI] Warning: Attempt to release invalid texture handle " << handle << std::endl;
+        log::system_error("UI", "Warning: Attempt to release invalid texture handle {}", handle);
     }
 }
 

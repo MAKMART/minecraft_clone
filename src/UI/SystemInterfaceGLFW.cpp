@@ -1,6 +1,7 @@
 #include "SystemInterfaceGLFW.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include "logger.hpp"
 
 double SystemInterface::GetElapsedTime() {
     return glfwGetTime();
@@ -18,7 +19,7 @@ void SystemInterface::JoinPath(Rml::String &translated_path, const Rml::String &
         std::filesystem::path result = doc_path.parent_path() / path;
         translated_path = result.generic_string();
     } catch (const std::exception &e) {
-        std::cerr << "JoinPath error: " << e.what() << std::endl;
+        log::system_error("RmlUi", "JoinPath error: {}", e.what());
         translated_path = path; // fallback to raw path
     }
 }
@@ -26,26 +27,31 @@ void SystemInterface::JoinPath(Rml::String &translated_path, const Rml::String &
 bool SystemInterface::LogMessage(Rml::Log::Type type, const Rml::String &message) {
     const char *type_str = "";
     switch (type) {
-    case Rml::Log::Type::LT_ALWAYS:
-        type_str = "ALWAYS";
-        break;
-    case Rml::Log::Type::LT_ERROR:
-        type_str = "ERROR";
-        break;
-    case Rml::Log::Type::LT_ASSERT:
-        type_str = "ASSERT";
-        break;
-    case Rml::Log::Type::LT_WARNING:
-        type_str = "WARNING";
-        break;
-    case Rml::Log::Type::LT_INFO:
-        type_str = "INFO";
-        break;
-    case Rml::Log::Type::LT_DEBUG:
-        type_str = "DEBUG";
-        break;
+        case Rml::Log::Type::LT_ALWAYS:
+            type_str = "ALWAYS";
+            log::system_info("RmlUi", "[{}] {}", type_str, message);
+            break;
+        case Rml::Log::Type::LT_ERROR:
+            type_str = "ERROR";
+            log::system_error("RmlUi", " {}", message);
+            break;
+        case Rml::Log::Type::LT_ASSERT:
+            type_str = "ASSERT";
+            log::system_info("RmlUi", "[{}] {}", type_str, message);
+            break;
+        case Rml::Log::Type::LT_WARNING:
+            type_str = "WARNING";
+            log::system_warn("RmlUi", " {}", message);
+            break;
+        case Rml::Log::Type::LT_INFO:
+            type_str = "INFO";
+            log::system_info("RmlUi", " {}", message);
+            break;
+        case Rml::Log::Type::LT_DEBUG:
+            type_str = "DEBUG";
+            log::system_info("RmlUi", "[{}] {}", type_str, message);
+            break;
     }
-    std::clog << "[RmlUi][" << type_str << "] " << message << std::endl;
     return false; // let RmlUi handle the message too
 }
 

@@ -9,6 +9,7 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include "logger.hpp"
 
 class Shader;
 
@@ -174,10 +175,10 @@ class Chunk {
 
     // Function to get the index of a block in the Chunk
     inline int getBlockIndex(int x, int y, int z) const noexcept {
-#ifdef DEBUG
+#if defined(DEBUG)
         if (x < 0 || x >= chunkSize.x || y < 0 || y >= chunkSize.y || z < 0 ||
             z >= chunkSize.z) {
-            std::cerr << "ACCESSED INDEX OUT OF BOUNDS FOR CURRENT CHUNK!\n";
+            log::system_error("Chunk", "ACCESSED INDEX OUT OF BOUNDS FOR CURRENT CHUNK!");
             return -1;
         }
 #endif

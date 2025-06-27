@@ -5,19 +5,20 @@
 #include <glm/glm.hpp>
 #include "Camera.h"
 #include "Timer.h"
+#include "logger.hpp"
 
 ChunkManager::ChunkManager(int renderDistance, const glm::vec3 &player_pos, std::optional<siv::PerlinNoise::seed_type> seed) {
     // Initialize Perlin noise
     if (seed.has_value()) {
         perlin = siv::PerlinNoise(seed.value());
-        std::cout << "ChunkManager initialized with seed: " << seed.value() << "\n";
+        log::system_info("ChunkManager", "initialized with seed: {}", seed.value());
     } else {
         std::random_device rd;
         std::mt19937 engine(rd());
         std::uniform_int_distribution<int> distribution(1, 999999);
         siv::PerlinNoise::seed_type random_seed = distribution(engine);
         perlin = siv::PerlinNoise(random_seed);
-        std::cout << "ChunkManager initialized with random seed: " << random_seed << "\n";
+        log::system_info("ChunkManager", "initialized with random seed: {}", random_seed);
     }
     if (!chunksTexture.get())
         chunksTexture = std::make_unique<Texture>(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
@@ -35,8 +36,9 @@ ChunkManager::ChunkManager(int renderDistance, const glm::vec3 &player_pos, std:
         throw std::invalid_argument("chunkSize too large: " + std::to_string(totalSize) + " elements");
     }
 
-    lastChunkX = player_pos.x; // Initialize with a value that is not equal to any valid chunk position.
-    lastChunkZ = player_pos.z;
+    // Initialize with a value that is not equal to any valid chunk position.
+    lastChunkX = -99999999;
+    lastChunkZ = -99999999;
 
     glCreateVertexArrays(1, &VAO);
 
@@ -233,6 +235,9 @@ void ChunkManager::loadChunksAroundPlayer(glm::vec3 playerPosition, int renderDi
                     }
                 }
             }
+
+
+
         }
     }
 
@@ -273,11 +278,12 @@ std::shared_ptr<Chunk> ChunkManager::getOrCreateChunk(glm::vec3 worldPos) {
 // Get a chunk by its world position
 std::shared_ptr<Chunk> ChunkManager::getChunk(glm::vec3 worldPos) const {
     std::tuple<int, int, int> chunkPosition = getChunkKey(worldPos);
+    auto [chunkX, chunkY, chunkZ] = chunkPosition;
     if (chunks.find(chunkPosition) != chunks.end()) {
         return chunks.find(chunkPosition)->second;
     } else {
-#ifdef DEBUG
-        // std::cerr << "Chunk at " << chunkX << ", " << chunkY << ", " << chunkZ << " not found!" << std::endl;
+#if defined(DEBUG)
+        log::system_error("ChunkManager", "Chunk at {}, {}, {} not found!", chunkX, chunkY, chunkZ);
 #endif
         return nullptr;
     }
@@ -291,8 +297,8 @@ Chunk *ChunkManager::getChunk(glm::vec3 worldPos, bool returnRawPointer) const {
     if (it != chunks.end()) {
         return it->second.get(); // Return raw pointer (Chunk*)
     } else {
-#ifdef DEBUG
-        std::cerr << "Chunk at " << chunkX << ", " << chunkY << ", " << chunkZ << " not found!" << std::endl;
+#if defined(DEBUG)
+        log::system_error("ChunkManager", "Chunk at {}, {}, {} not found!", chunkX, chunkY, chunkZ);
 #endif
         return nullptr;
     }

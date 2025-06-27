@@ -1,6 +1,7 @@
 #include "Cube.h"
 #include <iostream>
 #include "defines.h"
+#include "logger.hpp"
 
 Cube::Cube(glm::vec3 size, BodyPartType type) {
     float halfX = size.x / 2.0f;
@@ -145,7 +146,7 @@ void Cube::render(unsigned int shaderProgram, const glm::mat4 &transform) {
 
     GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
     if (modelLoc == -1) {
-        std::cerr << "Error: Could not find uniform location for 'model' in shader program.\n";
+        log::system_error("Cube", "Error: Could not find uniform location for 'model' in shader program.");
         return;
     }
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(transform));

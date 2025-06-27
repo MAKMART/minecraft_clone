@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 #include <filesystem>
 #include <glm/gtc/type_ptr.hpp>
+#include "logger.hpp"
 class Shader {
   private:
     unsigned int ID; // Shader program ID
@@ -84,8 +85,7 @@ class Shader {
         if (!programSuccess) {
             char infoLog[1024];
             glGetProgramInfoLog(ID, 1024, nullptr, infoLog);
-            std::cerr << "ERROR::SHADER::PROGRAM_VALIDATION_FAILED\n"
-                      << infoLog << std::endl;
+            log::system_error("Shader", "PROGRAM_VALIDATION_FAILED\n{}", infoLog);
             return;
         }
 
@@ -124,11 +124,11 @@ class Shader {
             vertexCode = vShaderStream.str();
             fragmentCode = fShaderStream.str();
             if (vertexCode.empty() || fragmentCode.empty()) {
-                throw std::runtime_error("ERROR::SHADER::SOURCE_CODE_EMPTY\n");
+                throw std::runtime_error("[Shader] [ERROR] SOURCE_CODE_EMPTY\n");
                 return;
             }
         } catch (std::ifstream::failure &e) {
-            throw std::runtime_error("ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ\n");
+            throw std::runtime_error("[Shader] [ERROR] FILE_NOT_SUCCESFULLY_READ\n");
             return;
         }
 
@@ -166,8 +166,7 @@ class Shader {
         if (!programSuccess) {
             char infoLog[1024];
             glGetProgramInfoLog(ID, 1024, nullptr, infoLog);
-            std::cerr << "ERROR::SHADER::PROGRAM_VALIDATION_FAILED\n"
-                      << infoLog << std::endl;
+            log::system_error("Shader", "PROGRAM_VALIDATION_FAILED\n{}", infoLog);
             return;
         }
 
@@ -184,7 +183,7 @@ class Shader {
         if (glIsProgram(ID)) {
             glUseProgram(ID);
         } else {
-            std::cerr << "Shader program is not valid!" << std::endl;
+            log::system_error("Shader", "Program is not valid! ID = {}", ID);
         }
     }
 
@@ -192,7 +191,7 @@ class Shader {
     void setBool(const std::string &name, bool value) const {
         GLint location = glGetUniformLocation(ID, name.c_str());
         if (location == -1) {
-            std::cerr << "Warning: Uniform '" << name << "' not found in shader program!" << std::endl;
+            log::system_warn("Shader", "Warning: Uniform {} not found in shader program!", name);
         } else {
             glProgramUniform1i(ID, location, static_cast<int>(value));
         }
@@ -201,7 +200,7 @@ class Shader {
     void setInt(const std::string &name, int value) const {
         GLint location = glGetUniformLocation(ID, name.c_str());
         if (location == -1) {
-            std::cerr << "Warning: Uniform '" << name << "' not found in shader program!" << std::endl;
+            log::system_warn("Shader", "Warning: Uniform {} not found in shader program!", name);
         } else {
             glProgramUniform1i(ID, location, value);
         }
@@ -210,7 +209,7 @@ class Shader {
     void setFloat(const std::string &name, float value) const {
         GLint location = glGetUniformLocation(ID, name.c_str());
         if (location == -1) {
-            std::cerr << "Warning: Uniform '" << name << "' not found in shader program!" << std::endl;
+            log::system_warn("Shader", "Warning: Uniform {} not found in shader program!", name);
         } else {
             glProgramUniform1f(ID, location, value);
         }
@@ -218,7 +217,7 @@ class Shader {
     void setVec2(const std::string &name, const glm::vec2 &value) {
         GLint location = glGetUniformLocation(ID, name.c_str());
         if (location == -1) {
-            std::cerr << "Warning: Uniform '" << name << "' not found in shader program!" << std::endl;
+            log::system_warn("Shader", "Warning: Uniform {} not found in shader program!", name);
         } else {
             glProgramUniform2fv(ID, location, 1, glm::value_ptr(value));
         }
@@ -227,7 +226,7 @@ class Shader {
     void setVec3(const std::string &name, const glm::vec3 &value) const {
         GLint location = glGetUniformLocation(ID, name.c_str());
         if (location == -1) {
-            std::cerr << "Warning: Uniform '" << name << "' not found in shader program!" << std::endl;
+            log::system_warn("Shader", "Warning: Uniform {} not found in shader program!", name);
         } else {
             glProgramUniform3fv(ID, location, 1, glm::value_ptr(value));
         }
@@ -236,7 +235,7 @@ class Shader {
     void setVec4(const std::string &name, const glm::vec4 &value) const {
         GLint location = glGetUniformLocation(ID, name.c_str());
         if (location == -1) {
-            std::cerr << "Warning: Uniform '" << name << "' not found in shader program!" << std::endl;
+            log::system_warn("Shader", "Warning: Uniform {} not found in shader program!", name);
         } else {
             glProgramUniform4fv(ID, location, 1, glm::value_ptr(value));
         }
@@ -245,7 +244,7 @@ class Shader {
     void setMat4(const std::string &name, const glm::mat4 &mat) const {
         GLint location = glGetUniformLocation(ID, name.c_str());
         if (location == -1) {
-            std::cerr << "Warning: Uniform '" << name << "' not found in shader program!" << std::endl;
+            log::system_warn("Shader", "Warning: Uniform {} not found in shader program!", name);
         } else {
             glProgramUniformMatrix4fv(ID, location, 1, GL_FALSE, glm::value_ptr(mat));
         }

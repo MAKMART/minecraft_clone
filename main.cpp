@@ -7,10 +7,10 @@ int main(void) {
         Application app(1920, 1080);
         app.Run();
     } catch (const std::exception &e) {
-        std::cerr << "\nError: " << e.what() << std::endl;
+        log::error("\nError: {}", e.what());
         return EXIT_FAILURE;
     } catch (...) {
-        std::cerr << "Caught unknown exception!" << std::endl;
+        log::error("Caught unknown exception!");
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

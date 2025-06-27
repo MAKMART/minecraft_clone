@@ -21,6 +21,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <memory>
 #include "Timer.h"
+#include "logger.hpp"
 
 class Application {
   public:
@@ -44,7 +45,7 @@ class Application {
     b8 mouseClickEnabled = false;
     b8 renderUI = true;
     b8 renderTerrain = true;
-#ifdef DEBUG
+#if defined(DEBUG)
     b8 debugRender = false;
 #endif
     i32 windowedWidth, windowedHeight;
@@ -57,7 +58,7 @@ class Application {
     std::unique_ptr<Player> player;
     std::unique_ptr<InputManager> input;
     std::unique_ptr<UI> ui;
-#ifdef DEBUG
+#if defined(DEBUG)
     std::unique_ptr<AABBDebugDrawer> aabbDebugDrawer;
 #endif
 

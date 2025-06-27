@@ -13,6 +13,7 @@
 #include <optional>
 #include <stdexcept>
 #include <algorithm>
+#include "logger.hpp"
 
 // Constructor
 Player::Player(glm::vec3 spawnPos, GLFWwindow *window)
@@ -649,14 +650,13 @@ void Player::placeBlock(ChunkManager &chunkManager) {
     // Validate block index
     int blockIndex = placeChunk->getBlockIndex(localBlockPos.x, localBlockPos.y, localBlockPos.z);
     if (blockIndex < 0 || static_cast<size_t>(blockIndex) >= placeChunk->getChunkData().size()) {
-        std::cout << "❌ Invalid block index: " << blockIndex << "\n";
+        log::system_info("Player", "❌ Invalid block index: {}", blockIndex);
         return;
     }
 
     // Check if the target position is air
     if (placeChunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
-        std::cout << "❌ Target block is NOT air! It's type: "
-                  << Block::toString(placeChunk->getChunkData()[blockIndex].type) << "\n";
+        log::system_info("Player", "❌ Target block is NOT air! It's type: {}", Block::toString(placeChunk->getChunkData()[blockIndex].type));
         return;
     }
 

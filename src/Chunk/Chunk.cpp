@@ -111,9 +111,9 @@ void Chunk::generate(const std::vector<float> &noiseMap) {
         for (int x = 0; x < chunkSize.x; ++x) {
             // Calculate height once per (x,z)
             int noiseIndex = z * chunkSize.x + x;
-#ifdef DEBUG
+#if defined(DEBUG)
             if (noiseIndex < 0 || noiseIndex >= static_cast<int>(noiseMap.size())) {
-                std::cerr << "Noise index out of bounds: " << noiseIndex << "\n";
+                log::system_warn("Chunk", "Noise index out of bounds: {}", noiseIndex);
                 continue;
             }
 #endif
@@ -181,8 +181,7 @@ void Chunk::genTrees(const std::vector<float> &noiseMap) {
 }
 void Chunk::uploadData(void) {
     if (faces.empty()) {
-        std::cerr << "Empty faces buffer for chunk (" << position.x << ", "
-                  << position.y << ", " << position.z << ")\n";
+        log::system_error("Chunk", "Empty faces buffer for chunk ({}, {}, {})", position.x, position.y, position.z);
         return;
     }
     if (SSBO == 0) {
@@ -391,8 +390,7 @@ void Chunk::generateSeaBlockFace(const Block &block, int x, int y, int z) {
             pushFace(x, y, z, X, Y, 5, block.toInt());
         break;
     default:
-        std::cerr << "UNHANDLED BLOCK CASE: " << block.toString() << "# "
-                  << block.toInt() << std::endl;
+        log::system_error("Chunk", "UNHANDLED BLOCK CASE: {} # {}", block.toString(), block.toInt());
         break;
     }
 }
@@ -554,8 +552,7 @@ void Chunk::generateBlockFace(const Block &block, int x, int y, int z) {
             pushFace(x, y, z, X, Y, 5, block.toInt());
         break;
     default:
-        std::cerr << "UNHANDLED BLOCK CASE: " << block.toString() << "# "
-                  << block.toInt() << std::endl;
+        log::system_error("Chunk", "UNHANDLED BLOCK CASE: {} # {}", block.toString(), block.toInt());
         break;
     }
 }

@@ -76,7 +76,7 @@ unsigned int g_drawCallCount = 0;
 void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count) {
     glDrawArrays(mode, first, count);
     g_drawCallCount++;
-#ifdef DEBUG
+#if defined(DEBUG)
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
         std::cerr << "OpenGL Error in DrawArraysWrapper: Error code: "
@@ -88,7 +88,7 @@ void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count) {
 void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void *indices) {
     glDrawElements(mode, count, type, indices);
     g_drawCallCount++;
-#ifdef DEBUG
+#if defined(DEBUG)
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
         std::cerr << "OpenGL Error in DrawElementsWrapper: Error code: "
@@ -100,7 +100,7 @@ void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void *in
 void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount) {
     glDrawArraysInstanced(mode, first, count, instanceCount);
     g_drawCallCount++;
-#ifdef DEBUG
+#if defined(DEBUG)
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
         std::cerr << "OpenGL Error in DrawArraysInstancedWrapper: Error code: "
@@ -113,7 +113,7 @@ void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count) {
     glDrawArrays(mode, first, count);
     g_drawCallCount++;
 
-#ifdef DEBUG
+#if defined(DEBUG)
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
         throw OpenGLError(error);
@@ -125,7 +125,7 @@ void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void* in
     glDrawElements(mode, count, type, indices);
     g_drawCallCount++;
 
-#ifdef DEBUG
+#if defined(DEBUG)
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
         throw OpenGLError(error);
@@ -137,7 +137,7 @@ void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei
     glDrawArraysInstanced(mode, first, count, instanceCount);
     g_drawCallCount++;
 
-#ifdef DEBUG
+#if defined(DEBUG)
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
         throw OpenGLError(error);

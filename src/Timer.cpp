@@ -1,3 +1,40 @@
+#include "Timer.h"
+#include <chrono>
+#include <imgui.h>
+
+TimingHistory g_TimingHistory;
+ImGuiTimerData g_TimerData;
+
+const int frametime_max = 100;
+std::vector<float> frametimes(frametime_max, 0.0f);
+int frameIndex = 0;
+
+Timer::Timer(const std::string& name)
+    : name(name), start(std::chrono::high_resolution_clock::now()) {}
+
+Timer::~Timer() {
+    using namespace std::chrono;
+    auto end = high_resolution_clock::now();
+    float durationMs = duration<float, std::milli>(end - start).count();
+
+    std::lock_guard<std::mutex> lock(g_TimingHistory.mutex);
+    auto& series = g_TimingHistory.timings[name].values;
+
+    if (series.size() >= MaxHistoryFrames) {
+        series.pop_front();
+    }
+    series.push_back(durationMs);
+}
+void UpdateFrametimeGraph(float deltaTime) {
+    frametimes[frameIndex] = deltaTime;
+    frameIndex = (frameIndex + 1) % frametime_max;
+
+    std::lock_guard<std::mutex> lock(g_TimingHistory.mutex);
+    auto& frameSeries = g_TimingHistory.timings["FrameTime"].values;
+    if (frameSeries.size() >= MaxHistoryFrames) {
+        frameSeries.pop_front();
+    }
+    frameSeries.push_back(deltaTime);
 }
 void RenderTimings() {
     std::lock_guard<std::mutex> lock(g_TimingHistory.mutex);

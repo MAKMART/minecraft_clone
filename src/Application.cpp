@@ -16,17 +16,13 @@ Application::Application(int width, int height)
       /*backgroundColor(0.11f, 0.67f, 0.7f, 1.0f),*/ backgroundColor(
           0.0f, 0.0f, 0.0f, 1.0f),
       nbFrames(0), deltaTime(0.0f), lastFrame(0.0f), mouseClickEnabled(true) {
-#ifdef DEBUG
-    std::cout
-        << "----------------------------DEBUG MODE----------------------------\n";
+#if defined(DEBUG)
+    std::cout << "----------------------------DEBUG MODE----------------------------\n";
+#elif defined(NDEBUG)
+    std::cout << "----------------------------RELEASE MODE----------------------------\n";
+    log::set_min_log_level(log::LogLevel::INFO);
 #else
-#ifdef NDEBUG
-    std::cout << "----------------------------RELEASE "
-                 "MODE----------------------------\n";
-#else
-    std::cout << "----------------------------UNKNOWN BUILD "
-                 "TYPE----------------------------\n";
-#endif
+    std::cout << "----------------------------UNKNOWN BUILD TYPE----------------------------\n";
 #endif
 
     // First thing you have to do is fix the damn stencil buffer to allow cropping
@@ -115,28 +111,28 @@ Application::Application(int width, int height)
     glEnableVertexArrayAttrib(crosshairVAO, 1);
 
     // Use smart pointers instead of raw pointers.
-    std::cout << "Initializing Input Manager...\n";
+    log::info("Initializing Input Manager...");
     input = std::make_unique<InputManager>(window);
-    std::cout << "Initializing Shaders...\n";
+    log::info("Initializing Shaders...");
     try {
         playerShader = std::make_unique<Shader>(PLAYER_VERTEX_SHADER_DIRECTORY,
                                                 PLAYER_FRAGMENT_SHADER_DIRECTORY);
     } catch (const std::exception &e) {
-        std::cerr << "Failed to create Shader!!\n";
+        log::error("Failed to create Shader!!");
     }
     crossHairshader = std::make_unique<Shader>(
         CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
-    std::cout << "Initializing Textures...\n";
+    log::info("Initializing Textures...");
     crossHairTexture = std::make_unique<Texture>(ICONS_DIRECTORY, GL_RGBA,
                                                  GL_REPEAT, GL_NEAREST);
-    std::cout << "Initializing Player...\n";
+    log::info("Initializing Player...");
     player = std::make_unique<Player>(
         glm::vec3(0.0f, (float)(chunkSize.y) - 1.0f, 0.0f), window);
-    std::cout << "Initializing Chunk Manager...\n";
+    log::info("Initializing Chunk Manager...");
     try {
         chunkManager = std::make_unique<ChunkManager>(player->render_distance, player->getPos());
     } catch (const std::exception &e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        log::error("Error: {}", e.what());
     }
     try {
         ui = std::make_unique<UI>(
@@ -144,10 +140,10 @@ Application::Application(int width, int height)
             new Shader(UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY),
             MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
     } catch (const std::exception &e) {
-        std::cerr << "\nError initializing UI class: " << e.what() << std::endl;
+        log::error("Error initializing UI class: {}", e.what());
     }
     ui->SetViewportSize(width, height);
-#ifdef DEBUG
+#if defined(DEBUG)
     aabbDebugDrawer =
         std::make_unique<AABBDebugDrawer>(); // Setup AABBDebugDrawer
 #endif
@@ -176,14 +172,17 @@ void Application::initWindow(void) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#ifdef __APPLE__
+#if defined(__APPLE__)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #else
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_FALSE);
 #endif
-#ifdef DEBUG
+
+
+#if defined(DEBUG)
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #endif
+
 
     glfwWindowHint(
         GLFW_TRANSPARENT_FRAMEBUFFER,
@@ -222,7 +221,7 @@ void Application::initWindow(void) {
     if (glfwRawMouseMotionSupported()) {
         glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
     } else {
-        std::cerr << "Raw Mouse Motion not supported!\n";
+        log::error("Raw Mouse Motion not supported!");
     }
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
@@ -238,22 +237,20 @@ void Application::initWindow(void) {
     }
 
     // --- DEBUG SETUP ---
-#ifdef DEBUG
+#if defined(DEBUG)
     if (glfwExtensionSupported("GL_KHR_debug")) {
-        std::cout << "Debug Output is supported!" << std::endl;
+        log::info("Debug Output is supported!");
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallback(Application::MessageCallback, 0);
         GLenum err2 = glGetError();
         if (err2 != GL_NO_ERROR) {
-            std::cerr << "Failed to set debug callback, OpenGL error: "
-                      << glewGetErrorString(err2) << std::endl;
+            log::error("Failed to set debug callback, OpenGL error: {}", reinterpret_cast<const char*>(glewGetErrorString(err2)));
         }
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL,
                               GL_TRUE);
     } else {
-        std::cerr << "Debug Output is not supported by this OpenGL context!"
-                  << std::endl;
+        log::info("Debug Output is not supported by this OpenGL context!");
     }
 #endif
 
@@ -264,8 +261,7 @@ void Application::initWindow(void) {
                   &icon_height, &icon_channels, 4);
 
     if (icon_data) {
-        std::cout << "Loading window icon " << icon_width << "x" << icon_height
-                  << " with " << icon_channels << " channels...\n";
+        log::info("Loading window icon {} x {} with {} channels", icon_width, icon_height, icon_channels);
 
         GLFWimage image;
         image.width = icon_width;
@@ -375,7 +371,7 @@ void Application::processInput() {
     if (input->isPressed(CAMERA_SWITCH_KEY)) {
         player->toggleCameraMode();
     }
-#ifdef DEBUG
+#if defined(DEBUG)
     // Toggle debug AABB visualization
     if (input->isPressed(GLFW_KEY_8)) {
         debugRender = !debugRender;
@@ -383,7 +379,7 @@ void Application::processInput() {
 #endif
     if (input->isPressed(MENU_KEY)) {
         player->getCamera()->setMouseTracking(FREE_CURSOR);
-#ifdef DEBUG
+#if defined(DEBUG)
         Rml::Debugger::SetVisible(!FREE_CURSOR);
 #endif
         glfwSetInputMode(window, GLFW_CURSOR,
@@ -392,7 +388,7 @@ void Application::processInput() {
         FREE_CURSOR = !FREE_CURSOR;
     }
     // Toggle wireframe mode with cooldown
-#ifdef DEBUG
+#if defined(DEBUG)
     if (input->isPressed(WIREFRAME_KEY)) {
         glPolygonMode(GL_FRONT_AND_BACK, WIREFRAME_MODE ? GL_LINE : GL_FILL);
         WIREFRAME_MODE = !WIREFRAME_MODE;
@@ -460,7 +456,7 @@ void Application::Run(void) {
             //  would be better if you do it in the ChunkManger class directly
             //  TODO: FIX it
         }
-#ifdef DEBUG
+#if defined(DEBUG)
         if (debugRender) {
             // Add player bounding box (with a nice greenish color)
             aabbDebugDrawer->addAABB(player->getAABB(), glm::vec3(0.3f, 1.0f, 0.5f));
@@ -512,7 +508,7 @@ void Application::Run(void) {
             ui->render();
             // other UI stuff...
         }
-#ifdef NDEBUG // TEMP
+#if defined(NDEBUG) // TEMP
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
@@ -528,7 +524,7 @@ void Application::Run(void) {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 #endif
 
-#ifdef DEBUG
+#if defined(DEBUG)
         if (renderUI) {
             // --- ImGui Debug UI Pass ---
             glDisable(GL_DEPTH_TEST);
@@ -809,86 +805,70 @@ void Application::MessageCallback(GLenum source, GLenum type, GLuint id,
                                   const void *userParam) {
     (void)length;
     (void)userParam;
-    // Choose color based on severity
-    const char *severityColor = RESET_COLOR; // Default to no color
-    const char *severityText = "Unknown";
+    // Map severity to log level & severity text
+    log::LogLevel level;
+    std::string severityText;
 
     switch (severity) {
-    case GL_DEBUG_SEVERITY_HIGH:
-        severityColor = RED;
-        severityText = "High";
-        break;
-    case GL_DEBUG_SEVERITY_MEDIUM:
-        severityColor = YELLOW;
-        severityText = "Medium";
-        break;
-    case GL_DEBUG_SEVERITY_LOW:
-        return;
-        severityColor = GREEN;
-        severityText = "Low";
-        break;
-    case GL_DEBUG_SEVERITY_NOTIFICATION:
-        return;
-        severityColor = CYAN;
-        severityText = "Notification";
-        break;
+        case GL_DEBUG_SEVERITY_HIGH:
+            level = log::LogLevel::ERROR;
+            severityText = "High";
+            break;
+        case GL_DEBUG_SEVERITY_MEDIUM:
+            level = log::LogLevel::WARNING;
+            severityText = "Medium";
+            break;
+        case GL_DEBUG_SEVERITY_LOW:
+            return;
+            level = log::LogLevel::INFO;
+            severityText = "Low";
+            break;
+        case GL_DEBUG_SEVERITY_NOTIFICATION:
+            return;
+            level = log::LogLevel::INFO;
+            severityText = "Notification";
+            break;
+        default:
+            level = log::LogLevel::INFO;
+            severityText = "Unknown";
+            break;
     }
 
-    // Output the debug message with color coding for severity
-    std::cerr << severityColor << "OpenGL Debug Message: " << message
-              << RESET_COLOR << "\n";
-
-    // Print additional information
-    std::cerr << "Source: ";
+    // Map source enum to string
+    const char* sourceStr = nullptr;
     switch (source) {
-    case GL_DEBUG_SOURCE_API:
-        std::cerr << "API";
-        break;
-    case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
-        std::cerr << "Window System";
-        break;
-    case GL_DEBUG_SOURCE_SHADER_COMPILER:
-        std::cerr << "Shader Compiler";
-        break;
-    case GL_DEBUG_SOURCE_THIRD_PARTY:
-        std::cerr << "Third Party";
-        break;
-    case GL_DEBUG_SOURCE_APPLICATION:
-        std::cerr << "Application";
-        break;
-    case GL_DEBUG_SOURCE_OTHER:
-        std::cerr << "Other";
-        break;
+        case GL_DEBUG_SOURCE_API:             sourceStr = "API"; break;
+        case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   sourceStr = "Window System"; break;
+        case GL_DEBUG_SOURCE_SHADER_COMPILER: sourceStr = "Shader Compiler"; break;
+        case GL_DEBUG_SOURCE_THIRD_PARTY:     sourceStr = "Third Party"; break;
+        case GL_DEBUG_SOURCE_APPLICATION:     sourceStr = "Application"; break;
+        case GL_DEBUG_SOURCE_OTHER:            sourceStr = "Other"; break;
+        default:                             sourceStr = "Unknown"; break;
     }
-    std::cerr << "\n";
 
-    std::cerr << "Type: ";
+    // Map type enum to string
+    const char* typeStr = nullptr;
     switch (type) {
-    case GL_DEBUG_TYPE_ERROR:
-        std::cerr << "Error";
-        break;
-    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
-        std::cerr << "Deprecated Behavior";
-        break;
-    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-        std::cerr << "Undefined Behavior";
-        break;
-    case GL_DEBUG_TYPE_PERFORMANCE:
-        std::cerr << "Performance";
-        break;
-    case GL_DEBUG_TYPE_MARKER:
-        std::cerr << "Marker";
-        break;
-    case GL_DEBUG_TYPE_PUSH_GROUP:
-        std::cerr << "Push Group";
-        break;
-    case GL_DEBUG_TYPE_POP_GROUP:
-        std::cerr << "Pop Group";
-        break;
+        case GL_DEBUG_TYPE_ERROR:               typeStr = "Error"; break;
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:typeStr = "Deprecated Behavior"; break;
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: typeStr = "Undefined Behavior"; break;
+        case GL_DEBUG_TYPE_PERFORMANCE:         typeStr = "Performance"; break;
+        case GL_DEBUG_TYPE_MARKER:               typeStr = "Marker"; break;
+        case GL_DEBUG_TYPE_PUSH_GROUP:           typeStr = "Push Group"; break;
+        case GL_DEBUG_TYPE_POP_GROUP:            typeStr = "Pop Group"; break;
+        default:                              typeStr = "Unknown"; break;
     }
-    std::cerr << "\n";
 
-    std::cerr << "Severity: " << severityText << "\n";
-
-    std::cerr << "Message ID: " << id << "\n";
+    // Construct a detailed log message with structured info
+    log::structured(
+        "OpenGL",
+        level,
+        message,
+        {
+            {"\nSource", sourceStr},
+            {"\nType", typeStr},
+            {"\nSeverity", severityText},
+            {"\nMessageID", std::to_string(id) + '\n'}
+        }
+    );
 }
