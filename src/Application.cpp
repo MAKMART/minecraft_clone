@@ -20,7 +20,7 @@ Application::Application(int width, int height)
     std::cout << "----------------------------DEBUG MODE----------------------------\n";
 #elif defined(NDEBUG)
     std::cout << "----------------------------RELEASE MODE----------------------------\n";
-    log::set_min_log_level(log::LogLevel::INFO);
+    log::set_min_log_level(log::LogLevel::WARNING);
 #else
     std::cout << "----------------------------UNKNOWN BUILD TYPE----------------------------\n";
 #endif
@@ -514,7 +514,14 @@ void Application::Run(void) {
                          ImGuiWindowFlags_::ImGuiWindowFlags_NoMove |
                          ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus |
                          ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
-        RenderFrametimeGraph();
+
+        ImGui::Text("FPS: %f", getFPS());
+        ImGui::Text("Selected block: ");
+        ImGui::SameLine();
+        ImGui::SetWindowFontScale(1.2f);
+        ImGui::Text(Block::toString(player->selectedBlock));
+        ImGui::SetWindowFontScale(1.0f);
+
         ImGui::SliderInt("Render distance", (int *)&player->render_distance, 0, 30);
         ImGui::End();
         ImGui::Render();
