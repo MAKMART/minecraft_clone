@@ -71,7 +71,6 @@ class Player {
     std::optional<std::pair<glm::ivec3, glm::ivec3>> raycastVoxelWithNormal(ChunkManager &chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance);
     std::optional<glm::ivec3> raycastVoxel(ChunkManager &chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance);
     void handleCollisions(glm::vec3 &newPosition, glm::vec3 &velocity, const glm::vec3 &oldPosition, ChunkManager &chunkManager);
-    void moveWithSubsteps(glm::vec3 &newPosition, glm::vec3 &velocity, const glm::vec3 &oldPosition, ChunkManager &cm);
     bool isCollidingAt(const glm::vec3 &pos, ChunkManager &chunkManager);
     bool isInsidePlayerBoundingBox(const glm::vec3 &checkPos) const;
     void breakBlock(ChunkManager &chunkManager);

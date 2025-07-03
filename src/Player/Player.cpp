@@ -1,4 +1,5 @@
 #include "Player.h"
+#include "AABBDebugDrawer.h"
 #include "PlayerState.h" // Full definition of PlayerState
 #include "PlayerMode.h"  // Full definition of PlayerMode
 #include "FlyingState.h"
@@ -68,24 +69,22 @@ void Player::loadSkin(const std::filesystem::path &path) {
     skinTexture = std::make_unique<Texture>(path, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST);
 }
 void Player::changeMode(std::unique_ptr<PlayerMode> newMode) {
-    if (currentMode)
-        currentMode->exitMode(*this); // Clean up previous mode if necessary
-
-    currentMode = std::move(newMode); // Ownership transferred to currentMode
-
-    if (currentMode)
+    if (newMode) {
+        if (currentMode)
+            currentMode->exitMode(*this);
+        currentMode = std::move(newMode);
         currentMode->enterMode(*this);
+    }
 }
 
 // Change the state by moving a new state into currentState
 void Player::changeState(std::unique_ptr<PlayerState> newState) {
-    if (currentState)
-        currentState->exitState(*this); // Clean up previous state if necessary
-
-    currentState = std::move(newState); // Ownership transferred to currentState
-
-    if (currentState)
+    if (newState) {
+        if (currentState)
+            currentState->exitState(*this);
+        currentState = std::move(newState);
         currentState->enterState(*this);
+    }
 }
 
 // Destructor
@@ -158,165 +157,89 @@ std::optional<glm::ivec3> Player::raycastVoxel(ChunkManager &chunkManager, glm::
 
     return std::nullopt; // No solid block found within range
 }
-/*
-bool Player::isCollidingAt(const glm::vec3& pos, ChunkManager& chunkManager) {
-    AABB tmpbox = getBoundingBoxAt(pos);
-
-    glm::ivec3 min = glm::floor(tmpbox.min);
-    glm::ivec3 max = glm::ivec3(glm::ceil(tmpbox.max)) - glm::ivec3(1);
-
-
-    for (int x = min.x; x <= max.x; ++x) {
-    for (int y = min.y; y <= max.y; ++y) {
-        if (y < 0) return true; // Below ground: collision
-        if (y >= chunkSize.y) continue; // Above chunk height: no collision
-
-        for (int z = min.z; z <= max.z; ++z) {
-        glm::ivec3 chunkCoords = Chunk::worldToChunk(glm::vec3(x, y, z), chunkSize);
-        auto currentChunk = chunkManager.getChunk(chunkCoords);
-        if (!currentChunk) return true; // Block movement into unloaded chunks
-
-        glm::ivec3 local = Chunk::worldToLocal(glm::vec3(x, y, z), chunkSize);
-        const Block& block = currentChunk->getBlockAt(local.x, local.y, local.z);
-        if (block.type != Block::blocks::AIR) {
-            return true; // Collision with block
-        }
-        }
-    }
-    }
-    return false; // No collisions found
-}*/
-/*
-bool Player::isCollidingAt(const glm::vec3& pos, ChunkManager& chunkManager) {
-    AABB playerBox = getBoundingBoxAt(pos);
-
-    // Floor the min and ceil the max, minus 1 because you want block coordinates covered fully
-    glm::ivec3 min = glm::floor(playerBox.min);
-    glm::ivec3 max = glm::ivec3(glm::ceil(playerBox.max)) - glm::ivec3(1);
-
-    for (int x = min.x; x <= max.x; ++x) {
-        for (int y = min.y; y <= max.y; ++y) {
-            if (y < 0) return true; // Below ground is always solid, duh
-            if (y >= chunkSize.y) continue; // Above world height? No collision
-
-            for (int z = min.z; z <= max.z; ++z) {
-                glm::vec3 worldPos(x, y, z);
-
-                // Get chunk coords & chunk
-                glm::ivec3 chunkCoords = Chunk::worldToChunk(worldPos, chunkSize);
-        std::shared_ptr<Chunk> chunk = chunkManager.getChunk(chunkCoords);
-                if (!chunk) return true; // If chunk isn't loaded, block movement here (optional, but safer)
-
-                // Get local block coords inside chunk
-                glm::ivec3 localPos = Chunk::worldToLocal(worldPos, chunkSize);
-
-                // Fetch block from chunk
-                const Block& block = chunk->getBlockAt(localPos.x, localPos.y, localPos.z);
-
-                if (block.type != Block::blocks::AIR) {
-                    // Only collide with solid blocks
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
-}*/
 bool Player::isCollidingAt(const glm::vec3 &pos, ChunkManager &chunkManager) {
-    // 1) Compute the AABB in float-space
     AABB box = getBoundingBoxAt(pos);
 
-    // 2) Convert its min/max to INTEGER block coordinates
-    glm::ivec3 blockMin = glm::floor(box.min); // floor(15.5999) → 15
-    glm::ivec3 blockMax = glm::floor(box.max); // floor(16.0001) → 16
+    glm::ivec3 blockMin = glm::floor(box.min);
+    glm::ivec3 blockMax = glm::ceil(box.max) - glm::vec3(1); // inclusive range fix!
 
-    // clamp Y so we never go out-of-world vertically
     blockMin.y = std::max(blockMin.y, 0);
     blockMax.y = std::clamp(blockMax.y, 0, (int)chunkSize.y - 1);
 
-    // 3) Loop over every block *integer* position the player overlaps
-    for (int bx = blockMin.x; bx <= blockMax.x; ++bx) {
-        for (int by = blockMin.y; by <= blockMax.y; ++by) {
+    for (int by = blockMin.y; by <= blockMax.y; ++by) {
+        for (int bx = blockMin.x; bx <= blockMax.x; ++bx) {
             for (int bz = blockMin.z; bz <= blockMax.z; ++bz) {
-                // 4) Compute which chunk THAT block lives in ( integer division )
-                glm::ivec3 chunkCoords = {
-                    (bx >= 0 ? bx / chunkSize.x : (bx - (chunkSize.x - 1)) / chunkSize.x),
-                    (by >= 0 ? by / chunkSize.y : (by - (chunkSize.y - 1)) / chunkSize.y),
-                    (bz >= 0 ? bz / chunkSize.z : (bz - (chunkSize.z - 1)) / chunkSize.z),
-                };
 
-                std::shared_ptr<Chunk> chunk = chunkManager.getChunk(chunkCoords);
-                if (!chunk) {
-                    // you can decide whether unloaded chunks block movement
-                    return true;
-                }
+                glm::ivec3 blockWorldPos(bx, by, bz);
+                glm::ivec3 chunkCoords = Chunk::worldToChunk(blockWorldPos, chunkSize);
 
-                // 5) Local coords: pure integer modulo
-                glm::ivec3 local = {
-                    bx - chunkCoords.x * chunkSize.x,
-                    by - chunkCoords.y * chunkSize.y,
-                    bz - chunkCoords.z * chunkSize.z};
+                std::shared_ptr<Chunk> chunk = chunkManager.getChunk(blockWorldPos);
+                if (!chunk) return true; // treat unloaded chunks as solid
 
-                // out-of-range check (should never happen if worldToLocal is right)
-                if (local.x < 0 || local.x >= chunkSize.x ||
-                    local.y < 0 || local.y >= chunkSize.y ||
-                    local.z < 0 || local.z >= chunkSize.z) {
-                    return true;
-                }
-
+                glm::ivec3 local = blockWorldPos - chunkCoords * chunkSize;
+                glm::vec3 worldPos = glm::vec3(blockWorldPos);
                 const Block &block = chunk->getBlockAt(local.x, local.y, local.z);
+
+                //getAABBDebugDrawer().addAABB({worldPos, worldPos + glm::vec3(1.0f)}, glm::vec3(1.0f - 0.5f, 0, 0));
                 if (block.type != Block::blocks::AIR) {
+#if defined (DEBUG)
+                    getAABBDebugDrawer().addAABB({worldPos, worldPos + glm::vec3(1.0f)}, glm::vec3(1, 0, 0));
+#endif
                     return true;
                 }
             }
         }
     }
-
-    return false;
+   return false;
 }
+
 
 bool Player::isInsidePlayerBoundingBox(const glm::vec3 &checkPos) const {
-    return aabb.intersects({glm::vec3(checkPos), glm::vec3(checkPos) + 1.0f});
+    return aabb.intersects({glm::vec3(checkPos), glm::vec3(checkPos)/* + 1.0f*/});
 }
+
 void Player::handleCollisions(glm::vec3 &newPosition, glm::vec3 &velocity,
                               const glm::vec3 &oldPosition, ChunkManager &chunkManager) {
     glm::vec3 testPos = newPosition;
+    isOnGround = false;
 
-    if (isCollidingAt(testPos, chunkManager)) {
-        // Try Y axis (vertical)
-        testPos.x = oldPosition.x;
-        testPos.z = oldPosition.z;
-        if (isCollidingAt(testPos, chunkManager)) {
-            if (velocity.y < 0)
-                isOnGround = true;
-            newPosition.y = oldPosition.y;
-            velocity.y = 0;
-        } else {
-            isOnGround = false;
-            newPosition.y = testPos.y;
-        }
-
-        // Try X axis (horizontal)
-        testPos = newPosition;
-        testPos.z = oldPosition.z;
-        if (isCollidingAt(testPos, chunkManager)) {
-            newPosition.x = oldPosition.x;
-            velocity.x = 0;
-        }
-
-        // Try Z axis (horizontal)
-        testPos = newPosition;
-        testPos.x = oldPosition.x;
-        if (isCollidingAt(testPos, chunkManager)) {
-            newPosition.z = oldPosition.z;
-            velocity.z = 0;
-        }
-    } else {
-        isOnGround = false;
+    // Try full movement
+    if (!isCollidingAt(testPos, chunkManager)) {
+        newPosition = testPos;
+        goto groundCheck;
     }
 
-    // Ground check when still
-    if (velocity.y == 0) {
+    // Y-axis first
+    testPos = {oldPosition.x, newPosition.y, oldPosition.z};
+    if (!isCollidingAt(testPos, chunkManager)) {
+        newPosition.y = testPos.y;
+    } else {
+        newPosition.y = oldPosition.y;
+        velocity.y = 0;
+        if (velocity.y < 0) isOnGround = true;
+    }
+
+    // X-axis
+    testPos = {newPosition.x, newPosition.y, oldPosition.z};
+    if (!isCollidingAt(testPos, chunkManager)) {
+        newPosition.x = testPos.x;
+    } else {
+        newPosition.x = oldPosition.x;
+        velocity.x = 0;
+    }
+
+    // Z-axis
+    testPos = {oldPosition.x, newPosition.y, newPosition.z};
+    if (!isCollidingAt(testPos, chunkManager)) {
+        newPosition.z = testPos.z;
+    } else {
+        newPosition.z = oldPosition.z;
+        velocity.z = 0;
+    }
+
+groundCheck:
+    // Only do ground check when vertical velocity is zero (e.g. standing on block)
+    if (velocity.y == 0.0f) {
         glm::vec3 groundCheckPos = newPosition;
         groundCheckPos.y -= 0.001f;
         if (isCollidingAt(groundCheckPos, chunkManager))
@@ -387,10 +310,10 @@ void Player::render(unsigned int shaderProgram) {
 
         rightArm.cube->render(shaderProgram, armTransform);
         glEnable(GL_BLEND);
-        /*if(DEPTH_TEST) {
+        if(DEPTH_TEST) {
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_LEQUAL);
-        }*/
+        }
     }
     skinTexture->Unbind(1);
 }
@@ -413,28 +336,6 @@ const char *Player::getMode(void) const {
     if (dynamic_cast<SpectatorMode *>(currentMode.get()))
         return "SPECTATOR";
     return "UNKNOWN";
-}
-void Player::moveWithSubsteps(glm::vec3 &newPosition, glm::vec3 &velocity,
-                              const glm::vec3 &oldPosition, ChunkManager &cm) {
-    glm::vec3 totalDelta = newPosition - oldPosition;
-    float dist = glm::length(totalDelta);
-    if (dist == 0.0f)
-        return;
-
-    // pick a step small enough that you can't skip a block boundary:
-    constexpr float MAX_STEP = 0.5f; // half-block
-    int steps = std::max(1, static_cast<int>(std::ceil(dist / MAX_STEP)));
-    glm::vec3 step = totalDelta / float(steps);
-
-    glm::vec3 current = oldPosition;
-    for (int i = 0; i < steps; ++i) {
-        glm::vec3 next = current + step;
-        // run your existing handleCollisions for this mini-move:
-        glm::vec3 vel = step / /*frameDeltaTime*/ 1.0f;
-        handleCollisions(next, vel, current, cm);
-        current = next;
-    }
-    newPosition = current;
 }
 void Player::update(float deltaTime, ChunkManager &chunkManager) {
     input->update();
@@ -470,12 +371,11 @@ void Player::update(float deltaTime, ChunkManager &chunkManager) {
     glm::vec3 newPosition = position + pendingMovement + velocity * deltaTime;
     pendingMovement = glm::vec3(0.0f);
     modelMat = glm::translate(glm::mat4(1.0f), position);
-    modelMat *= scaleFactor;
+    modelMat = glm::scale(modelMat, glm::vec3(scaleFactor));
     updateBoundingBox();
 
     // Handle collisions unless flying in Creative/Spectator
     if (dynamic_cast<SurvivalMode *>(currentMode.get()) || dynamic_cast<CreativeMode *>(currentMode.get()))
-        //moveWithSubsteps(newPosition, velocity, position, chunkManager);
         handleCollisions(newPosition, velocity, position, chunkManager);
 
     if (newPosition != position) {

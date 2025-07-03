@@ -1,7 +1,9 @@
 #pragma once
+#include "AABBDebugDrawer.h"
 #include "glm/ext/vector_int3.hpp"
 #include <cstdint>
 #include <filesystem>
+#include <AABBDebugDrawer.h>
 
 #ifndef GL_TYPES_DEFINED
 #define GL_TYPES_DEFINED
@@ -79,6 +81,14 @@ extern bool V_SYNC;
 extern bool FACE_CULLING;
 extern bool MSAA;
 extern uint8_t MSAA_STRENGHT;
+
+#if defined(DEBUG)
+inline AABBDebugDrawer& getAABBDebugDrawer() {
+    static AABBDebugDrawer instance;
+    return instance;
+}
+#endif
+
 
 // Unsigned int types
 typedef unsigned char u8;

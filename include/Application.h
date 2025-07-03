@@ -58,9 +58,6 @@ class Application {
     std::unique_ptr<Player> player;
     std::unique_ptr<InputManager> input;
     std::unique_ptr<UI> ui;
-#if defined(DEBUG)
-    std::unique_ptr<AABBDebugDrawer> aabbDebugDrawer;
-#endif
 
     void initWindow(void);
     void handleFullscreenToggle(GLFWwindow *window);

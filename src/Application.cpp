@@ -143,10 +143,6 @@ Application::Application(int width, int height)
         log::error("Error initializing UI class: {}", e.what());
     }
     ui->SetViewportSize(width, height);
-#if defined(DEBUG)
-    aabbDebugDrawer =
-        std::make_unique<AABBDebugDrawer>(); // Setup AABBDebugDrawer
-#endif
     // Initialize ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -155,6 +151,7 @@ Application::Application(int width, int height)
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460");
+    glLineWidth(LINE_WIDTH);
 }
 Application::~Application(void) {
     // Clean up ImGui and GLFW and UI
@@ -459,7 +456,7 @@ void Application::Run(void) {
 #if defined(DEBUG)
         if (debugRender) {
             // Add player bounding box (with a nice greenish color)
-            aabbDebugDrawer->addAABB(player->getAABB(), glm::vec3(0.3f, 1.0f, 0.5f));
+            getAABBDebugDrawer().addAABB(player->getAABB(), glm::vec3(0.3f, 1.0f, 0.5f));
             // Add all chunks' bounding boxes
             for (const auto &[chunkKey, chunkPtr] : chunkManager->getChunks()) {
                 if (!chunkPtr)
@@ -471,11 +468,11 @@ void Application::Run(void) {
                 // Color for chunk boxes, maybe a translucent blue-ish?
                 glm::vec3 chunkColor(0.3f, 0.5f, 1.0f);
 
-                aabbDebugDrawer->addAABB(chunkBox, chunkColor);
+                getAABBDebugDrawer().addAABB(chunkBox, chunkColor);
             }
             glm::mat4 vp = player->getCamera()->GetProjectionMatrix() *
                            player->getCamera()->GetViewMatrix();
-            aabbDebugDrawer->draw(vp);
+            getAABBDebugDrawer().draw(vp);
         }
 #endif
         // -- Render Player -- (BEFORE UI pass)
