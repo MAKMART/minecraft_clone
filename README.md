@@ -2,19 +2,19 @@
 Yeah, I haven’t named it yet. Suggestions welcome :)
 ## Introduction
 This is a small game project built using modern OpenGL and C++20. Think Minecraft-style voxel fun, but from scratch and fully under your control. The project is in a very early, experimental stage.
-### Some screenshots
-![Screenshot 2025-06-15 221429](https://github.com/user-attachments/assets/b2461d68-5f1a-4081-bac3-c21720d3101f)![Screenshot 2025-06-15 221548](https://github.com/user-attachments/assets/5b00ad8b-644f-4b32-99a5-bc10c30b1473)
-
+## Some screenshots
+#![Screenshot 2025-07-03 231412](https://github.com/user-attachments/assets/7c71a15f-02c1-4c36-b6ec-c6c13c0c7fb2)![Screenshot 2025-07-03 231457](https://github.com/user-attachments/assets/35c74a69-89f6-48f6-a708-d0e05c6931ba)
 
 ## Dependencies
 To build this project, you’ll need:
 - [CMake](https://cmake.org/download/)(>= 3.15)
 - [Ninja](https://github.com/ninja-build/ninja)
+- [A C++ compiler](https://isocpp.org/get-started)
 
 Make sure both are installed and added to your system's PATH if you're on Windows.
 ##  Building the Project
 ### Clone the repo
-Open a terminal in whatever folder you want and run:
+Open a terminal in whatever folder and run:
 ```
 git clone https://github.com/MAKMART/minecraft_clone.git
 cd minecraft_clone
