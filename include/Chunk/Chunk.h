@@ -121,6 +121,7 @@ class Chunk {
 
     std::vector<Block> &getChunkData(void) { return chunkData; }
 
+    /*
     Block getBlockAt(int x, int y, int z) const {
         if (x >= 0 && x < chunkSize.x && y >= 0 && y < chunkSize.y && z >= 0 &&
             z < chunkSize.z) {
@@ -159,8 +160,88 @@ class Chunk {
 
         return neighbor->getBlockAt(localPos.x, localPos.y, localPos.z);
     }
+    */
+    Block getBlockAt(int x, int y, int z) const {
+        // 🌟 Fast path: in-bounds
+        if ((uint32_t)x < chunkSize.x &&
+                (uint32_t)y < chunkSize.y &&
+                (uint32_t)z < chunkSize.z) {
+            return chunkData[getBlockIndex(x, y, z)];
+        }
 
-    bool setBlockAt(int x, int y, int z, Block::blocks type);
+        // 🧭 Out-of-bounds — determine neighbor and remap local position
+        const Chunk* neighbor = nullptr;
+        int nx = x, ny = y, nz = z;
+
+        if (x < 0) {
+            neighbor = leftChunk.lock().get();
+            nx = chunkSize.x + x;
+        } else if (x >= chunkSize.x) {
+            neighbor = rightChunk.lock().get();
+            nx = x - chunkSize.x;
+        } else if (z < 0) {
+            neighbor = backChunk.lock().get();
+            nz = chunkSize.z + z;
+        } else if (z >= chunkSize.z) {
+            neighbor = frontChunk.lock().get();
+            nz = z - chunkSize.z;
+        } else {
+            // Y-axis out-of-bounds: no neighbor system for that
+            return Block(Block::blocks::AIR);
+        }
+
+        // 💨 If neighbor doesn't exist, treat as air
+        if (!neighbor) {
+            return Block(Block::blocks::AIR);
+        }
+
+        // ✅ Recursively query neighbor (no further neighbor chaining)
+        return neighbor->getBlockAt(nx, ny, nz);
+    }
+
+
+    bool setBlockAt(int x, int y, int z, Block::blocks type) {
+        if (x >= 0 && x < chunkSize.x && y >= 0 && y < chunkSize.y && z >= 0 &&
+                z < chunkSize.z) {
+            int index = getBlockIndex(x, y, z);
+            if (index != -1) {
+                if (chunkData[index].type == Block::blocks::AIR &&
+                        type != Block::blocks::AIR) {
+                    nonAirBlockCount++;
+                    blockCount++;
+                }
+                chunkData[index].type = type;
+                return true;
+            }
+            return false;
+        }
+
+        // OUT OF BOUNDS – resolve neighbor chunk
+        std::shared_ptr<Chunk> neighbor;
+        glm::ivec3 localPos(x, y, z);
+
+        if (x < 0) {
+            neighbor = leftChunk.lock();
+            localPos.x = chunkSize.x + x;
+        } else if (x >= chunkSize.x) {
+            neighbor = rightChunk.lock();
+            localPos.x = x - chunkSize.x;
+        } else if (z < 0) {
+            neighbor = backChunk.lock();
+            localPos.z = chunkSize.z + z;
+        } else if (z >= chunkSize.z) {
+            neighbor = frontChunk.lock();
+            localPos.z = z - chunkSize.z;
+        } else {
+            // y bounds? You can handle this later if you support vertical chunks
+            return false;
+        }
+
+        if (!neighbor)
+            return false;
+
+        return neighbor->setBlockAt(localPos.x, localPos.y, localPos.z, type);
+    }
 
     void generate(const std::vector<float> &noiseMap);
 

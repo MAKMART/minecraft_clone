@@ -28,48 +28,6 @@ Chunk::~Chunk(void) {
     if (SSBO)
         glDeleteBuffers(1, &SSBO);
 }
-bool Chunk::setBlockAt(int x, int y, int z, Block::blocks type) {
-    if (x >= 0 && x < chunkSize.x && y >= 0 && y < chunkSize.y && z >= 0 &&
-        z < chunkSize.z) {
-        int index = getBlockIndex(x, y, z);
-        if (index != -1) {
-            if (chunkData[index].type == Block::blocks::AIR &&
-                type != Block::blocks::AIR) {
-                nonAirBlockCount++;
-                blockCount++;
-            }
-            chunkData[index].type = type;
-            return true;
-        }
-        return false;
-    }
-
-    // OUT OF BOUNDS – resolve neighbor chunk
-    std::shared_ptr<Chunk> neighbor;
-    glm::ivec3 localPos(x, y, z);
-
-    if (x < 0) {
-        neighbor = leftChunk.lock();
-        localPos.x = chunkSize.x + x;
-    } else if (x >= chunkSize.x) {
-        neighbor = rightChunk.lock();
-        localPos.x = x - chunkSize.x;
-    } else if (z < 0) {
-        neighbor = backChunk.lock();
-        localPos.z = chunkSize.z + z;
-    } else if (z >= chunkSize.z) {
-        neighbor = frontChunk.lock();
-        localPos.z = z - chunkSize.z;
-    } else {
-        // y bounds? You can handle this later if you support vertical chunks
-        return false;
-    }
-
-    if (!neighbor)
-        return false;
-
-    return neighbor->setBlockAt(localPos.x, localPos.y, localPos.z, type);
-}
 void Chunk::generateTreeAt(int x, int y, int z) {
     const int trunkHeight = 4 + rand() % 2; // height 4 or 5
     const int leafRadius = 2;
@@ -222,6 +180,7 @@ void Chunk::updateMesh() {
         }
     }
 
+    glDisable(GL_CULL_FACE);
     // Transparent pass (water blocks)
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
@@ -234,13 +193,16 @@ void Chunk::updateMesh() {
             }
         }
     }
+    if (FACE_CULLING) {
+        glEnable(GL_CULL_FACE);
+    }
 
     uploadData();
 }
 // Helper function to check if a face under the water is visible
 bool Chunk::isSeaFaceVisible(const Block &block, int x, int y, int z) {
     // Face is visible ONLY if neighbor block is NOT transparent
-    return Block::isTransparent(getBlockAt(x, y, z).type);
+    return Block::isTransparent(getChunkData()[getBlockIndex(x, y, z)].type);
 }
 void Chunk::generateSeaBlockFace(const Block &block, int x, int y, int z) {
     // Lambda to push a face into the vector.
@@ -328,18 +290,18 @@ void Chunk::generateSeaBlockFace(const Block &block, int x, int y, int z) {
         break;
     case Block::blocks::WATER:
         X = 0, Y = 4;
-        //if (visibilityMask & (1 << 0))
-        //    pushFace(x, y, z, X, Y, 0, block.toInt());
-        //if (visibilityMask & (1 << 1))
-        //    pushFace(x, y, z, X, Y, 1, block.toInt());
-        //if (visibilityMask & (1 << 2))
-        //    pushFace(x, y, z, X, Y, 2, block.toInt());
-        //if (visibilityMask & (1 << 3))
-        //    pushFace(x, y, z, X, Y, 3, block.toInt());
+        if (visibilityMask & (1 << 0))
+            pushFace(x, y, z, X, Y, 0, block.toInt());
+        if (visibilityMask & (1 << 1))
+            pushFace(x, y, z, X, Y, 1, block.toInt());
+        if (visibilityMask & (1 << 2))
+            pushFace(x, y, z, X, Y, 2, block.toInt());
+        if (visibilityMask & (1 << 3))
+            pushFace(x, y, z, X, Y, 3, block.toInt());
         if (visibilityMask & (1 << 4))
             pushFace(x, y, z, X, Y, 4, block.toInt());
-        //if (visibilityMask & (1 << 5))
-        //    pushFace(x, y, z, X, Y, 5, block.toInt());
+        if (visibilityMask & (1 << 5))
+            pushFace(x, y, z, X, Y, 5, block.toInt());
         break;
     case Block::blocks::WOOD:
         X = 2;

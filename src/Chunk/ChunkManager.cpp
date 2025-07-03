@@ -85,11 +85,9 @@ void ChunkManager::updateBlock(glm::vec3 worldPos, Block::blocks newType) {
         return;
 
     glm::ivec3 localPos = Chunk::worldToLocal(worldPos, chunkSize);
-    int index = chunk->getBlockIndex(localPos.x, localPos.y, localPos.z);
-    if (index == -1)
-        return;
 
-    chunk->getChunkData()[index].type = newType;
+    
+    chunk->setBlockAt(worldPos.x, worldPos.y, worldPos.z, newType);
     chunk->updateMesh();
 
     // Update neighbors if the block is on a boundary

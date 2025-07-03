@@ -119,7 +119,7 @@ std::optional<glm::ivec3> Player::raycastVoxel(ChunkManager &chunkManager, glm::
     float t = 0.0f;
     while (t <= maxDistance) {
         // Get the chunk the voxel belongs to
-        Chunk *chunk = chunkManager.getChunk({voxel.x, 0, voxel.z}, true);
+        std::shared_ptr<Chunk> chunk = chunkManager.getChunk({voxel.x, 0, voxel.z});
 
         if (chunk) {
             glm::ivec3 localVoxelPos = Chunk::worldToLocal(voxel, chunkSize);

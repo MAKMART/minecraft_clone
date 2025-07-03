@@ -182,23 +182,36 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 )
 
 target_compile_options(${PROJECT_NAME} PRIVATE
-    $<$<CONFIG:Debug>:
-	-g 
-	-fexceptions 
-	-Wall 
-	-Wextra 
-	-pedantic  
-	-Wuninitialized 
-	-ggdb 
-    > # use -Werror if u want warning treated as errors!!!! && use -Wall to
-    $<$<CONFIG:Release>:
-	-O3 
-	-s 
-	-flto 
-	-fomit-frame-pointer 
-	-funsafe-math-optimizations 
-	-fno-math-errno 
-    > # Beware of -match=native as it locks the build to the CPU type it's beign built in
+    $<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Debug>>:
+        -D_GLIBCXX_ASSERTIONS
+        -g
+        -fexceptions
+        -Wall
+        -Wextra
+        -pedantic
+        -Wuninitialized
+        -ggdb
+    >
+    $<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Release>>:
+        -O3
+        -s
+        -flto
+        -fomit-frame-pointer
+        -funsafe-math-optimizations
+        -fno-math-errno
+    >
+    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:
+        /W4
+        /Zi
+        /EHsc
+        /MDd
+    >
+    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:
+        /O2
+        /GL
+        /MD
+        /fp:fast
+    >
 )
 
 # Linking
