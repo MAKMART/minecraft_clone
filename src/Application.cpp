@@ -314,10 +314,10 @@ void Application::initWindow(void) {
 
     aspectRatio = (float)width / (float)height;
 }
-float Application::getFPS(float delta) {
+float Application::getFPS() {
     nbFrames++;
     // if ( delta >= 0.1f ){ // If last cout was more than 1 sec ago
-    float fps = float(nbFrames) / delta;
+    float fps = float(nbFrames) / deltaTime;
     nbFrames = 0;
     return fps;
     //}
@@ -544,7 +544,7 @@ void Application::Run(void) {
             ImGui::PopStyleColor(1);
             ImGui::PopFont();
             ImGui::Indent();
-            //ImGui::Text("FPS: %f", getFPS(deltaTime));
+            ImGui::Text("FPS: %f", getFPS());
             ImGui::Text("Draw Calls: %d", g_drawCallCount);
             RenderTimings();
             ImGui::Unindent();

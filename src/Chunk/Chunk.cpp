@@ -113,7 +113,10 @@ void Chunk::generate(const std::vector<float> &noiseMap) {
 
             // Fill from height up to sea level with water (if below sea level)
             for (int y = height + 1; y <= seaLevel && y < chunkSize.y; ++y) {
-                Block &block = chunkData[getBlockIndex(x, y, z)];
+                int index = getBlockIndex(x, y, z);
+                if (index == -1)
+                    continue;
+                Block &block = chunkData[index];
                 if (block.type == Block::blocks::AIR)
                     setBlockAt(x, y, z, Block::blocks::WATER);
             }
@@ -131,7 +134,10 @@ void Chunk::genTrees(const std::vector<float> &noiseMap) {
             height = std::clamp(height, 0, chunkSize.y - 1);
 
             // Rough condition for tree placement: 1 in 20 chance
-            if (chunkData[getBlockIndex(x, height, z)].type == Block::blocks::GRASS && height > seaLevel && rand() % 90 == 0) {
+            int index = getBlockIndex(x, height, z);
+            if (index == -1)
+                continue;
+            if (chunkData[index].type == Block::blocks::GRASS && height > seaLevel && rand() % 90 == 0) {
                 generateTreeAt(x, height + 1, z); // +1 so it grows *on top* of the grass
             }
         }
@@ -161,12 +167,16 @@ void Chunk::updateMesh() {
             int maxHeight = 0;
             for (int y = 0; y < chunkSize.y; ++y) {
                 int index = getBlockIndex(x, y, z);
+                if (index == -1)
+                    continue;
                 if (chunkData[index].type != Block::blocks::AIR && chunkData[index].type != Block::blocks::WATER) {
                     maxHeight = y;
                 }
             }
             for (int y = 0; y <= maxHeight + 1; ++y) {
                 int index = getBlockIndex(x, y, z);
+                if (index == -1)
+                    continue;
                 const Block &block = chunkData[index];
                 if (block.type != Block::blocks::WATER) {
                     generateBlockFace(block, x, y, z);
@@ -184,8 +194,10 @@ void Chunk::updateMesh() {
     // Transparent pass (water blocks)
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
-            for (int y = 0; y < seaLevel; ++y) {
+            for (int y = 0; y < seaLevel + 1; ++y) {    // IMPORTANT: BEWARE TEST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 int index = getBlockIndex(x, y, z);
+                if (index == -1)
+                    continue;
                 const Block &block = chunkData[index];
                 if (block.type == Block::blocks::WATER) {
                     generateSeaBlockFace(block, x, y, z);
@@ -202,7 +214,7 @@ void Chunk::updateMesh() {
 // Helper function to check if a face under the water is visible
 bool Chunk::isSeaFaceVisible(const Block &block, int x, int y, int z) {
     // Face is visible ONLY if neighbor block is NOT transparent
-    return Block::isTransparent(getChunkData()[getBlockIndex(x, y, z)].type);
+    return Block::isTransparent(getBlockAt(x, y, z).type);
 }
 void Chunk::generateSeaBlockFace(const Block &block, int x, int y, int z) {
     // Lambda to push a face into the vector.

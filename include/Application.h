@@ -71,7 +71,7 @@ class Application {
     static void key_callback(GLFWwindow *window, int key, int scancode,
                              int action, int mods);
     void processInput();
-    float getFPS(float delta);
+    float getFPS();
 
     // -- Crosshair ---
     std::unique_ptr<Shader> crossHairshader;

@@ -91,72 +91,6 @@ void Player::changeState(std::unique_ptr<PlayerState> newState) {
 Player::~Player(void) {
     delete _camera;
 }
-std::optional<glm::ivec3> Player::raycastVoxel(ChunkManager &chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance) {
-    // Initialize voxel position (world-space)
-    glm::ivec3 voxel(
-        static_cast<int>(std::floor(rayOrigin.x)),
-        static_cast<int>(std::floor(rayOrigin.y)),
-        static_cast<int>(std::floor(rayOrigin.z)));
-
-    // Step direction for each axis
-    glm::ivec3 step(
-        (rayDirection.x >= 0) ? 1 : -1,
-        (rayDirection.y >= 0) ? 1 : -1,
-        (rayDirection.z >= 0) ? 1 : -1);
-
-    // Compute tMax: distance until first voxel boundary is crossed
-    glm::vec3 tMax(
-        (rayDirection.x != 0.0f) ? ((step.x > 0 ? (voxel.x + 1.0f - rayOrigin.x) : (rayOrigin.x - voxel.x)) / std::abs(rayDirection.x)) : std::numeric_limits<float>::max(),
-        (rayDirection.y != 0.0f) ? ((step.y > 0 ? (voxel.y + 1.0f - rayOrigin.y) : (rayOrigin.y - voxel.y)) / std::abs(rayDirection.y)) : std::numeric_limits<float>::max(),
-        (rayDirection.z != 0.0f) ? ((step.z > 0 ? (voxel.z + 1.0f - rayOrigin.z) : (rayOrigin.z - voxel.z)) / std::abs(rayDirection.z)) : std::numeric_limits<float>::max());
-
-    // Compute tDelta: how far to move in t to cross a voxel
-    glm::vec3 tDelta(
-        (rayDirection.x != 0.0f) ? (1.0f / std::abs(rayDirection.x)) : std::numeric_limits<float>::max(),
-        (rayDirection.y != 0.0f) ? (1.0f / std::abs(rayDirection.y)) : std::numeric_limits<float>::max(),
-        (rayDirection.z != 0.0f) ? (1.0f / std::abs(rayDirection.z)) : std::numeric_limits<float>::max());
-
-    float t = 0.0f;
-    while (t <= maxDistance) {
-        // Get the chunk the voxel belongs to
-        std::shared_ptr<Chunk> chunk = chunkManager.getChunk({voxel.x, 0, voxel.z});
-
-        if (chunk) {
-            glm::ivec3 localVoxelPos = Chunk::worldToLocal(voxel, chunkSize);
-            int blockIndex = chunk->getBlockIndex(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
-
-            if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < chunk->getChunkData().size() &&
-                chunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
-                return voxel; // Found a solid block
-            }
-        }
-
-        // Move to the next voxel along the ray
-        if (tMax.x < tMax.y) {
-            if (tMax.x < tMax.z) {
-                voxel.x += step.x;
-                t = tMax.x;
-                tMax.x += tDelta.x;
-            } else {
-                voxel.z += step.z;
-                t = tMax.z;
-                tMax.z += tDelta.z;
-            }
-        } else {
-            if (tMax.y < tMax.z) {
-                voxel.y += step.y;
-                t = tMax.y;
-                tMax.y += tDelta.y;
-            } else {
-                voxel.z += step.z;
-                t = tMax.z;
-                tMax.z += tDelta.z;
-            }
-        }
-    }
-
-    return std::nullopt; // No solid block found within range
-}
 bool Player::isCollidingAt(const glm::vec3 &pos, ChunkManager &chunkManager) {
     AABB box = getBoundingBoxAt(pos);
 
@@ -195,7 +129,7 @@ bool Player::isCollidingAt(const glm::vec3 &pos, ChunkManager &chunkManager) {
 
 
 bool Player::isInsidePlayerBoundingBox(const glm::vec3 &checkPos) const {
-    return aabb.intersects({glm::vec3(checkPos), glm::vec3(checkPos)/* + 1.0f*/});
+    return aabb.intersects({checkPos, checkPos + glm::vec3(1.0f)});
 }
 
 void Player::handleCollisions(glm::vec3 &newPosition, glm::vec3 &velocity,
@@ -453,73 +387,11 @@ void Player::breakBlock(ChunkManager &chunkManager) {
 
     glm::ivec3 blockPos = hitBlock.value();
 
+    //log::system_info("Player", "Breaking block at: {}, {}, {}", blockPos.x, blockPos.y, blockPos.z);
+
     // Use updateBlock to set the block to AIR
     chunkManager.updateBlock(blockPos, Block::blocks::AIR);
 }
-std::optional<std::pair<glm::ivec3, glm::ivec3>> Player::raycastVoxelWithNormal(
-    ChunkManager &chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance) {
-    glm::ivec3 voxel = glm::floor(rayOrigin);  // Start voxel
-    glm::ivec3 step = glm::sign(rayDirection); // Step direction (-1 or +1)
-
-    glm::vec3 tMax;
-    glm::vec3 tDelta = glm::vec3(
-        (rayDirection.x != 0.0f) ? (1.0f / std::abs(rayDirection.x)) : std::numeric_limits<float>::max(),
-        (rayDirection.y != 0.0f) ? (1.0f / std::abs(rayDirection.y)) : std::numeric_limits<float>::max(),
-        (rayDirection.z != 0.0f) ? (1.0f / std::abs(rayDirection.z)) : std::numeric_limits<float>::max());
-
-    for (int i = 0; i < 3; i++) {
-        if (rayDirection[i] > 0)
-            tMax[i] = (voxel[i] + 1 - rayOrigin[i]) * tDelta[i];
-        else
-            tMax[i] = (rayOrigin[i] - voxel[i]) * tDelta[i];
-    }
-
-    float t = 0.0f;
-    glm::ivec3 lastVoxel = voxel;
-
-    while (t < maxDistance) {
-        // ** Get the chunk that contains this voxel **
-        Chunk *chunk = chunkManager.getChunk({voxel.x, 0, voxel.z}, true);
-
-        if (chunk) {
-            glm::ivec3 localVoxelPos = Chunk::worldToLocal(voxel, chunkSize);
-            int blockIndex = chunk->getBlockIndex(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
-
-            if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < chunk->getChunkData().size() &&
-                chunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
-                return std::make_pair(voxel, voxel - lastVoxel);
-            }
-        }
-
-        lastVoxel = voxel;
-
-        // ** Move to next voxel **
-        if (tMax.x < tMax.y) {
-            if (tMax.x < tMax.z) {
-                voxel.x += step.x;
-                t = tMax.x;
-                tMax.x += tDelta.x;
-            } else {
-                voxel.z += step.z;
-                t = tMax.z;
-                tMax.z += tDelta.z;
-            }
-        } else {
-            if (tMax.y < tMax.z) {
-                voxel.y += step.y;
-                t = tMax.y;
-                tMax.y += tDelta.y;
-            } else {
-                voxel.z += step.z;
-                t = tMax.z;
-                tMax.z += tDelta.z;
-            }
-        }
-    }
-
-    return std::nullopt;
-}
-
 void Player::placeBlock(ChunkManager &chunkManager) {
     // Perform raycast to find the block the player is looking at
     std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycastVoxelWithNormal(
@@ -531,7 +403,7 @@ void Player::placeBlock(ChunkManager &chunkManager) {
     glm::ivec3 hitBlockPos = hitResult->first; // The block that was hit
     glm::ivec3 normal = hitResult->second;     // The normal of the hit face
 
-    // Determine the position to place the new block
+    // Determine the  world position to place the new block
     glm::ivec3 placePos = hitBlockPos + (-normal);
 
     // Check if the placement position intersects with the player's bounding box
@@ -539,7 +411,7 @@ void Player::placeBlock(ChunkManager &chunkManager) {
         return;
 
     // Get the chunk where the new block should be placed
-    Chunk *placeChunk = chunkManager.getChunk(placePos, true);
+    std::shared_ptr<Chunk> placeChunk = chunkManager.getChunk(placePos);
     if (!placeChunk) {
         return;
     }
@@ -560,8 +432,141 @@ void Player::placeBlock(ChunkManager &chunkManager) {
         return;
     }
 
+    //log::system_info("Player", "Placing block at: {}, {}, {}", placePos.x, placePos.y, placePos.z);
+
     // Place the block using updateBlock
     chunkManager.updateBlock(placePos, static_cast<Block::blocks>(selectedBlock));
+}
+
+std::optional<glm::ivec3> Player::raycastVoxel(ChunkManager &chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance) {
+    // Initialize voxel position (world-space)
+    glm::ivec3 worldResult(
+        static_cast<int>(std::floor(rayOrigin.x)),
+        static_cast<int>(std::floor(rayOrigin.y)),
+        static_cast<int>(std::floor(rayOrigin.z)));
+
+    // Step direction for each axis
+    glm::ivec3 step(
+        (rayDirection.x >= 0) ? 1 : -1,
+        (rayDirection.y >= 0) ? 1 : -1,
+        (rayDirection.z >= 0) ? 1 : -1);
+
+    // Compute tMax: distance until first voxel boundary is crossed
+    glm::vec3 tMax(
+        (rayDirection.x != 0.0f) ? ((step.x > 0 ? (worldResult.x + 1.0f - rayOrigin.x) : (rayOrigin.x - worldResult.x)) / std::abs(rayDirection.x)) : std::numeric_limits<float>::max(),
+        (rayDirection.y != 0.0f) ? ((step.y > 0 ? (worldResult.y + 1.0f - rayOrigin.y) : (rayOrigin.y - worldResult.y)) / std::abs(rayDirection.y)) : std::numeric_limits<float>::max(),
+        (rayDirection.z != 0.0f) ? ((step.z > 0 ? (worldResult.z + 1.0f - rayOrigin.z) : (rayOrigin.z - worldResult.z)) / std::abs(rayDirection.z)) : std::numeric_limits<float>::max());
+
+    // Compute tDelta: how far to move in t to cross a voxel
+    glm::vec3 tDelta(
+        (rayDirection.x != 0.0f) ? (1.0f / std::abs(rayDirection.x)) : std::numeric_limits<float>::max(),
+        (rayDirection.y != 0.0f) ? (1.0f / std::abs(rayDirection.y)) : std::numeric_limits<float>::max(),
+        (rayDirection.z != 0.0f) ? (1.0f / std::abs(rayDirection.z)) : std::numeric_limits<float>::max());
+
+    float t = 0.0f;
+    while (t <= maxDistance) {
+        // Get the chunk the voxel belongs to
+        std::shared_ptr<Chunk> chunk = chunkManager.getChunk({worldResult.x, 0, worldResult.z});
+
+        if (chunk) {
+            glm::ivec3 localVoxelPos = Chunk::worldToLocal(worldResult, chunkSize);
+            int blockIndex = chunk->getBlockIndex(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
+
+            if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < chunk->getChunkData().size() &&
+                chunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
+                return worldResult; // Found a solid block
+            }
+        }
+
+        // Move to the next voxel along the ray
+        if (tMax.x < tMax.y) {
+            if (tMax.x < tMax.z) {
+                worldResult.x += step.x;
+                t = tMax.x;
+                tMax.x += tDelta.x;
+            } else {
+                worldResult.z += step.z;
+                t = tMax.z;
+                tMax.z += tDelta.z;
+            }
+        } else {
+            if (tMax.y < tMax.z) {
+                worldResult.y += step.y;
+                t = tMax.y;
+                tMax.y += tDelta.y;
+            } else {
+                worldResult.z += step.z;
+                t = tMax.z;
+                tMax.z += tDelta.z;
+            }
+        }
+    }
+
+    return std::nullopt; // No solid block found within range
+}
+
+std::optional<std::pair<glm::ivec3, glm::ivec3>> Player::raycastVoxelWithNormal(
+    ChunkManager &chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance) {
+    glm::ivec3 worldResult = glm::floor(rayOrigin);  // Start voxel
+    glm::ivec3 step = glm::sign(rayDirection); // Step direction (-1 or +1)
+
+    glm::vec3 tMax;
+    glm::vec3 tDelta = glm::vec3(
+        (rayDirection.x != 0.0f) ? (1.0f / std::abs(rayDirection.x)) : std::numeric_limits<float>::max(),
+        (rayDirection.y != 0.0f) ? (1.0f / std::abs(rayDirection.y)) : std::numeric_limits<float>::max(),
+        (rayDirection.z != 0.0f) ? (1.0f / std::abs(rayDirection.z)) : std::numeric_limits<float>::max());
+
+    for (int i = 0; i < 3; i++) {
+        if (rayDirection[i] > 0)
+            tMax[i] = (worldResult[i] + 1 - rayOrigin[i]) * tDelta[i];
+        else
+            tMax[i] = (rayOrigin[i] - worldResult[i]) * tDelta[i];
+    }
+
+    float t = 0.0f;
+    glm::ivec3 lastVoxel = worldResult;
+
+    while (t < maxDistance) {
+        // ** Get the chunk that contains this voxel **
+       Chunk *chunk = chunkManager.getChunk({worldResult.x, 0, worldResult.z}, true);
+
+        if (chunk) {
+            glm::ivec3 localVoxelPos = Chunk::worldToLocal(worldResult, chunkSize);
+            int blockIndex = chunk->getBlockIndex(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
+
+            if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < chunk->getChunkData().size() &&
+                chunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
+                return std::make_pair(worldResult, worldResult - lastVoxel);
+            }
+        }
+
+        lastVoxel = worldResult;
+
+        // ** Move to next voxel **
+        if (tMax.x < tMax.y) {
+            if (tMax.x < tMax.z) {
+                worldResult.x += step.x;
+                t = tMax.x;
+                tMax.x += tDelta.x;
+            } else {
+                worldResult.z += step.z;
+                t = tMax.z;
+                tMax.z += tDelta.z;
+            }
+        } else {
+            if (tMax.y < tMax.z) {
+                worldResult.y += step.y;
+                t = tMax.y;
+                tMax.y += tDelta.y;
+            } else {
+                worldResult.z += step.z;
+                t = tMax.z;
+                tMax.z += tDelta.z;
+            }
+        }
+    }
+
+    return std::nullopt;
 }
 
 // Handle mouse movement input

@@ -5,6 +5,8 @@ cmake_policy(VERSION 3.25)  # Set this to highest version you've tested with
 project("opengl" VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+# DIsable Doxygen documentation generation
+set(ENABLE_DOXYGEN OFF CACHE BOOL "Disable Doxygen generation")
 include(FetchContent)
 
 
@@ -25,13 +27,10 @@ set(GLEW_BUILD_EXAMPLES OFF)
 set(GLEW_BUILD_TESTS OFF)
 set(GLEW_BUILD_DOCS OFF)
 FetchContent_MakeAvailable(glew)
-#message(STATUS "Targets from GLEW dir: ${GLEW_SUBDIR}")
-#message(STATUS "GLEW (CMake version) fetched from: ${glew_SOURCE_DIR}")
-#message(STATUS "GLEW build dir: ${glew_BINARY_DIR}")
+
 
 set(GLFW_BUILD_WAYLAND ON CACHE BOOL "..." FORCE)
 set(GLFW_BUILD_X11 OFF CACHE BOOL "..." FORCE)
-
 
 
 # GLFW
@@ -70,9 +69,6 @@ option(FT_DISABLE_PNG "Disable support of PNG compressed OpenType embedded bitma
 option(FT_DISABLE_HARFBUZZ "Disable HarfBuzz (used for improving auto-hinting of OpenType fonts)." ON)
 option(FT_DISABLE_BROTLI "Disable support of compressed WOFF2 fonts." ON)
 FetchContent_MakeAvailable(freetype)
-#message(STATUS "Freetype_ROOT: ${freetype_ROOT_DIR}")
-#message(STATUS "freetype_BINARY_DIR: ${freetype_BINARY_DIR}")
-#message(STATUS "FreeType fetched from: ${freetype_SOURCE_DIR}")
 
 # Ensure FreeType is found by RmlUi
 set(Freetype_ROOT ${freetype_BINARY_DIR} CACHE INTERNAL "FreeType build directory")
@@ -80,9 +76,7 @@ set(FREETYPE_LIBRARY ${freetype_BINARY_DIR}/libfreetype.a CACHE INTERNAL "FreeTy
 set(FREETYPE_INCLUDE_DIRS ${freetype_SOURCE_DIR}/include CACHE INTERNAL "FreeType include directories")
 add_library(Freetype::Freetype ALIAS freetype)
 find_package(Freetype REQUIRED)
-message(STATUS "Freetype found: ${FREETYPE_FOUND}")
-#message(STATUS "Freetype libraries: ${FREETYPE_LIBRARIES}")
-#message(STATUS "Freetype include dirs: ${FREETYPE_INCLUDE_DIRS}")
+
 if(NOT FREETYPE_FOUND)
   message(FATAL_ERROR "Freetype not found by find_package(Freetype)")
 endif()
@@ -105,7 +99,6 @@ set(RMLUI_SHELL OFF CACHE BOOL "Force disabling shell" FORCE)
 set(CMAKE_MESSAGE_LOG_LEVEL TRACE CACHE STRING "Set log level to TRACE for verbose output" FORCE)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "Enable verbose output" FORCE)
 FetchContent_MakeAvailable(RmlUi)
-#message(STATUS "RmlUi fetched from: ${RmlUi_SOURCE_DIR}")
 if(NOT TARGET RmlUi::Core)
   message(FATAL_ERROR "RmlUi::Core target not found after FetchContent_MakeAvailable(RmlUi). Check _deps/rmlui-src/Source/CMakeLists.txt or CMake/Dependencies.cmake for errors.")
 endif()
