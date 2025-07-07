@@ -113,10 +113,8 @@ void UI::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f transl
         if (tex != texture_map.end()) {
             tex->second.Bind(3);
         } else {
-            // Invalid handle, maybe unbind texture or log error
-            // tex->second.Unbind(3);
-            // Or log warning
-            throw std::runtime_error("Invalid texture");
+            log::system_error("UI", "Invalid texture handle {}", texture);
+            return;
         }
         Geometry &geo = it->second;
         glBindVertexArray(geo.vao);

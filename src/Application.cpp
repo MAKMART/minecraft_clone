@@ -25,10 +25,7 @@ Application::Application(int width, int height)
     std::cout << "----------------------------UNKNOWN BUILD TYPE----------------------------\n";
 #endif
 
-    // First thing you have to do is fix the damn stencil buffer to allow cropping
-    // in RmlUI Second thing is fixing the AABBs (Maybe use FCL library for
-    // collision detection) or offset the world back to fix the float precision
-    // issues
+    // First thing you have to do is fix the damn stencil buffer to allow cropping in RmlUI
 
     initWindow();
     // Set the Application pointer for callbacks.
@@ -316,7 +313,7 @@ void Application::initWindow(void) {
 }
 float Application::getFPS() {
     nbFrames++;
-    // if ( delta >= 0.1f ){ // If last cout was more than 1 sec ago
+    // if ( deltaTime >= 0.1f ){ // If last cout was more than 1 sec ago
     float fps = float(nbFrames) / deltaTime;
     nbFrames = 0;
     return fps;
@@ -337,6 +334,10 @@ void Application::processInput() {
         if (input->isMousePressed(DEFENSE_BUTTON)) {
             player->processMouseInput(Player::ACTION::PLACE_BLOCK, *chunkManager);
         }
+    }
+
+    if (input->isPressed(GLFW_KEY_H)) {
+        chunkManager->chunkShader->reload();
     }
 
     // Process mode switches (note: consider safety for mode/state assignments)
@@ -446,17 +447,14 @@ void Application::Run(void) {
 
         // --- Render World ---
         if (renderTerrain) {
+            chunkManager->chunkShader->checkAndReloadIfModified();
             chunkManager->renderChunks(player->getPos(), player->render_distance,
-                                       *player->getCamera());
-            // chunkManager->chunkShader->setFloat("time", glfwGetTime());	// yk
-            // maybe don't do it here
-            //  would be better if you do it in the ChunkManger class directly
-            //  TODO: FIX it
+                                       *player->getCamera(), glfwGetTime());
         }
 #if defined(DEBUG)
         if (debugRender) {
             // Add player bounding box (with a nice greenish color)
-            getAABBDebugDrawer().addAABB(player->getAABB(), glm::vec3(0.3f, 1.0f, 0.5f));
+            getDebugDrawer().addAABB(player->getAABB(), glm::vec3(0.3f, 1.0f, 0.5f));
             // Add all chunks' bounding boxes
             for (const auto &[chunkKey, chunkPtr] : chunkManager->getChunks()) {
                 if (!chunkPtr)
@@ -468,17 +466,16 @@ void Application::Run(void) {
                 // Color for chunk boxes, maybe a translucent blue-ish?
                 glm::vec3 chunkColor(0.3f, 0.5f, 1.0f);
 
-                getAABBDebugDrawer().addAABB(chunkBox, chunkColor);
+                getDebugDrawer().addAABB(chunkBox, chunkColor);
             }
             glm::mat4 vp = player->getCamera()->GetProjectionMatrix() *
                            player->getCamera()->GetViewMatrix();
-            getAABBDebugDrawer().draw(vp);
+            getDebugDrawer().draw(vp);
         }
 #endif
         // -- Render Player -- (BEFORE UI pass)
         if (player->renderSkin) {
-            playerShader->use();
-            player->render(playerShader->getProgramID());
+            player->render(*playerShader);
         }
 
         // --- UI Pass --- (now rendered BEFORE ImGui)

@@ -1,5 +1,4 @@
 #include "Player.h"
-#include "AABBDebugDrawer.h"
 #include "PlayerState.h" // Full definition of PlayerState
 #include "PlayerMode.h"  // Full definition of PlayerMode
 #include "FlyingState.h"
@@ -15,6 +14,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include "logger.hpp"
+#include "Timer.h"
 
 // Constructor
 Player::Player(glm::vec3 spawnPos, GLFWwindow *window)
@@ -114,12 +114,15 @@ bool Player::isCollidingAt(const glm::vec3 &pos, ChunkManager &chunkManager) {
                 glm::vec3 worldPos = glm::vec3(blockWorldPos);
                 const Block &block = chunk->getBlockAt(local.x, local.y, local.z);
 
-                //getAABBDebugDrawer().addAABB({worldPos, worldPos + glm::vec3(1.0f)}, glm::vec3(1.0f - 0.5f, 0, 0));
-                if (block.type != Block::blocks::AIR) {
-#if defined (DEBUG)
-                    getAABBDebugDrawer().addAABB({worldPos, worldPos + glm::vec3(1.0f)}, glm::vec3(1, 0, 0));
+                //getDebugDrawer().addAABB({worldPos, worldPos + glm::vec3(1.0f)}, glm::vec3(1.0f - 0.5f, 0, 0));
+
+#if defined(DEBUG)
+                if (block.type != Block::blocks::AIR /*&& block.type != Block::blocks::WATER*/) {
+                    getDebugDrawer().addAABB({worldPos, worldPos + glm::vec3(1.0f)}, glm::vec3(1.0f, 0.0f, 0.0f));
+                }
 #endif
-                    return true;
+                if (block.type != Block::blocks::AIR && block.type != Block::blocks::WATER) {
+                    return true; // Collide with non-air, non-water blocks
                 }
             }
         }
@@ -181,12 +184,13 @@ groundCheck:
     }
 }
 
-void Player::render(unsigned int shaderProgram) {
+void Player::render(const Shader &shader) {
     if (!skinTexture) {
-        throw std::runtime_error("Error: skinTexture is null!");
+        log::system_error("Player", "skinTexture is null!");
         return;
     }
 
+    shader.use();
     skinTexture->Bind(1);
 
     if (isThirdPerson) {
@@ -221,7 +225,8 @@ void Player::render(unsigned int shaderProgram) {
         // Apply body part offsets and transforms relative to the base
         for (const auto &part : bodyParts) {
             glm::mat4 transform = baseTransform * glm::translate(glm::mat4(1.0f), part.offset) * part.transform;
-            part.cube->render(shaderProgram, transform);
+            shader.setMat4("model", transform);
+            part.cube->render(transform);
         }
     } else {
         glDisable(GL_DEPTH_TEST);
@@ -242,7 +247,8 @@ void Player::render(unsigned int shaderProgram) {
         armTransform = armTransform * glm::translate(glm::mat4(1.0f), armOffset);
         armTransform = armTransform * rightArm.transform;
 
-        rightArm.cube->render(shaderProgram, armTransform);
+        shader.setMat4("model", armTransform);
+        rightArm.cube->render(armTransform);
         glEnable(GL_BLEND);
         if(DEPTH_TEST) {
             glEnable(GL_DEPTH_TEST);
@@ -309,8 +315,10 @@ void Player::update(float deltaTime, ChunkManager &chunkManager) {
     updateBoundingBox();
 
     // Handle collisions unless flying in Creative/Spectator
-    if (dynamic_cast<SurvivalMode *>(currentMode.get()) || dynamic_cast<CreativeMode *>(currentMode.get()))
+    if (dynamic_cast<SurvivalMode *>(currentMode.get()) || dynamic_cast<CreativeMode *>(currentMode.get())) {
+        Timer collisions_timer("player_collision_testing");
         handleCollisions(newPosition, velocity, position, chunkManager);
+    }
 
     if (newPosition != position) {
         position = newPosition;

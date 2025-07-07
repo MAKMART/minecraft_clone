@@ -10,7 +10,7 @@
 #include "defines.h"
 
 Chunk::Chunk(const glm::ivec3 &chunkPos)
-    : position(chunkPos), SSBO(0), nonAirBlockCount(0), blockCount(0) {
+    : position(chunkPos), SSBO(0) {
     try {
         chunkData.resize(chunkSize.x * chunkSize.y * chunkSize.z);
     } catch (const std::bad_alloc &e) {
@@ -24,7 +24,7 @@ Chunk::Chunk(const glm::ivec3 &chunkPos)
     glCreateBuffers(1, &SSBO);
     srand(static_cast<unsigned int>(position.x ^ position.y ^ position.z));
 }
-Chunk::~Chunk(void) {
+Chunk::~Chunk() {
     if (SSBO)
         glDeleteBuffers(1, &SSBO);
 }
@@ -37,8 +37,6 @@ void Chunk::generateTreeAt(int x, int y, int z) {
         int index = getBlockIndex(x, y + i, z);
         if (index != -1) {
             chunkData[index].type = Block::blocks::WOOD;
-            nonAirBlockCount++;
-            blockCount++;
         }
     }
 
@@ -61,13 +59,12 @@ void Chunk::generateTreeAt(int x, int y, int z) {
 
 void Chunk::generate(const std::vector<float> &noiseMap) {
     Timer generation_timer("Chunk::generate");
-    // Reset counters
-    nonAirBlockCount = 0;
-    blockCount = 0;
+
+    constexpr int dirtDepth = 3;
+    constexpr int beachDepth = 3; // How wide the beach is vertically
 
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
-            // Calculate height once per (x,z)
             int noiseIndex = z * chunkSize.x + x;
 #if defined(DEBUG)
             if (noiseIndex < 0 || noiseIndex >= static_cast<int>(noiseMap.size())) {
@@ -77,29 +74,31 @@ void Chunk::generate(const std::vector<float> &noiseMap) {
 #endif
             int height = static_cast<int>(noiseMap[noiseIndex] * chunkSize.y);
             height = std::clamp(height, 0, chunkSize.y - 1);
+
             for (int y = 0; y < chunkSize.y; ++y) {
                 int index = getBlockIndex(x, y, z);
-                if (index == -1)
-                    continue;
-                if (y <= height) {
-                    if (y == height) {
-                        chunkData[index].type = Block::blocks::GRASS;
-                        nonAirBlockCount++;
-                        blockCount++;
-                    } else if (y >= height - 3 && height >= 3) {
-                        chunkData[index].type = Block::blocks::DIRT;
-                        nonAirBlockCount++;
-                        blockCount++;
-                    } else {
-                        chunkData[index].type = Block::blocks::STONE;
-                        nonAirBlockCount++;
-                        blockCount++;
-                    }
-                } else {
+                if (index == -1) continue;
+
+                if (y > height) {
                     chunkData[index].type = Block::blocks::AIR;
-                    blockCount++;
+                    continue;
                 }
 
+                if (y == height) {
+                    if (height <= seaLevel + beachDepth) {
+                        chunkData[index].type = Block::blocks::SAND; // Beach top
+                    } else {
+                        chunkData[index].type = Block::blocks::GRASS;
+                    }
+                } else if (y >= height - dirtDepth) {
+                    if (height <= seaLevel + beachDepth) {
+                        chunkData[index].type = Block::blocks::SAND; // Beach body
+                    } else {
+                        chunkData[index].type = Block::blocks::DIRT;
+                    }
+                } else {
+                    chunkData[index].type = Block::blocks::STONE;
+                }
             }
         }
     }
@@ -137,35 +136,42 @@ void Chunk::genTrees(const std::vector<float> &noiseMap) {
             int index = getBlockIndex(x, height, z);
             if (index == -1)
                 continue;
-            if (chunkData[index].type == Block::blocks::GRASS && height > seaLevel && rand() % 90 == 0) {
+            if (chunkData[index].type == Block::blocks::GRASS && height > seaLevel && rand() % 80 == 0) {
                 generateTreeAt(x, height + 1, z); // +1 so it grows *on top* of the grass
             }
         }
     }
 }
-void Chunk::uploadData(void) {
-    if (faces.empty()) {
-        log::system_error("Chunk", "Empty faces buffer for chunk ({}, {}, {})", position.x, position.y, position.z);
+void Chunk::uploadData() {
+    if (faces.empty() && waterFaces.empty()) {
+        log::system_error("Chunk", "Empty combined face buffer for chunk ({}, {}, {})", position.x, position.y, position.z);
         return;
     }
+
     if (SSBO == 0) {
         glCreateBuffers(1, &SSBO);
     }
-    // Use glNamedBufferData for a mutable buffer
-    glNamedBufferData(SSBO, faces.size() * sizeof(Face), faces.data(),
-                      GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
+
+    opaqueFaceCount = static_cast<GLuint>(faces.size());
+    transparentFaceCount = static_cast<GLuint>(waterFaces.size());
+
+    std::vector<Face> combinedFaces;
+    combinedFaces.reserve(faces.size() + waterFaces.size());
+    combinedFaces.insert(combinedFaces.end(), faces.begin(), faces.end());
+    combinedFaces.insert(combinedFaces.end(), waterFaces.begin(), waterFaces.end());
+
+    glNamedBufferData(SSBO, combinedFaces.size() * sizeof(Face), combinedFaces.data(), GL_DYNAMIC_DRAW);
+    //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
 }
+
 void Chunk::updateMesh() {
     faces.clear();
-    nonAirBlockCount = 0;
-    blockCount = 0;
 
-    // Opaque pass (non-water blocks)
+    // Pass 1: Blocks from seaLevel to chunkSize.y — use generateBlockFace
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
             int maxHeight = 0;
-            for (int y = 0; y < chunkSize.y; ++y) {
+            for (int y = seaLevel; y < chunkSize.y; ++y) {
                 int index = getBlockIndex(x, y, z);
                 if (index == -1)
                     continue;
@@ -173,54 +179,43 @@ void Chunk::updateMesh() {
                     maxHeight = y;
                 }
             }
-            for (int y = 0; y <= maxHeight + 1; ++y) {
+            for (int y = seaLevel; y <= maxHeight; ++y) {
                 int index = getBlockIndex(x, y, z);
                 if (index == -1)
                     continue;
                 const Block &block = chunkData[index];
-                if (block.type != Block::blocks::WATER) {
-                    generateBlockFace(block, x, y, z);
-                    if (block.type == Block::blocks::AIR)
-                        blockCount++;
-                    else
-                        nonAirBlockCount++;
-                }
+                generateBlockFace(block, x, y, z);
             }
-            blockCount += chunkSize.y - (maxHeight + 2);
         }
     }
 
-    glDisable(GL_CULL_FACE);
-    // Transparent pass (water blocks)
+    // Pass 2: Blocks from 0 to seaLevel — use generateSeaBlockFace
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
-            for (int y = 0; y < seaLevel + 1; ++y) {    // IMPORTANT: BEWARE TEST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            for (int y = 0; y < seaLevel; ++y) {
                 int index = getBlockIndex(x, y, z);
                 if (index == -1)
                     continue;
                 const Block &block = chunkData[index];
-                if (block.type == Block::blocks::WATER) {
-                    generateSeaBlockFace(block, x, y, z);
-                }
+                generateSeaBlockFace(block, x, y, z);
             }
         }
-    }
-    if (FACE_CULLING) {
-        glEnable(GL_CULL_FACE);
     }
 
     uploadData();
+
 }
 // Helper function to check if a face under the water is visible
 bool Chunk::isSeaFaceVisible(const Block &block, int x, int y, int z) {
     // Face is visible ONLY if neighbor block is NOT transparent
-    return Block::isTransparent(getBlockAt(x, y, z).type);
+    const Block::blocks type = getBlockAt(x, y, z).type;
+    return type == Block::blocks::WATER || type == Block::blocks::LEAVES;
 }
 void Chunk::generateSeaBlockFace(const Block &block, int x, int y, int z) {
     // Lambda to push a face into the vector.
     auto pushFace = [this](int x, int y, int z, int u, int v, int face,
                            int block_type) {
-        this->faces.emplace_back(Face(x, y, z, u, v, face, block_type));
+        this->waterFaces.emplace_back(Face(x, y, z, u, v, face, block_type));
     };
 
     uint8_t visibilityMask =
@@ -302,18 +297,19 @@ void Chunk::generateSeaBlockFace(const Block &block, int x, int y, int z) {
         break;
     case Block::blocks::WATER:
         X = 0, Y = 4;
-        if (visibilityMask & (1 << 0))
-            pushFace(x, y, z, X, Y, 0, block.toInt());
-        if (visibilityMask & (1 << 1))
-            pushFace(x, y, z, X, Y, 1, block.toInt());
-        if (visibilityMask & (1 << 2))
-            pushFace(x, y, z, X, Y, 2, block.toInt());
-        if (visibilityMask & (1 << 3))
-            pushFace(x, y, z, X, Y, 3, block.toInt());
+        //if (visibilityMask & (1 << 0))
+          //  this->waterFaces.emplace_back(Face(x, y, z, X, Y, 0, block.toInt()));
+        //if (visibilityMask & (1 << 1))
+          //  this->waterFaces.emplace_back(Face(x, y, z, X, Y, 1, block.toInt()));
+        //if (visibilityMask & (1 << 2))
+          //  this->waterFaces.emplace_back(Face(x, y, z, X, Y, 2, block.toInt()));
+        //if (visibilityMask & (1 << 3))
+          //  this->waterFaces.emplace_back(Face(x, y, z, X, Y, 3, block.toInt()));
         if (visibilityMask & (1 << 4))
-            pushFace(x, y, z, X, Y, 4, block.toInt());
-        if (visibilityMask & (1 << 5))
-            pushFace(x, y, z, X, Y, 5, block.toInt());
+          //  this->waterFaces.emplace_back(Face(x, y, z, X, Y, 4, block.toInt()));
+          pushFace(x, y, z, X, Y, 4, block.toInt());
+        //if (visibilityMask & (1 << 5))
+          //  this->waterFaces.emplace_back(Face(x, y, z, X, Y, 5, block.toInt()));
         break;
     case Block::blocks::WOOD:
         X = 2;
@@ -371,12 +367,6 @@ void Chunk::generateSeaBlockFace(const Block &block, int x, int y, int z) {
 // Helper function to check if a face is visible
 bool Chunk::isFaceVisible(const Block &block, int x, int y, int z) {
     return Block::isTransparent(getBlockAt(x, y, z).type);
-}
-void Chunk::renderChunk(std::unique_ptr<Shader> &shader) {
-    shader->setMat4("model", getModelMatrix());
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO); // Ensure SSBO is bound
-    DrawArraysWrapper(GL_TRIANGLES, 0,
-                      faces.size() * 6); // 6 faces per Voxel/Cube
 }
 void Chunk::generateBlockFace(const Block &block, int x, int y, int z) {
     // Lambda to push a face into the vector.
@@ -465,17 +455,17 @@ void Chunk::generateBlockFace(const Block &block, int x, int y, int z) {
     case Block::blocks::WATER:
         X = 0, Y = 4;
         if (visibilityMask & (1 << 0))
-            pushFace(x, y, z, X, Y, 0, block.toInt());
+            this->waterFaces.emplace_back(Face(x, y, z, X, Y, 0, block.toInt()));
         if (visibilityMask & (1 << 1))
-            pushFace(x, y, z, X, Y, 1, block.toInt());
+            this->waterFaces.emplace_back(Face(x, y, z, X, Y, 1, block.toInt()));
         if (visibilityMask & (1 << 2))
-            pushFace(x, y, z, X, Y, 2, block.toInt());
+            this->waterFaces.emplace_back(Face(x, y, z, X, Y, 2, block.toInt()));
         if (visibilityMask & (1 << 3))
-            pushFace(x, y, z, X, Y, 3, block.toInt());
+            this->waterFaces.emplace_back(Face(x, y, z, X, Y, 3, block.toInt()));
         if (visibilityMask & (1 << 4))
-            pushFace(x, y, z, X, Y, 4, block.toInt());
+            this->waterFaces.emplace_back(Face(x, y, z, X, Y, 4, block.toInt()));
         if (visibilityMask & (1 << 5))
-            pushFace(x, y, z, X, Y, 5, block.toInt());
+            this->waterFaces.emplace_back(Face(x, y, z, X, Y, 5, block.toInt()));
         break;
     case Block::blocks::WOOD:
         X = 2;
@@ -529,4 +519,21 @@ void Chunk::generateBlockFace(const Block &block, int x, int y, int z) {
         log::system_error("Chunk", "UNHANDLED BLOCK CASE: {} # {}", block.toString(), block.toInt());
         break;
     }
+}
+void Chunk::renderChunk(std::unique_ptr<Shader> &shader) {
+    shader->setMat4("model", getModelMatrix());
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
+    DrawArraysWrapper(GL_TRIANGLES, 0, opaqueFaceCount * 6);
+
+    glDisable(GL_CULL_FACE);
+    if (BLENDING) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
+    DrawArraysWrapper(GL_TRIANGLES, opaqueFaceCount * 6, transparentFaceCount * 6);
+    // Restore GL state if needed
+    if (FACE_CULLING) {
+        glEnable(GL_CULL_FACE);
+    }
+
 }

@@ -13,8 +13,7 @@ ChunkManager::ChunkManager(int renderDistance, const glm::vec3 &player_pos, std:
         perlin = siv::PerlinNoise(seed.value());
         log::system_info("ChunkManager", "initialized with seed: {}", seed.value());
     } else {
-        std::random_device rd;
-        std::mt19937 engine(rd());
+        std::mt19937 engine((std::random_device())());
         std::uniform_int_distribution<int> distribution(1, 999999);
         siv::PerlinNoise::seed_type random_seed = distribution(engine);
         perlin = siv::PerlinNoise(random_seed);
@@ -24,6 +23,8 @@ ChunkManager::ChunkManager(int renderDistance, const glm::vec3 &player_pos, std:
         chunksTexture = std::make_unique<Texture>(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
     if (!chunkShader.get())
         chunkShader = std::make_unique<Shader>(CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY);
+    if (!waterShader.get())
+        waterShader = std::make_unique<Shader>(WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY);   
 
     if (chunkSize.x <= 0 || chunkSize.y <= 0 || chunkSize.z <= 0) {
         throw std::invalid_argument("chunkSize must be positive");
@@ -186,14 +187,6 @@ void ChunkManager::loadChunksAroundPlayer(glm::vec3 playerPosition, int renderDi
                 chunkPtr->frontChunk = getOrCreateChunk({worldX, 0, (chunkZ + 1) * chunkSize.z});
                 chunkPtr->backChunk  = getOrCreateChunk({worldX, 0, (chunkZ - 1) * chunkSize.z});
             }
-            /*std::cout << "Chunk (" << chunkX << ", 0, " << chunkZ << ") neighbors: "
-                << "left=" << (chunkPtr->leftChunk.lock()  ? "exists" : "null") << ", "
-                << "right=" << (chunkPtr->rightChunk.lock() ? "exists" : "null") << ", "
-                << "front=" << (chunkPtr->frontChunk.lock() ? "exists" : "null") << ", "
-                << "back=" << (chunkPtr->backChunk.lock()  ? "exists" : "null") << "\n";*/
-
-
-
             // Check if all 4 neighbors are fully generated
             {
                 Timer neighbor_timer("Neighboring chunks checks");
@@ -302,11 +295,12 @@ Chunk *ChunkManager::getChunk(glm::vec3 worldPos, bool returnRawPointer) const {
     }
 }
 
-void ChunkManager::renderChunks(glm::vec3 player_position, unsigned int render_distance, const Camera &camera) {
+void ChunkManager::renderChunks(glm::vec3 player_position, unsigned int render_distance, const Camera &camera, float time) {
 
     chunkShader->use();
     chunkShader->setMat4("projection", camera.GetProjectionMatrix());
     chunkShader->setMat4("view", camera.GetViewMatrix());
+    chunkShader->setFloat("time", time);
 
     // Calculate the player's current chunk position (X, Z)
     int playerChunkX = static_cast<int>(floor(player_position.x / chunkSize.x));

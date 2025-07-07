@@ -30,7 +30,7 @@ class Player {
     void changeMode(std::unique_ptr<PlayerMode> newMode);
     void changeState(std::unique_ptr<PlayerState> newState);
     void update(float deltaTime, ChunkManager &chunkManager);
-    void render(unsigned int shaderProgram);
+    void render(const Shader &shader);
     void loadSkin(const std::string &path);
     void loadSkin(const std::filesystem::path &path);
     void processMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch);

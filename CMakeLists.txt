@@ -6,7 +6,7 @@ project("opengl" VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 # DIsable Doxygen documentation generation
-set(ENABLE_DOXYGEN OFF CACHE BOOL "Disable Doxygen generation")
+option(ENABLE_DOCS "Enable building documentation with Doxygen" OFF)
 include(FetchContent)
 
 

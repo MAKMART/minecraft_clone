@@ -49,12 +49,19 @@ uint_fast8_t DEFENSE_BUTTON = GLFW_MOUSE_BUTTON_RIGHT;
 std::filesystem::path WORKING_DIRECTORY = std::filesystem::current_path();
 // 	Shaders
 std::filesystem::path SHADERS_DIRECTORY = WORKING_DIRECTORY / "shaders";
+
 std::filesystem::path PLAYER_VERTEX_SHADER_DIRECTORY = SHADERS_DIRECTORY / "player_vert.glsl";
 std::filesystem::path PLAYER_FRAGMENT_SHADER_DIRECTORY = SHADERS_DIRECTORY / "player_frag.glsl";
-std::filesystem::path CHUNK_VERTEX_SHADER_DIRECTORY = SHADERS_DIRECTORY / "chunkvert.glsl";
-std::filesystem::path CHUNK_FRAGMENT_SHADER_DIRECTORY = SHADERS_DIRECTORY / "chunkfrag.glsl";
-std::filesystem::path CROSSHAIR_VERTEX_SHADER_DIRECTORY = SHADERS_DIRECTORY / "crosshairVert.glsl";
-std::filesystem::path CROSSHAIR_FRAGMENT_SHADER_DIRECTORY = SHADERS_DIRECTORY / "crosshairFrag.glsl";
+
+std::filesystem::path CHUNK_VERTEX_SHADER_DIRECTORY = SHADERS_DIRECTORY / "chunk_vert.glsl";
+std::filesystem::path CHUNK_FRAGMENT_SHADER_DIRECTORY = SHADERS_DIRECTORY / "chunk_frag.glsl";
+
+std::filesystem::path WATER_VERTEX_SHADER_DIRECTORY = SHADERS_DIRECTORY / "water_vert.glsl";
+std::filesystem::path WATER_FRAGMENT_SHADER_DIRECTORY = SHADERS_DIRECTORY / "water_frag.glsl";
+
+std::filesystem::path CROSSHAIR_VERTEX_SHADER_DIRECTORY = SHADERS_DIRECTORY / "crosshair_vert.glsl";
+std::filesystem::path CROSSHAIR_FRAGMENT_SHADER_DIRECTORY = SHADERS_DIRECTORY / "crosshair_frag.glsl";
+
 std::filesystem::path UI_VERTEX_SHADER_DIRECTORY = SHADERS_DIRECTORY / "ui_vert.glsl";
 std::filesystem::path UI_FRAGMENT_SHADER_DIRECTORY = SHADERS_DIRECTORY / "ui_frag.glsl";
 // 	Assets

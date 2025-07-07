@@ -21,18 +21,18 @@ enum class ChunkState {
 };
 
 struct Block {
-    enum class blocks {
-        AIR,
-        DIRT,
-        GRASS,
-        STONE,
-        LAVA,
-        WATER,
-        WOOD,
-        LEAVES,
-        SAND,
+    enum class blocks : uint8_t {
+        AIR     = 0,
+        DIRT    = 1,
+        GRASS   = 2,
+        STONE   = 3,
+        LAVA    = 4,
+        WATER   = 5,
+        WOOD    = 6,
+        LEAVES  = 7,
+        SAND    = 8,
         MAX_BLOCKS
-    }; // Up to 512 blocks
+    }; // Up to 256 blocks
     blocks type = blocks::AIR;
 
     // Compile-time function for converting enum to string
@@ -117,50 +117,10 @@ struct Face {
 class Chunk {
   public:
     Chunk(const glm::ivec3 &chunkPos);
-    ~Chunk(void);
+    ~Chunk();
 
     std::vector<Block> &getChunkData(void) { return chunkData; }
 
-    /*
-    Block getBlockAt(int x, int y, int z) const {
-        if (x >= 0 && x < chunkSize.x && y >= 0 && y < chunkSize.y && z >= 0 &&
-            z < chunkSize.z) {
-            int index = getBlockIndex(x, y, z);
-            if (index != -1) {
-                return chunkData[index];
-            }
-            return Block(); // fallback (shouldn't happen)
-        }
-
-        // OUT OF BOUNDS – resolve neighbor chunk
-        std::shared_ptr<Chunk> neighbor;
-        glm::ivec3 localPos(x, y, z);
-
-        if (x < 0) {
-            neighbor = leftChunk.lock();
-            localPos.x = chunkSize.x + x;
-        } else if (x >= chunkSize.x) {
-            neighbor = rightChunk.lock();
-            localPos.x = x - chunkSize.x;
-        } else if (z < 0) {
-            neighbor = backChunk.lock();
-            localPos.z = chunkSize.z + z;
-        } else if (z >= chunkSize.z) {
-            neighbor = frontChunk.lock();
-            localPos.z = z - chunkSize.z;
-        } else {
-            // Y-axis out-of-bounds — you might add topChunk/bottomChunk later
-            return Block(Block::blocks::AIR);
-        }
-
-        if (!neighbor) {
-            // Neighbor doesn't exist — treat as air
-            return Block(Block::blocks::AIR);
-        }
-
-        return neighbor->getBlockAt(localPos.x, localPos.y, localPos.z);
-    }
-    */
     Block getBlockAt(int x, int y, int z) const {
         // 🌟 Fast path: in-bounds
         if ((uint32_t)x < chunkSize.x &&
@@ -207,8 +167,6 @@ class Chunk {
             if (index != -1) {
                 if (chunkData[index].type == Block::blocks::AIR &&
                         type != Block::blocks::AIR) {
-                    nonAirBlockCount++;
-                    blockCount++;
                 }
                 chunkData[index].type = type;
                 return true;
@@ -326,14 +284,15 @@ class Chunk {
     std::weak_ptr<Chunk> rightChunk; // +x direction
     std::weak_ptr<Chunk> frontChunk; // +z direction
     std::weak_ptr<Chunk> backChunk;  // -z direction
-    const int seaLevel = 4;
-    GLuint SSBO /*, EBO*/;
-    int nonAirBlockCount = 0;
-    int blockCount = 0;
-    void uploadData(void);
+    const int seaLevel = 5;
+    GLuint SSBO;
+    GLuint opaqueFaceCount = 0;
+    GLuint transparentFaceCount = 0;
+    void uploadData();
     int logSizeX = std::log2(chunkSize.x);
     int logSizeY = std::log2(chunkSize.y);
     std::vector<Face> faces;
+    std::vector<Face> waterFaces;
     std::vector<Block> chunkData;
     std::vector<unsigned int> indices;
     glm::mat4 modelMat; // TODO: actually use this model matrix in the class

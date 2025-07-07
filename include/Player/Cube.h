@@ -16,7 +16,7 @@ class Cube {
   public:
     Cube(glm::vec3 size, BodyPartType type); // Added parameters for skin mapping
     ~Cube(void);
-    void render(unsigned int shaderProgram, const glm::mat4 &transform);
+    void render(const glm::mat4 &transform);
     struct TextureRegion {
         glm::vec2 topLeft;     // (x1, y1)
         glm::vec2 bottomRight; // (x2, y2)
@@ -30,6 +30,7 @@ class Cube {
             packed = (vx & 0x3FF) | ((vy & 0x3FF) << 10) | ((vz & 0x3FF) << 20) | (tex_u & 0x3FF) | ((tex_v & 0x3FF) << 10);
         }
     };
+    glm::vec3 size_;
     std::vector<Side> sides;
     std::vector<float> vertices;
     void setupBuffers(void);

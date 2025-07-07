@@ -3,7 +3,7 @@
 #include "defines.h"
 #include "logger.hpp"
 
-Cube::Cube(glm::vec3 size, BodyPartType type) {
+Cube::Cube(glm::vec3 size, BodyPartType type) : size_(size) {
     float halfX = size.x / 2.0f;
     float yBase = 0.0f;
     float yTop = size.y;
@@ -41,7 +41,7 @@ Cube::Cube(glm::vec3 size, BodyPartType type) {
         topRegion = {glm::vec2(36, 52), glm::vec2(39, 63)};
         bottomRegion = {glm::vec2(40, 48), glm::vec2(43, 51)};
         rightRegion = {glm::vec2(32, 52), glm::vec2(35, 63)};
-        frontRegion = {glm::vec2(36, 52), glm::vec2(39, 63)};
+        frontRegion = {glm::vec2(20, 52), glm::vec2(23, 63)}; // Example correction
         leftRegion = {glm::vec2(40, 52), glm::vec2(43, 63)};
         backRegion = {glm::vec2(44, 52), glm::vec2(48, 63)};
         break;
@@ -126,7 +126,7 @@ void Cube::setupBuffers(void) {
     glCreateBuffers(1, &VBO);
 
     // Upload vertex data to the VBO
-    glNamedBufferData(VBO, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
+    glNamedBufferData(VBO, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
 
     // Bind vertex buffer to VAO at binding index 0
     glVertexArrayVertexBuffer(VAO, 0, VBO, 0, 5 * sizeof(float));
@@ -141,17 +141,18 @@ void Cube::setupBuffers(void) {
     glVertexArrayAttribBinding(VAO, 1, 0); // Bind attribute 1 to binding index 0
 }
 
-void Cube::render(unsigned int shaderProgram, const glm::mat4 &transform) {
-    // glUseProgram(shaderProgram);
-
-    GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
-    if (modelLoc == -1) {
-        log::system_error("Cube", "Error: Could not find uniform location for 'model' in shader program.");
-        return;
-    }
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(transform));
-
+void Cube::render(const glm::mat4 &transform) {
     glBindVertexArray(VAO);
     DrawArraysWrapper(GL_TRIANGLES, 0, 36); // 36 vertices for 12 triangles
     glBindVertexArray(0);
+
+#if defined(DEBUG)
+    float halfX = size_.x / 2.0f;
+    float yBase = 0.0f;
+    float yTop = size_.y;
+    float halfZ = size_.z / 2.0f;
+    glm::vec3 halfExtents(halfX, (yTop - yBase) / 2.0f, halfZ);
+    getDebugDrawer().addOBB(transform, halfExtents, glm::vec3(1.0f, 0.0f, 0.0f));
+#endif
+
 }

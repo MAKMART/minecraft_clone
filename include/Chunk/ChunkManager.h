@@ -63,7 +63,7 @@ class ChunkManager {
 
     void unloadDistantChunks(glm::vec3 playerPosition, int unloadDistance);
 
-    void renderChunks(glm::vec3 player_position, unsigned int render_distance, const Camera &camera);
+    void renderChunks(glm::vec3 player_position, unsigned int render_distance, const Camera &camera, float time);
 
     // Get a chunk by its world position
     std::shared_ptr<Chunk> getChunk(glm::vec3 worldPos) const;
@@ -95,6 +95,7 @@ class ChunkManager {
     bool textureLoaded = false;
     std::unique_ptr<Texture> chunksTexture;
     std::unique_ptr<Shader> chunkShader;
+    std::unique_ptr<Shader> waterShader;
 
   private:
     // Helper to generate a unique key for a chunk position

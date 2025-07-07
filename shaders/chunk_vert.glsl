@@ -92,8 +92,8 @@ void main()
   v = min(v, 15u);
   face_id = min(face_id, 5u);
 
-  //DebugColor = debugColor[face_id];
-  DebugColor = mix(debugColor[face_id], vec3(float(gl_VertexID % 6) / 6.0, 0.0, 1.0), 0.5);
+  DebugColor = debugColor[face_id];
+  //DebugColor = mix(debugColor[face_id], vec3(float(gl_VertexID % 6) / 6.0, 0.0, 1.0), 0.5);
   //DebugColor = vec3(float(face_id) / 6.0, 0.0, 1.0);
 
   /*
@@ -114,11 +114,19 @@ void main()
   
 
   // EFFECTS
-
   vec4 worldPos = model * vec4(position, 1.0);
 
-  gl_Position = projection * view * worldPos;
+  // WATER EFFECTS
+  if (block_type == 5) {
+      // Wobble parameters
+      float wobbleStrength = 0.1;
+      float wobbleSpeed = 2.0;
+      float wobbleFrequency = 4.0;
 
+      // Apply wobble (e.g., vertical wobble along Y based on X and Z)
+      worldPos.y += sin(worldPos.x * wobbleFrequency + time * wobbleSpeed) * wobbleStrength;
+      worldPos.y += cos(worldPos.z * wobbleFrequency + time * wobbleSpeed) * wobbleStrength;
+  }
 
   // END
 
@@ -138,4 +146,5 @@ void main()
       case 5: localUV = vec2(0.0, 1.0); break;
   }
   TexCoord = vec2(u, v) / cellSize + localUV / cellSize;
+  gl_Position = projection * view * worldPos;
 }

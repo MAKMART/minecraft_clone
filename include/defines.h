@@ -1,9 +1,8 @@
 #pragma once
-#include "AABBDebugDrawer.h"
+#include "DebugDrawer.h"
 #include "glm/ext/vector_int3.hpp"
 #include <cstdint>
 #include <filesystem>
-#include <AABBDebugDrawer.h>
 
 #ifndef GL_TYPES_DEFINED
 #define GL_TYPES_DEFINED
@@ -43,12 +42,19 @@ extern uint_fast8_t DEFENSE_BUTTON;
 extern std::filesystem::path WORKING_DIRECTORY;
 // 	Shaders
 extern std::filesystem::path SHADERS_DIRECTORY;
+
 extern std::filesystem::path PLAYER_VERTEX_SHADER_DIRECTORY;
 extern std::filesystem::path PLAYER_FRAGMENT_SHADER_DIRECTORY;
+
 extern std::filesystem::path CHUNK_VERTEX_SHADER_DIRECTORY;
 extern std::filesystem::path CHUNK_FRAGMENT_SHADER_DIRECTORY;
+
+extern std::filesystem::path WATER_VERTEX_SHADER_DIRECTORY;
+extern std::filesystem::path WATER_FRAGMENT_SHADER_DIRECTORY;
+
 extern std::filesystem::path CROSSHAIR_VERTEX_SHADER_DIRECTORY;
 extern std::filesystem::path CROSSHAIR_FRAGMENT_SHADER_DIRECTORY;
+
 extern std::filesystem::path UI_VERTEX_SHADER_DIRECTORY;
 extern std::filesystem::path UI_FRAGMENT_SHADER_DIRECTORY;
 // 	Assets
@@ -83,8 +89,8 @@ extern bool MSAA;
 extern uint8_t MSAA_STRENGHT;
 
 #if defined(DEBUG)
-inline AABBDebugDrawer& getAABBDebugDrawer() {
-    static AABBDebugDrawer instance;
+inline DebugDrawer& getDebugDrawer() {
+    static DebugDrawer instance;
     return instance;
 }
 #endif
