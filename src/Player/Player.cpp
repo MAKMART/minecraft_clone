@@ -1,4 +1,5 @@
 #include "Player.h"
+#include "InputManager.h"
 #include "PlayerState.h" // Full definition of PlayerState
 #include "PlayerMode.h"  // Full definition of PlayerMode
 #include "FlyingState.h"
@@ -17,16 +18,15 @@
 #include "Timer.h"
 
 // Constructor
-Player::Player(glm::vec3 spawnPos, GLFWwindow *window)
+Player::Player(glm::vec3 spawnPos, std::shared_ptr<InputManager> input)
     : _camera(new Camera(spawnPos)), prevPosition(spawnPos), velocity(0.0f), animationTime(0.0f), scaleFactor(0.076f), prevPlayerHeight(playerHeight) {
     eyeHeight = playerHeight * 0.9f;
     lastScaleFactor = scaleFactor;
-    input = std::make_unique<InputManager>(window);
+    this->input = std::move(input);
     skinTexture = std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST); // Default skin
     position = glm::vec3(spawnPos.x, spawnPos.y - playerHeight, spawnPos.z);
     setupBodyParts();
-    currentMode = std::make_unique<SurvivalMode>(); // STARTING MODE DEFAULT
-    currentMode->enterMode(*this);                  // Sets initial state via mode
+    changeMode<SurvivalMode>(); // STARTING DEFAULT MODE
     updateBoundingBox();
     updateCameraPosition();
 }
@@ -194,9 +194,6 @@ void Player::render(const Shader &shader) {
     skinTexture->Bind(1);
 
     if (isThirdPerson) {
-        // Calculate the total height of the player model (torso + head, scaled)
-        // float modelHeight = (torsoSize.y + headSize.y) * scaleFactor;  // Total height in Minecraft units, scaled
-
         // Start with the player's position (feet at position.y)
         glm::mat4 baseTransform = glm::translate(glm::mat4(1.0f), position);
 
@@ -249,7 +246,9 @@ void Player::render(const Shader &shader) {
 
         shader.setMat4("model", armTransform);
         rightArm.cube->render(armTransform);
-        glEnable(GL_BLEND);
+        if (BLENDING) {
+            glEnable(GL_BLEND);
+        }
         if(DEPTH_TEST) {
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_LEQUAL);
@@ -278,7 +277,6 @@ const char *Player::getMode(void) const {
     return "UNKNOWN";
 }
 void Player::update(float deltaTime, ChunkManager &chunkManager) {
-    input->update();
     animationTime += deltaTime;
     float speed = dynamic_cast<RunningState *>(currentState.get()) ? 6.0f : 4.0f;
     float amplitude = dynamic_cast<RunningState *>(currentState.get()) ? 0.7f : 0.5f;
@@ -380,11 +378,51 @@ void Player::setPos(glm::vec3 newPos) {
 }
 
 // Handle mouse movement input
-void Player::processMouseInput(ACTION action, ChunkManager &chunkManager) {
-    if (action == PLACE_BLOCK && canPlaceBlocks)
-        placeBlock(chunkManager);
-    if (action == BREAK_BLOCK && canBreakBlocks)
+void Player::processMouseInput(ChunkManager &chunkManager) {
+
+    if (input->isMousePressed(ATTACK_BUTTON)) {
         breakBlock(chunkManager);
+    }
+    if (input->isMousePressed(DEFENSE_BUTTON)) {
+        placeBlock(chunkManager);
+    }
+
+}
+void Player::processKeyInput(bool FREE_CURSOR) {
+
+
+    // Process mode switches (note: consider safety for mode/state assignments)
+    if (input->isPressed(SURVIVAL_MODE_KEY)) {
+        // Switch to Survival mode
+        changeMode<SurvivalMode>();
+        changeState<WalkingState>(); // Default state in Survival is Walking
+    }
+
+    if (input->isPressed(CREATIVE_MODE_KEY))
+        // Switch to Creative mode
+        changeMode<CreativeMode>();
+
+
+    if (input->isPressed(SPECTATOR_MODE_KEY))
+        // Switch to Spectator mode
+        changeMode<SpectatorMode>();
+
+
+    if (input->isPressed(SPRINT_KEY) && !isFlying && !isSwimming && isOnGround && glm::length(glm::vec2(velocity.x, velocity.z)) >= walking_speed - 0.01)    // Tiny epsilon
+        changeState<RunningState>();
+
+
+    if (input->isReleased(SPRINT_KEY) && !isFlying && !isSwimming)
+        changeState<WalkingState>();
+
+
+    if (input->isPressed(CAMERA_SWITCH_KEY))
+        toggleCameraMode();
+
+    if (input->isPressed(MENU_KEY))
+        getCamera()->setMouseTracking(FREE_CURSOR);
+
+
 }
 void Player::breakBlock(ChunkManager &chunkManager) {
     // Perform a raycast to find the block the player is targeting

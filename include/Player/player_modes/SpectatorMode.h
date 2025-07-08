@@ -12,7 +12,7 @@ class SpectatorMode : public PlayerMode {
         player.canBreakBlocks = false;
         player.canPlaceBlocks = false;
         player.renderSkin = false;
-        player.changeState(std::make_unique<FlyingState>()); // Spectators always fly
+        player.changeState<FlyingState>(); // Spectators always fly
     }
 
     void exitMode(Player &player) override {

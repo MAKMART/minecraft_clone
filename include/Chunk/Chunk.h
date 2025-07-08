@@ -121,6 +121,14 @@ class Chunk {
 
     std::vector<Block> &getChunkData(void) { return chunkData; }
 
+    bool hasOpaqueMesh() const {
+        return !faces.empty();
+    }
+
+    bool hasTransparentMesh() const {
+        return !waterFaces.empty();
+    }
+
     Block getBlockAt(int x, int y, int z) const {
         // 🌟 Fast path: in-bounds
         if ((uint32_t)x < chunkSize.x &&
@@ -230,8 +238,9 @@ class Chunk {
     ChunkState state = ChunkState::Empty;
     AABB getAABB(void) const { return aabb; }
 
-    // Function to render a chunk
-    void renderChunk(std::unique_ptr<Shader> &shader);
+    // Functions to render a chunk
+    void renderOpaqueMesh(std::unique_ptr<Shader> &shader);
+    void renderTransparentMesh(std::unique_ptr<Shader> &shader);
 
     bool isSeaFaceVisible(const Block &block, int x, int y, int z);
 

@@ -4,6 +4,7 @@
 #include "Timer.h"
 #include "defines.h"
 #include "imgui.h"
+#include <algorithm>
 #include <exception>
 #include <stb_image.h>
 #include <stdexcept>
@@ -109,7 +110,7 @@ Application::Application(int width, int height)
 
     // Use smart pointers instead of raw pointers.
     log::info("Initializing Input Manager...");
-    input = std::make_unique<InputManager>(window);
+    input = std::make_shared<InputManager>(window);
     log::info("Initializing Shaders...");
     try {
         playerShader = std::make_unique<Shader>(PLAYER_VERTEX_SHADER_DIRECTORY,
@@ -123,8 +124,7 @@ Application::Application(int width, int height)
     crossHairTexture = std::make_unique<Texture>(ICONS_DIRECTORY, GL_RGBA,
                                                  GL_REPEAT, GL_NEAREST);
     log::info("Initializing Player...");
-    player = std::make_unique<Player>(
-        glm::vec3(0.0f, (float)(chunkSize.y) - 1.0f, 0.0f), window);
+    player = std::make_unique<Player>(glm::vec3(0.0f, (float)(chunkSize.y) - 1.0f, 0.0f), input);
     log::info("Initializing Chunk Manager...");
     try {
         chunkManager = std::make_unique<ChunkManager>(player->render_distance, player->getPos());
@@ -328,53 +328,22 @@ void Application::processInput() {
 
     // --- Process Mouse Buttons ---
     if (mouseClickEnabled) {
-        if (input->isMousePressed(ATTACK_BUTTON)) {
-            player->processMouseInput(Player::ACTION::BREAK_BLOCK, *chunkManager);
-        }
-        if (input->isMousePressed(DEFENSE_BUTTON)) {
-            player->processMouseInput(Player::ACTION::PLACE_BLOCK, *chunkManager);
-        }
+        player->processMouseInput(*chunkManager);
     }
+    player->processKeyInput(FREE_CURSOR);
 
     if (input->isPressed(GLFW_KEY_H)) {
         chunkManager->chunkShader->reload();
     }
 
-    // Process mode switches (note: consider safety for mode/state assignments)
-    if (input->isPressed(SURVIVAL_MODE_KEY)) {
-        // Switch to Survival mode
-        player->changeMode(std::make_unique<SurvivalMode>());
-        player->changeState(
-            std::make_unique<WalkingState>()); // Default state in Survival is
-                                               // Walking
-    }
-    if (input->isPressed(GLFW_KEY_5)) {
-        renderUI = !renderUI;
-    }
-    if (input->isPressed(CREATIVE_MODE_KEY)) {
-        // Switch to Creative mode
-        player->changeMode(std::make_unique<CreativeMode>());
-    }
-    if (input->isPressed(SPECTATOR_MODE_KEY)) {
-        // Switch to Spectator mode
-        player->changeMode(std::make_unique<SpectatorMode>());
-    }
-    if (input->isPressed(SPRINT_KEY) && !player->isFlying &&
-        !player->isSwimming && player->isOnGround && glm::length(glm::vec2(player->velocity.x, player->velocity.z)) >= player->walking_speed - 0.01)    // Tiny epsilon
-        player->changeState(std::make_unique<RunningState>());
-    if (input->isReleased(SPRINT_KEY) && !player->isFlying && !player->isSwimming)
-        player->changeState(std::make_unique<WalkingState>());
-
-    // Toggle third-person/first-person camera
-    if (input->isPressed(CAMERA_SWITCH_KEY)) {
-        player->toggleCameraMode();
-    }
 #if defined(DEBUG)
     // Toggle debug AABB visualization
     if (input->isPressed(GLFW_KEY_8)) {
         debugRender = !debugRender;
     }
 #endif
+
+
     if (input->isPressed(MENU_KEY)) {
         player->getCamera()->setMouseTracking(FREE_CURSOR);
 #if defined(DEBUG)
@@ -385,13 +354,16 @@ void Application::processInput() {
         mouseClickEnabled = !mouseClickEnabled;
         FREE_CURSOR = !FREE_CURSOR;
     }
-    // Toggle wireframe mode with cooldown
+
+
+    // Toggle wireframe mode
 #if defined(DEBUG)
     if (input->isPressed(WIREFRAME_KEY)) {
         glPolygonMode(GL_FRONT_AND_BACK, WIREFRAME_MODE ? GL_LINE : GL_FILL);
         WIREFRAME_MODE = !WIREFRAME_MODE;
     }
 #endif
+
 }
 
 void Application::handleFullscreenToggle(GLFWwindow *window) {

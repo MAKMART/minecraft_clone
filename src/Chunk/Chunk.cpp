@@ -520,20 +520,27 @@ void Chunk::generateBlockFace(const Block &block, int x, int y, int z) {
         break;
     }
 }
-void Chunk::renderChunk(std::unique_ptr<Shader> &shader) {
+void Chunk::renderOpaqueMesh(std::unique_ptr<Shader> &shader) {
     shader->setMat4("model", getModelMatrix());
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
-    DrawArraysWrapper(GL_TRIANGLES, 0, opaqueFaceCount * 6);
-
-    glDisable(GL_CULL_FACE);
-    if (BLENDING) {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    }
-    DrawArraysWrapper(GL_TRIANGLES, opaqueFaceCount * 6, transparentFaceCount * 6);
-    // Restore GL state if needed
-    if (FACE_CULLING) {
-        glEnable(GL_CULL_FACE);
+    if (!faces.empty()) {
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
+        DrawArraysWrapper(GL_TRIANGLES, 0, opaqueFaceCount * 6);
     }
 
+}
+void Chunk::renderTransparentMesh(std::unique_ptr<Shader> &shader) {
+    shader->setMat4("model", getModelMatrix());
+    if (!waterFaces.empty()) {
+        glDisable(GL_CULL_FACE);
+        if (BLENDING) {
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
+        DrawArraysWrapper(GL_TRIANGLES, opaqueFaceCount * 6, transparentFaceCount * 6);
+        // Restore GL state if needed
+        if (FACE_CULLING) {
+            glEnable(GL_CULL_FACE);
+        }
+    }
 }

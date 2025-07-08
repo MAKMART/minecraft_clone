@@ -4,7 +4,7 @@
 
 // Constructor
 Camera::Camera(glm::vec3 position, glm::vec3 up, glm::quat orient)
-    : orientation(orient), trackMouse(true) {
+    : trackMouse(true), orientation(orient) {
     Position = position;
     WorldUp = up;
     Target = position; // Initially, target is the same as position
@@ -12,7 +12,7 @@ Camera::Camera(glm::vec3 position, glm::vec3 up, glm::quat orient)
 
 // Constructor with scalar values
 Camera::Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, glm::quat orient)
-    : orientation(orient), trackMouse(true) {
+    : trackMouse(true), orientation(orient) {
     Position = glm::vec3(posX, posY, posZ);
     WorldUp = glm::vec3(upX, upY, upZ);
     Target = Position;
@@ -23,6 +23,7 @@ void Camera::setPosition(const glm::vec3 &newPos) {
         Position = newPos;
         if (isThirdPerson)
             UpdateThirdPerson(Target); // Maintain third-person consistency
+        updateFrustumPlanes();
     }
 }
 
@@ -151,6 +152,7 @@ void Camera::ProcessMouseMovement(float xoffset, float yoffset, GLboolean constr
     if (isThirdPerson) {
         UpdateThirdPerson(Target);
     }
+    updateFrustumPlanes();
 }
 
 // Process mouse scroll input
@@ -178,6 +180,7 @@ void Camera::UpdateThirdPerson(const glm::vec3 &target) {
     offset = orientation * offset;
     // Set position
     Position = Target + offset;
+    updateFrustumPlanes(); // <--- Position changed
 }
 // Switch to third-person mode
 void Camera::SwitchToThirdPerson(const glm::vec3 &target, std::optional<float> distance) {

@@ -63,7 +63,7 @@ class ChunkManager {
 
     void unloadDistantChunks(glm::vec3 playerPosition, int unloadDistance);
 
-    void renderChunks(glm::vec3 player_position, unsigned int render_distance, const Camera &camera, float time);
+    void renderChunks(const glm::vec3 &player_position, unsigned int render_distance, const Camera &camera, float time);
 
     // Get a chunk by its world position
     std::shared_ptr<Chunk> getChunk(glm::vec3 worldPos) const;

@@ -16,7 +16,7 @@ class PlayerMode;
 
 class Player {
   public:
-    Player(glm::vec3 spawnPos, GLFWwindow *window);
+    Player(glm::vec3 spawnPos, std::shared_ptr<InputManager> input);
     ~Player(void);
 
     enum ACTION { BREAK_BLOCK,
@@ -27,6 +27,19 @@ class Player {
     const char *getMode(void) const;  // For debugging
     const char *getState(void) const; // For debugging
 
+    template <typename Mode, typename... Args>
+        void changeMode(Args&&... args) {
+            static_assert(std::is_base_of<PlayerMode, Mode>::value, "Mode must derive from PlayerMode");
+            changeMode(std::make_unique<Mode>(std::forward<Args>(args)...));
+        }
+
+    template <typename State, typename... Args>
+        void changeState(Args&&... args) {
+            static_assert(std::is_base_of<PlayerState, State>::value, "Mode must derive from PlayerMode");
+            changeState(std::make_unique<State>(std::forward<Args>(args)...));
+        }
+
+
     void changeMode(std::unique_ptr<PlayerMode> newMode);
     void changeState(std::unique_ptr<PlayerState> newState);
     void update(float deltaTime, ChunkManager &chunkManager);
@@ -34,7 +47,8 @@ class Player {
     void loadSkin(const std::string &path);
     void loadSkin(const std::filesystem::path &path);
     void processMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch);
-    void processMouseInput(ACTION action, ChunkManager &chunkManager);
+    void processMouseInput(ChunkManager &chunkManager);
+    void processKeyInput(bool FREE_CURSOR);
     void processMouseScroll(float yoffset);
     void setPos(glm::vec3 newPos);
     void toggleCameraMode(void);
@@ -79,7 +93,7 @@ class Player {
     // Public members
     std::unique_ptr<PlayerState> currentState;
     std::unique_ptr<PlayerMode> currentMode;
-    std::unique_ptr<InputManager> input;
+    std::shared_ptr<InputManager> input;
     std::unique_ptr<Texture> skinTexture;
     Camera *_camera;
 

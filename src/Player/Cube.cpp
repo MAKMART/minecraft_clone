@@ -8,110 +8,116 @@ Cube::Cube(glm::vec3 size, BodyPartType type) : size_(size) {
     float yBase = 0.0f;
     float yTop = size.y;
     float halfZ = size.z / 2.0f;
-    float texScale = 1.0f / 64.0f;
 
-    // Define texture regions for each face
     TextureRegion frontRegion, topRegion, bottomRegion, rightRegion, leftRegion, backRegion;
     switch (type) {
-    case BodyPartType::HEAD:
-        topRegion = {glm::vec2(8, 0), glm::vec2(15, 7)};
-        bottomRegion = {glm::vec2(16, 0), glm::vec2(23, 7)};
-        rightRegion = {glm::vec2(0, 8), glm::vec2(7, 15)};
-        frontRegion = {glm::vec2(8, 8), glm::vec2(15, 15)};
-        leftRegion = {glm::vec2(16, 8), glm::vec2(23, 15)};
-        backRegion = {glm::vec2(24, 8), glm::vec2(31, 15)};
-        break;
-    case BodyPartType::TORSO:
-        topRegion = {glm::vec2(20, 16), glm::vec2(27, 19)};
-        bottomRegion = {glm::vec2(28, 16), glm::vec2(35, 19)};
-        rightRegion = {glm::vec2(16, 20), glm::vec2(19, 31)};
-        frontRegion = {glm::vec2(20, 20), glm::vec2(27, 31)};
-        leftRegion = {glm::vec2(28, 20), glm::vec2(31, 31)};
-        backRegion = {glm::vec2(32, 20), glm::vec2(39, 31)};
-        break;
-    case BodyPartType::RIGHT_ARM:
-        topRegion = {glm::vec2(44, 16), glm::vec2(47, 19)};
-        bottomRegion = {glm::vec2(48, 16), glm::vec2(51, 19)};
-        rightRegion = {glm::vec2(40, 20), glm::vec2(43, 31)};
-        frontRegion = {glm::vec2(44, 20), glm::vec2(47, 31)};
-        leftRegion = {glm::vec2(48, 20), glm::vec2(51, 31)};
-        backRegion = {glm::vec2(52, 20), glm::vec2(55, 31)};
-        break;
-    case BodyPartType::LEFT_ARM:
-        topRegion = {glm::vec2(36, 52), glm::vec2(39, 63)};
-        bottomRegion = {glm::vec2(40, 48), glm::vec2(43, 51)};
-        rightRegion = {glm::vec2(32, 52), glm::vec2(35, 63)};
-        frontRegion = {glm::vec2(20, 52), glm::vec2(23, 63)}; // Example correction
-        leftRegion = {glm::vec2(40, 52), glm::vec2(43, 63)};
-        backRegion = {glm::vec2(44, 52), glm::vec2(48, 63)};
-        break;
-    case BodyPartType::RIGHT_LEG:
-        topRegion = {glm::vec2(4, 16), glm::vec2(7, 19)};
-        bottomRegion = {glm::vec2(8, 16), glm::vec2(11, 19)};
-        rightRegion = {glm::vec2(0, 20), glm::vec2(3, 31)};
-        frontRegion = {glm::vec2(4, 20), glm::vec2(7, 31)};
-        leftRegion = {glm::vec2(8, 20), glm::vec2(11, 31)};
-        backRegion = {glm::vec2(12, 20), glm::vec2(15, 31)};
-        break;
-    case BodyPartType::LEFT_LEG:
-        topRegion = {glm::vec2(20, 48), glm::vec2(23, 51)};
-        bottomRegion = {glm::vec2(24, 48), glm::vec2(27, 51)};
-        rightRegion = {glm::vec2(16, 52), glm::vec2(19, 63)};
-        frontRegion = {glm::vec2(20, 52), glm::vec2(23, 63)};
-        leftRegion = {glm::vec2(24, 52), glm::vec2(27, 63)};
-        backRegion = {glm::vec2(28, 52), glm::vec2(31, 63)};
-        break;
+        case BodyPartType::HEAD:
+            topRegion    = {T(8, 0),   T(16, 8)};
+            bottomRegion = {T(16, 0),  T(24, 8)};
+            rightRegion  = {T(0, 8),   T(8, 16)};
+            frontRegion  = {T(8, 8),   T(16, 16)};
+            leftRegion   = {T(16, 8),  T(24, 16)};
+            backRegion   = {T(24, 8),  T(32, 16)};
+            break;
+
+        case BodyPartType::TORSO:
+            topRegion    = {T(20, 16), T(28, 20)};
+            bottomRegion = {T(28, 16), T(36, 20)};
+            rightRegion  = {T(16, 20), T(20, 32)};
+            frontRegion  = {T(20, 20), T(28, 32)};
+            leftRegion   = {T(28, 20), T(32, 32)};
+            backRegion   = {T(32, 20), T(40, 32)};
+            break;
+
+        case BodyPartType::RIGHT_ARM:
+            topRegion    = {T(44, 16), T(48, 20)};
+            bottomRegion = {T(48, 16), T(52, 20)};
+            rightRegion  = {T(40, 20), T(44, 32)};
+            frontRegion  = {T(44, 20), T(48, 32)};
+            leftRegion   = {T(48, 20), T(52, 32)};
+            backRegion   = {T(52, 20), T(56, 32)};
+            break;
+
+        case BodyPartType::LEFT_ARM:
+            // Classic skin has no separate left arm; re-use right arm's texture or fallback.
+            // 64x64 skins with extra data use this area:
+            topRegion    = {T(36, 48), T(40, 52)};
+            bottomRegion = {T(40, 48), T(44, 52)};
+            rightRegion  = {T(32, 52), T(36, 64)};
+            frontRegion  = {T(36, 52), T(40, 64)};
+            leftRegion   = {T(40, 52), T(44, 64)};
+            backRegion   = {T(44, 52), T(48, 64)};
+            break;
+
+        case BodyPartType::RIGHT_LEG:
+            topRegion    = {T(4, 16),  T(8, 20)};
+            bottomRegion = {T(8, 16),  T(12, 20)};
+            rightRegion  = {T(0, 20),  T(4, 32)};
+            frontRegion  = {T(4, 20),  T(8, 32)};
+            leftRegion   = {T(8, 20),  T(12, 32)};
+            backRegion   = {T(12, 20), T(16, 32)};
+            break;
+
+        case BodyPartType::LEFT_LEG:
+            topRegion    = {T(4, 48),  T(8, 52)};
+            bottomRegion = {T(8, 48),  T(12, 52)};
+            rightRegion  = {T(0, 52),  T(4, 64)};
+            frontRegion  = {T(4, 52),  T(8, 64)};
+            leftRegion   = {T(8, 52),  T(12, 64)};
+            backRegion   = {T(12, 52), T(16, 64)};
+            break;
     }
+
 
     // Update vertices with full texture regions
     vertices = {
         // Front face (z = halfZ, facing +z)
-        -halfX, yBase, halfZ, frontRegion.topLeft.x * texScale, frontRegion.bottomRight.y * texScale,    // Bottom-left
-        halfX, yBase, halfZ, frontRegion.bottomRight.x * texScale, frontRegion.bottomRight.y * texScale, // Bottom-right
-        halfX, yTop, halfZ, frontRegion.bottomRight.x * texScale, frontRegion.topLeft.y * texScale,      // Top-right
-        -halfX, yBase, halfZ, frontRegion.topLeft.x * texScale, frontRegion.bottomRight.y * texScale,    // Bottom-left
-        halfX, yTop, halfZ, frontRegion.bottomRight.x * texScale, frontRegion.topLeft.y * texScale,      // Top-right
-        -halfX, yTop, halfZ, frontRegion.topLeft.x * texScale, frontRegion.topLeft.y * texScale,         // Top-left
+        -halfX, yBase, halfZ, frontRegion.topLeft.x, frontRegion.bottomRight.y,    // Bottom-left
+        halfX, yBase, halfZ, frontRegion.bottomRight.x, frontRegion.bottomRight.y, // Bottom-right
+        halfX, yTop, halfZ, frontRegion.bottomRight.x, frontRegion.topLeft.y,      // Top-right
+        -halfX, yBase, halfZ, frontRegion.topLeft.x, frontRegion.bottomRight.y,    // Bottom-left
+        halfX, yTop, halfZ, frontRegion.bottomRight.x, frontRegion.topLeft.y,      // Top-right
+        -halfX, yTop, halfZ, frontRegion.topLeft.x, frontRegion.topLeft.y,         // Top-left
 
         // Back face (z = -halfZ, facing -z)
-        -halfX, yBase, -halfZ, backRegion.bottomRight.x * texScale, backRegion.bottomRight.y * texScale, // Bottom-left
-        halfX, yBase, -halfZ, backRegion.topLeft.x * texScale, backRegion.bottomRight.y * texScale,      // Bottom-right
-        halfX, yTop, -halfZ, backRegion.topLeft.x * texScale, backRegion.topLeft.y * texScale,           // Top-right
-        -halfX, yBase, -halfZ, backRegion.bottomRight.x * texScale, backRegion.bottomRight.y * texScale, // Bottom-left
-        halfX, yTop, -halfZ, backRegion.topLeft.x * texScale, backRegion.topLeft.y * texScale,           // Top-right
-        -halfX, yTop, -halfZ, backRegion.bottomRight.x * texScale, backRegion.topLeft.y * texScale,      // Top-left
+        -halfX, yBase, -halfZ, backRegion.bottomRight.x, backRegion.bottomRight.y, // Bottom-left
+        halfX, yBase, -halfZ, backRegion.topLeft.x, backRegion.bottomRight.y,      // Bottom-right
+        halfX, yTop, -halfZ, backRegion.topLeft.x, backRegion.topLeft.y,           // Top-right
+        -halfX, yBase, -halfZ, backRegion.bottomRight.x, backRegion.bottomRight.y, // Bottom-left
+        halfX, yTop, -halfZ, backRegion.topLeft.x, backRegion.topLeft.y,           // Top-right
+        -halfX, yTop, -halfZ, backRegion.bottomRight.x, backRegion.topLeft.y,      // Top-left
 
         // Left face (x = -halfX, facing -x)
-        -halfX, yBase, halfZ, leftRegion.bottomRight.x * texScale, leftRegion.bottomRight.y * texScale, // Bottom-front
-        -halfX, yBase, -halfZ, leftRegion.topLeft.x * texScale, leftRegion.bottomRight.y * texScale,    // Bottom-back
-        -halfX, yTop, -halfZ, leftRegion.topLeft.x * texScale, leftRegion.topLeft.y * texScale,         // Top-back
-        -halfX, yBase, halfZ, leftRegion.bottomRight.x * texScale, leftRegion.bottomRight.y * texScale, // Bottom-front
-        -halfX, yTop, -halfZ, leftRegion.topLeft.x * texScale, leftRegion.topLeft.y * texScale,         // Top-back
-        -halfX, yTop, halfZ, leftRegion.bottomRight.x * texScale, leftRegion.topLeft.y * texScale,      // Top-front
+        -halfX, yBase, halfZ, leftRegion.bottomRight.x, leftRegion.bottomRight.y, // Bottom-front
+        -halfX, yBase, -halfZ, leftRegion.topLeft.x, leftRegion.bottomRight.y,    // Bottom-back
+        -halfX, yTop, -halfZ, leftRegion.topLeft.x, leftRegion.topLeft.y,         // Top-back
+        -halfX, yBase, halfZ, leftRegion.bottomRight.x, leftRegion.bottomRight.y, // Bottom-front
+        -halfX, yTop, -halfZ, leftRegion.topLeft.x, leftRegion.topLeft.y,         // Top-back
+        -halfX, yTop, halfZ, leftRegion.bottomRight.x, leftRegion.topLeft.y,      // Top-front
 
         // Right face (x = halfX, facing +x)
-        halfX, yBase, -halfZ, rightRegion.topLeft.x * texScale, rightRegion.bottomRight.y * texScale,    // Bottom-back
-        halfX, yBase, halfZ, rightRegion.bottomRight.x * texScale, rightRegion.bottomRight.y * texScale, // Bottom-front
-        halfX, yTop, halfZ, rightRegion.bottomRight.x * texScale, rightRegion.topLeft.y * texScale,      // Top-front
-        halfX, yBase, -halfZ, rightRegion.topLeft.x * texScale, rightRegion.bottomRight.y * texScale,    // Bottom-back
-        halfX, yTop, halfZ, rightRegion.bottomRight.x * texScale, rightRegion.topLeft.y * texScale,      // Top-front
-        halfX, yTop, -halfZ, rightRegion.topLeft.x * texScale, rightRegion.topLeft.y * texScale,         // Top-back
+        halfX, yBase, -halfZ, rightRegion.topLeft.x, rightRegion.bottomRight.y,    // Bottom-back
+        halfX, yBase, halfZ, rightRegion.bottomRight.x, rightRegion.bottomRight.y, // Bottom-front
+        halfX, yTop, halfZ, rightRegion.bottomRight.x, rightRegion.topLeft.y,      // Top-front
+        halfX, yBase, -halfZ, rightRegion.topLeft.x, rightRegion.bottomRight.y,    // Bottom-back
+        halfX, yTop, halfZ, rightRegion.bottomRight.x, rightRegion.topLeft.y,      // Top-front
+        halfX, yTop, -halfZ, rightRegion.topLeft.x, rightRegion.topLeft.y,         // Top-back
 
         // Top face (y = yTop, facing +y)
-        -halfX, yTop, halfZ, topRegion.topLeft.x * texScale, topRegion.bottomRight.y * texScale,    // Front-left
-        halfX, yTop, halfZ, topRegion.bottomRight.x * texScale, topRegion.bottomRight.y * texScale, // Front-right
-        halfX, yTop, -halfZ, topRegion.bottomRight.x * texScale, topRegion.topLeft.y * texScale,    // Back-right
-        -halfX, yTop, halfZ, topRegion.topLeft.x * texScale, topRegion.bottomRight.y * texScale,    // Front-left
-        halfX, yTop, -halfZ, topRegion.bottomRight.x * texScale, topRegion.topLeft.y * texScale,    // Back-right
-        -halfX, yTop, -halfZ, topRegion.topLeft.x * texScale, topRegion.topLeft.y * texScale,       // Back-left
+        -halfX, yTop, halfZ, topRegion.topLeft.x, topRegion.bottomRight.y,    // Front-left
+        halfX, yTop, halfZ, topRegion.bottomRight.x, topRegion.bottomRight.y, // Front-right
+        halfX, yTop, -halfZ, topRegion.bottomRight.x, topRegion.topLeft.y,    // Back-right
+        -halfX, yTop, halfZ, topRegion.topLeft.x, topRegion.bottomRight.y,    // Front-left
+        halfX, yTop, -halfZ, topRegion.bottomRight.x, topRegion.topLeft.y,    // Back-right
+        -halfX, yTop, -halfZ, topRegion.topLeft.x, topRegion.topLeft.y,       // Back-left
 
         // Bottom face (y = yBase, facing -y)
-        -halfX, yBase, -halfZ, bottomRegion.topLeft.x * texScale, bottomRegion.bottomRight.y * texScale,    // Back-left
-        halfX, yBase, -halfZ, bottomRegion.bottomRight.x * texScale, bottomRegion.bottomRight.y * texScale, // Back-right
-        halfX, yBase, halfZ, bottomRegion.bottomRight.x * texScale, bottomRegion.topLeft.y * texScale,      // Front-right
-        -halfX, yBase, -halfZ, bottomRegion.topLeft.x * texScale, bottomRegion.bottomRight.y * texScale,    // Back-left
-        halfX, yBase, halfZ, bottomRegion.bottomRight.x * texScale, bottomRegion.topLeft.y * texScale,      // Front-right
-        -halfX, yBase, halfZ, bottomRegion.topLeft.x * texScale, bottomRegion.topLeft.y * texScale          // Front-left
+        -halfX, yBase, -halfZ, bottomRegion.topLeft.x, bottomRegion.bottomRight.y,    // Back-left
+        halfX, yBase, -halfZ, bottomRegion.bottomRight.x, bottomRegion.bottomRight.y, // Back-right
+        halfX, yBase, halfZ, bottomRegion.bottomRight.x, bottomRegion.topLeft.y,      // Front-right
+        -halfX, yBase, -halfZ, bottomRegion.topLeft.x, bottomRegion.bottomRight.y,    // Back-left
+        halfX, yBase, halfZ, bottomRegion.bottomRight.x, bottomRegion.topLeft.y,      // Front-right
+        -halfX, yBase, halfZ, bottomRegion.topLeft.x, bottomRegion.topLeft.y          // Front-left
     };
 
     setupBuffers();

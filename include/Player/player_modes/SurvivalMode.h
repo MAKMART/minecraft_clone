@@ -15,7 +15,7 @@ class SurvivalMode : public PlayerMode {
         player.canPlaceBlocks = true;
         player.renderSkin = true;
 
-        player.changeState(std::make_unique<WalkingState>()); // Default state in Survival is Walking
+        player.changeState<WalkingState>(); // Default state in Survival is Walking
     }
 
     void exitMode(Player &player) override {

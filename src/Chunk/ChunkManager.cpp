@@ -295,18 +295,15 @@ Chunk *ChunkManager::getChunk(glm::vec3 worldPos, bool returnRawPointer) const {
     }
 }
 
-void ChunkManager::renderChunks(glm::vec3 player_position, unsigned int render_distance, const Camera &camera, float time) {
-
+void ChunkManager::renderChunks(const glm::vec3& player_position, unsigned int render_distance, const Camera &camera, float time) {
     chunkShader->use();
     chunkShader->setMat4("projection", camera.GetProjectionMatrix());
     chunkShader->setMat4("view", camera.GetViewMatrix());
     chunkShader->setFloat("time", time);
 
-    // Calculate the player's current chunk position (X, Z)
     int playerChunkX = static_cast<int>(floor(player_position.x / chunkSize.x));
     int playerChunkZ = static_cast<int>(floor(player_position.z / chunkSize.z));
 
-    // If the player has moved to a new chunk, update loaded chunks
     if (playerChunkX != lastChunkX || playerChunkZ != lastChunkZ) {
         loadChunksAroundPlayer(player_position, render_distance);
         if (render_distance > 0)
@@ -316,28 +313,37 @@ void ChunkManager::renderChunks(glm::vec3 player_position, unsigned int render_d
         lastChunkZ = playerChunkZ;
     }
 
-    // Bind texture once for all chunks (reduces state changes)
     chunksTexture->Bind(0);
-
     glBindVertexArray(VAO);
-    // Optimize chunk rendering loop
-    for (const auto &[key, chunk] : chunks) {
+
+    // Separate opaque and transparent lists
+    std::vector<std::shared_ptr<Chunk>> opaqueChunks;
+    std::vector<std::shared_ptr<Chunk>> transparentChunks;
+
+    for (const auto& [key, chunk] : chunks) {
         if (!chunk)
             continue;
 
-        // Extract chunk position by reference (avoids unnecessary copying)
-        const int &x = std::get<0>(key);
-        const int &y = std::get<1>(key);
-        const int &z = std::get<2>(key);
-
-        glm::vec3 worldPos = glm::vec3(x * chunkSize.x, y * chunkSize.y, z * chunkSize.z);
-
-        // Check if chunk is within camera view
         if (!camera.isChunkVisible(chunk->getAABB()))
             continue;
-        // Render the chunk with the current shader
-        chunk->renderChunk(chunkShader);
+
+        if (chunk->hasOpaqueMesh())
+            opaqueChunks.emplace_back(chunk);
+        if (chunk->hasTransparentMesh())
+            transparentChunks.emplace_back(chunk);
     }
+
+    // Render opaque
+    for (auto& chunk : opaqueChunks) {
+        chunk->renderOpaqueMesh(chunkShader);
+    }
+
+    // Render transparent
+    for (auto& chunk : transparentChunks) {
+        chunk->renderTransparentMesh(chunkShader);
+    }
+
     glBindVertexArray(0);
     chunksTexture->Unbind(0);
 }
+

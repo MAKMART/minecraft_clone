@@ -63,6 +63,11 @@ class Camera {
         return orientation * glm::vec3(0.0f, 1.0f, 0.0f); // +Y is up
     }
 
+    void setFOV(float newFOV) {
+        FOV = newFOV;
+        updateFrustumPlanes();
+    }
+
     // Returns the projection matrix
     glm::mat4 GetProjectionMatrix() const;
 
@@ -79,7 +84,6 @@ class Camera {
 
     // Checks if a chunk is visible
     bool isChunkVisible(const AABB &bounds) const {
-        const auto planes = extractFrustumPlanes();
 
         for (const auto &plane : planes) {
             glm::vec3 farthestPoint = bounds.getFarthestPoint(plane.normal);
@@ -91,6 +95,9 @@ class Camera {
         }
 
         return true; // AABB intersects or is inside all planes
+    }
+    void updateFrustumPlanes() {
+        planes = extractFrustumPlanes();
     }
 
 
@@ -120,6 +127,8 @@ class Camera {
         glm::vec3 normal;
         float distance;
     };
+    std::array<FrustumPlane, 6> planes;
+
 
     // Extract frustum planes from the view-projection matrix
     std::array<FrustumPlane, 6> extractFrustumPlanes() const;

@@ -23,6 +23,11 @@ class Cube {
     };
 
   private:
+    float texScale = 1.0f / 64.0f;
+    inline glm::vec2 T(float x, float y) {
+        return glm::vec2(x * texScale, (y * texScale));
+    }
+
     GLuint SSBO = 0, VAO, VBO;
     struct Side {
         int32_t packed;

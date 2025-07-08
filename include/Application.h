@@ -55,7 +55,7 @@ class Application {
     std::unique_ptr<Shader> playerShader;
     std::unique_ptr<ChunkManager> chunkManager;
     std::unique_ptr<Player> player;
-    std::unique_ptr<InputManager> input;
+    std::shared_ptr<InputManager> input;
     std::unique_ptr<UI> ui;
 
     void initWindow(void);
