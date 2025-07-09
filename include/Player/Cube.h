@@ -18,25 +18,38 @@ class Cube {
     ~Cube(void);
     void render(const glm::mat4 &transform);
     struct TextureRegion {
-        glm::vec2 topLeft;     // (x1, y1)
-        glm::vec2 bottomRight; // (x2, y2)
+        glm::vec2 topLeft;     // normalized UV
+        glm::vec2 bottomRight; // normalized UV
     };
+
+
+    glm::vec3 &getSize() {
+        return size_;
+    }
+
 
   private:
     float texScale = 1.0f / 64.0f;
     inline glm::vec2 T(float x, float y) {
-        return glm::vec2(x * texScale, (y * texScale));
+        return glm::vec2(x * texScale, y * texScale);
     }
 
-    GLuint SSBO = 0, VAO, VBO;
-    struct Side {
-        int32_t packed;
-        Side(int vx, int vy, int vz, int tex_u, int tex_v) {
-            packed = (vx & 0x3FF) | ((vy & 0x3FF) << 10) | ((vz & 0x3FF) << 20) | (tex_u & 0x3FF) | ((tex_v & 0x3FF) << 10);
+    GLuint SSBO = 0;
+    struct Face {
+        std::uint32_t position;   // packed as before
+        std::uint32_t tex_info;   // packed info for face region + face_id
+
+        Face(int vx, int vy, int vz, int u_base, int v_base, int face) {
+            position = (vx & 0x3FF) | ((vy & 0x3FF) << 10) | ((vz & 0x3FF) << 20);
+            tex_info = (u_base & 0x3FF) | ((v_base & 0x3FF) << 10) | ((face & 0x7) << 20);
         }
     };
+    float halfX;
+    float yBase;
+    float yTop;
+    float halfZ;
+
     glm::vec3 size_;
-    std::vector<Side> sides;
-    std::vector<float> vertices;
-    void setupBuffers(void);
+    std::vector<Face> faces;
+    void sendData(void);
 };

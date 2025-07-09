@@ -1,13 +1,11 @@
 #include "Cube.h"
 #include <iostream>
 #include "defines.h"
+#include "glm/ext/matrix_transform.hpp"
+#include "glm/ext/vector_int2.hpp"
 #include "logger.hpp"
 
-Cube::Cube(glm::vec3 size, BodyPartType type) : size_(size) {
-    float halfX = size.x / 2.0f;
-    float yBase = 0.0f;
-    float yTop = size.y;
-    float halfZ = size.z / 2.0f;
+Cube::Cube(glm::vec3 size, BodyPartType type) : size_(size), halfX(size.x / 2.0f), yBase(0.0f), yTop(size.y), halfZ(size.z / 2.0f) {
 
     TextureRegion frontRegion, topRegion, bottomRegion, rightRegion, leftRegion, backRegion;
     switch (type) {
@@ -68,95 +66,39 @@ Cube::Cube(glm::vec3 size, BodyPartType type) : size_(size) {
             break;
     }
 
-
-    // Update vertices with full texture regions
-    vertices = {
-        // Front face (z = halfZ, facing +z)
-        -halfX, yBase, halfZ, frontRegion.topLeft.x, frontRegion.bottomRight.y,    // Bottom-left
-        halfX, yBase, halfZ, frontRegion.bottomRight.x, frontRegion.bottomRight.y, // Bottom-right
-        halfX, yTop, halfZ, frontRegion.bottomRight.x, frontRegion.topLeft.y,      // Top-right
-        -halfX, yBase, halfZ, frontRegion.topLeft.x, frontRegion.bottomRight.y,    // Bottom-left
-        halfX, yTop, halfZ, frontRegion.bottomRight.x, frontRegion.topLeft.y,      // Top-right
-        -halfX, yTop, halfZ, frontRegion.topLeft.x, frontRegion.topLeft.y,         // Top-left
-
-        // Back face (z = -halfZ, facing -z)
-        -halfX, yBase, -halfZ, backRegion.bottomRight.x, backRegion.bottomRight.y, // Bottom-left
-        halfX, yBase, -halfZ, backRegion.topLeft.x, backRegion.bottomRight.y,      // Bottom-right
-        halfX, yTop, -halfZ, backRegion.topLeft.x, backRegion.topLeft.y,           // Top-right
-        -halfX, yBase, -halfZ, backRegion.bottomRight.x, backRegion.bottomRight.y, // Bottom-left
-        halfX, yTop, -halfZ, backRegion.topLeft.x, backRegion.topLeft.y,           // Top-right
-        -halfX, yTop, -halfZ, backRegion.bottomRight.x, backRegion.topLeft.y,      // Top-left
-
-        // Left face (x = -halfX, facing -x)
-        -halfX, yBase, halfZ, leftRegion.bottomRight.x, leftRegion.bottomRight.y, // Bottom-front
-        -halfX, yBase, -halfZ, leftRegion.topLeft.x, leftRegion.bottomRight.y,    // Bottom-back
-        -halfX, yTop, -halfZ, leftRegion.topLeft.x, leftRegion.topLeft.y,         // Top-back
-        -halfX, yBase, halfZ, leftRegion.bottomRight.x, leftRegion.bottomRight.y, // Bottom-front
-        -halfX, yTop, -halfZ, leftRegion.topLeft.x, leftRegion.topLeft.y,         // Top-back
-        -halfX, yTop, halfZ, leftRegion.bottomRight.x, leftRegion.topLeft.y,      // Top-front
-
-        // Right face (x = halfX, facing +x)
-        halfX, yBase, -halfZ, rightRegion.topLeft.x, rightRegion.bottomRight.y,    // Bottom-back
-        halfX, yBase, halfZ, rightRegion.bottomRight.x, rightRegion.bottomRight.y, // Bottom-front
-        halfX, yTop, halfZ, rightRegion.bottomRight.x, rightRegion.topLeft.y,      // Top-front
-        halfX, yBase, -halfZ, rightRegion.topLeft.x, rightRegion.bottomRight.y,    // Bottom-back
-        halfX, yTop, halfZ, rightRegion.bottomRight.x, rightRegion.topLeft.y,      // Top-front
-        halfX, yTop, -halfZ, rightRegion.topLeft.x, rightRegion.topLeft.y,         // Top-back
-
-        // Top face (y = yTop, facing +y)
-        -halfX, yTop, halfZ, topRegion.topLeft.x, topRegion.bottomRight.y,    // Front-left
-        halfX, yTop, halfZ, topRegion.bottomRight.x, topRegion.bottomRight.y, // Front-right
-        halfX, yTop, -halfZ, topRegion.bottomRight.x, topRegion.topLeft.y,    // Back-right
-        -halfX, yTop, halfZ, topRegion.topLeft.x, topRegion.bottomRight.y,    // Front-left
-        halfX, yTop, -halfZ, topRegion.bottomRight.x, topRegion.topLeft.y,    // Back-right
-        -halfX, yTop, -halfZ, topRegion.topLeft.x, topRegion.topLeft.y,       // Back-left
-
-        // Bottom face (y = yBase, facing -y)
-        -halfX, yBase, -halfZ, bottomRegion.topLeft.x, bottomRegion.bottomRight.y,    // Back-left
-        halfX, yBase, -halfZ, bottomRegion.bottomRight.x, bottomRegion.bottomRight.y, // Back-right
-        halfX, yBase, halfZ, bottomRegion.bottomRight.x, bottomRegion.topLeft.y,      // Front-right
-        -halfX, yBase, -halfZ, bottomRegion.topLeft.x, bottomRegion.bottomRight.y,    // Back-left
-        halfX, yBase, halfZ, bottomRegion.bottomRight.x, bottomRegion.topLeft.y,      // Front-right
-        -halfX, yBase, halfZ, bottomRegion.topLeft.x, bottomRegion.topLeft.y          // Front-left
+    auto pushFace = [this](glm::vec3 offset, glm::ivec2 uv, int face) {
+        // Scale offsets to fit 10-bit range (0–1023)
+        float scale = 1023.0f / std::max(std::max(size_.x, size_.y), size_.z); // Normalize to largest dimension
+        faces.emplace_back(Face(offset.x * scale, offset.y * scale, offset.z * scale, uv.x, uv.y, face));
     };
 
-    setupBuffers();
+    const float centerY = (yTop + yBase) / 2.0f;
+    const float height = yTop - yBase;
+
+    // These are offsets from the center, not absolute
+    pushFace(glm::vec3(0.0f, 0.0f,  halfZ), glm::ivec2(frontRegion.topLeft.x * 64, frontRegion.topLeft.y * 64), 0); // Front
+    pushFace(glm::vec3(0.0f, 0.0f, -halfZ), glm::ivec2(backRegion.topLeft.x * 64, backRegion.topLeft.y * 64),  1); // Back
+    pushFace(glm::vec3(-halfX, 0.0f, 0.0f), glm::ivec2(leftRegion.topLeft.x * 64, leftRegion.topLeft.y * 64),  2); // Left
+    pushFace(glm::vec3( halfX, 0.0f, 0.0f), glm::ivec2(rightRegion.topLeft.x * 64, rightRegion.topLeft.y * 64), 3); // Right
+    pushFace(glm::vec3(0.0f,  height / 2.0f, 0.0f), glm::ivec2(topRegion.topLeft.x * 64, topRegion.topLeft.y * 64),   4); // Top
+    pushFace(glm::vec3(0.0f, -height / 2.0f, 0.0f), glm::ivec2(bottomRegion.topLeft.x * 64, bottomRegion.topLeft.y * 64), 5); // Bottom
+
+    sendData();
 }
 Cube::~Cube(void) {
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
+    if (SSBO)
+        glDeleteBuffers(1, &SSBO);
 }
-void Cube::setupBuffers(void) {
-    // Create VAO and VBO
-    glCreateVertexArrays(1, &VAO);
-    glCreateBuffers(1, &VBO);
+void Cube::sendData(void) {
+    glCreateBuffers(1, &SSBO);
+    glNamedBufferData(SSBO, faces.size() * sizeof(Face), faces.data(), GL_DYNAMIC_DRAW);
 
-    // Upload vertex data to the VBO
-    glNamedBufferData(VBO, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
-
-    // Bind vertex buffer to VAO at binding index 0
-    glVertexArrayVertexBuffer(VAO, 0, VBO, 0, 5 * sizeof(float));
-
-    // Configure vertex attributes
-    glEnableVertexArrayAttrib(VAO, 0);
-    glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, 0);
-    glVertexArrayAttribBinding(VAO, 0, 0); // Bind attribute 0 to binding index 0
-
-    glEnableVertexArrayAttrib(VAO, 1);
-    glVertexArrayAttribFormat(VAO, 1, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float));
-    glVertexArrayAttribBinding(VAO, 1, 0); // Bind attribute 1 to binding index 0
 }
-
 void Cube::render(const glm::mat4 &transform) {
-    glBindVertexArray(VAO);
-    DrawArraysWrapper(GL_TRIANGLES, 0, 36); // 36 vertices for 12 triangles
-    glBindVertexArray(0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, SSBO);
+    DrawArraysWrapper(GL_TRIANGLES, 0, faces.size() * 6);
 
 #if defined(DEBUG)
-    float halfX = size_.x / 2.0f;
-    float yBase = 0.0f;
-    float yTop = size_.y;
-    float halfZ = size_.z / 2.0f;
     glm::vec3 halfExtents(halfX, (yTop - yBase) / 2.0f, halfZ);
     getDebugDrawer().addOBB(transform, halfExtents, glm::vec3(1.0f, 0.0f, 0.0f));
 #endif

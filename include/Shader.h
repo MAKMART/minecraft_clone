@@ -214,9 +214,11 @@ private:
             fragmentCode = fShaderStream.str();
 
             if (vertexCode.empty() || fragmentCode.empty()) {
+                log::system_error("Shader", "Shader source code is empty.");
                 throw std::runtime_error("Shader source code is empty.");
             }
         } catch (std::ifstream::failure& e) {
+            log::system_error("Shader", "Failed to read shader files: {}", std::string(e.what()));
             throw std::runtime_error("Failed to read shader files: " + std::string(e.what()));
         }
 
@@ -245,6 +247,7 @@ private:
         if (!programSuccess) {
             char infoLog[1024];
             glGetProgramInfoLog(program, 1024, nullptr, infoLog);
+            log::system_error("Shader", "Shader validation failed: {}", infoLog);
             throw std::runtime_error(std::string("Shader validation failed:\n") + infoLog);
         }
 
@@ -261,12 +264,14 @@ private:
             glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
             if (!success) {
                 glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
+                log::system_error("Shader", "SHADER_COMPILATION_ERROR of type: {}\n{}", type, infoLog);
                 throw std::runtime_error("SHADER_COMPILATION_ERROR of type: " + type + "\n" + infoLog);
             }
         } else {
             glGetProgramiv(shader, GL_LINK_STATUS, &success);
             if (!success) {
                 glGetProgramInfoLog(shader, 1024, nullptr, infoLog);
+                log::system_error("Shader", "PROGRAM_LINKING_ERROR of type: {}\n{}", type, infoLog);
                 throw std::runtime_error("PROGRAM_LINKING_ERROR of type: " + type + "\n" + infoLog);
             }
         }

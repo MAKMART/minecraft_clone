@@ -17,7 +17,7 @@ class PlayerMode;
 class Player {
   public:
     Player(glm::vec3 spawnPos, std::shared_ptr<InputManager> input);
-    ~Player(void);
+    ~Player();
 
     enum ACTION { BREAK_BLOCK,
                   PLACE_BLOCK };
@@ -106,7 +106,7 @@ class Player {
     struct BodyPart {
         std::unique_ptr<Cube> cube;
         glm::vec3 offset;
-        glm::mat4 transform;
+        glm::mat4 transform = glm::mat4(1.0f);
     };
     std::vector<BodyPart> bodyParts;
 
@@ -124,6 +124,11 @@ class Player {
     glm::vec3 leftLegOffset = glm::vec3(2, 0, 0);
 
     glm::vec3 armOffset = glm::vec3(0.3f, -0.792f, -0.5f); // Right, down, forward
+    
+
+    GLuint skinVAO;
+
+
     // --- Player Settings ---
     float animationTime;
     float scaleFactor;

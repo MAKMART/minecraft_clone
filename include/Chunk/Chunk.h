@@ -102,11 +102,13 @@ struct Block {
 };
 
 struct Face {
-    uint32_t position;
-    uint32_t
-        tex_coord; // Bits 0-9: u, 10-19: v, 20-22: face_id, 23-31: block_type
+    std::uint32_t position;
+    std::uint32_t tex_coord; // Bits:
+                             // 0-9: u,
+                             // 10-19: v,
+                             // 20-22: face_id,
+                             // 23-31: block_type
 
-    // Constructor
     Face(int vx, int vy, int vz, int tex_u, int tex_v, int face, int block_type) {
         position = (vx & 0x3FF) | ((vy & 0x3FF) << 10) | ((vz & 0x3FF) << 20);
         tex_coord = (tex_u & 0x3FF) | ((tex_v & 0x3FF) << 10) |
