@@ -1,6 +1,7 @@
 #include "Timer.h"
 #include <chrono>
 #include <imgui.h>
+#include "logger.hpp"
 
 TimingHistory g_TimingHistory;
 ImGuiTimerData g_TimerData;
@@ -76,5 +77,6 @@ void RenderTimings() {
         ImGui::ColorButton(label.c_str(), color, ImGuiColorEditFlags_NoTooltip, ImVec2(10, 10));
         ImGui::SameLine();
         ImGui::Text("%s took: %.2f ms", label.c_str(), latestMs);
+        //log::info("{} took: {} ms", label, latestMs);
     }
 }

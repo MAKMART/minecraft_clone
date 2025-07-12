@@ -338,10 +338,20 @@ void ChunkManager::renderChunks(const glm::vec3& player_position, unsigned int r
         chunk->renderOpaqueMesh(chunkShader);
     }
 
+    glDisable(GL_CULL_FACE);
+    if (BLENDING) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
     // Render transparent
     for (auto& chunk : transparentChunks) {
         chunk->renderTransparentMesh(chunkShader);
     }
+    // Restore GL state if needed
+    if (FACE_CULLING) {
+        glEnable(GL_CULL_FACE);
+    }
+
 
     glBindVertexArray(0);
     chunksTexture->Unbind(0);

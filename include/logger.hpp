@@ -131,13 +131,6 @@ public:
     }
 
     // Structured logging (just key=value for now)
-    /*static void structured(std::string_view system, LogLevel level, std::string_view message, const std::map<std::string, std::string>& fields) {
-        std::ostringstream msg;
-        msg << message;
-        for (const auto& [k, v] : fields)
-            msg << " " << k << "=" << v;
-        write_log(level, system, "{}", msg.str());
-    }*/
     static void structured(std::string_view system, LogLevel level, std::string_view message, const std::map<std::string, std::string>& fields) {
         std::ostringstream msg;
         msg << message;

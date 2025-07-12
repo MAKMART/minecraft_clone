@@ -17,10 +17,10 @@ class PlayerMode;
 class Player {
   public:
     Player(glm::vec3 spawnPos, std::shared_ptr<InputManager> input);
+
     ~Player();
 
-    enum ACTION { BREAK_BLOCK,
-                  PLACE_BLOCK };
+    enum ACTION { BREAK_BLOCK, PLACE_BLOCK };
 
     glm::vec3 getPos(void) const;
     Camera *getCamera(void) const;
@@ -110,21 +110,9 @@ class Player {
     };
     std::vector<BodyPart> bodyParts;
 
-    // Base sizes
-    glm::vec3 headSize = glm::vec3(8, 8, 8);
-    glm::vec3 torsoSize = glm::vec3(8, 12, 4);
-    glm::vec3 limbSize = glm::vec3(4, 12, 4);
-
-    // Base offsets
-    glm::vec3 headOffset = glm::vec3(0, 18, 0);
-    glm::vec3 torsoOffset = glm::vec3(0, 6, 0);
-    glm::vec3 rightArmOffset = glm::vec3(-6, 6, 0);
-    glm::vec3 leftArmOffset = glm::vec3(6, 6, 0);
-    glm::vec3 rightLegOffset = glm::vec3(-2, 0, 0);
-    glm::vec3 leftLegOffset = glm::vec3(2, 0, 0);
-
     glm::vec3 armOffset = glm::vec3(0.3f, -0.792f, -0.5f); // Right, down, forward
-    
+
+
 
     GLuint skinVAO;
 
@@ -146,7 +134,7 @@ class Player {
     float playerHeight = 1.8f;
     float prevPlayerHeight;
     float eyeHeight;
-    int selectedBlock = 1;
+    std::uint8_t selectedBlock = 1;
 
     // --- Player Flags ---
     bool isOnGround = false;

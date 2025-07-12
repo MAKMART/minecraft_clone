@@ -26,6 +26,9 @@ class Cube {
     glm::vec3 &getSize() {
         return size_;
     }
+    GLuint &getSSBO() {
+        return SSBO;
+    }
 
 
   private:

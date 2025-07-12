@@ -113,16 +113,13 @@ Application::Application(int width, int height)
     input = std::make_shared<InputManager>(window);
     log::info("Initializing Shaders...");
     try {
-        playerShader = std::make_unique<Shader>(PLAYER_VERTEX_SHADER_DIRECTORY,
-                                                PLAYER_FRAGMENT_SHADER_DIRECTORY);
+        playerShader = std::make_unique<Shader>(PLAYER_VERTEX_SHADER_DIRECTORY, PLAYER_FRAGMENT_SHADER_DIRECTORY);
     } catch (const std::exception &e) {
         log::error("Failed to create Shader!!");
     }
-    crossHairshader = std::make_unique<Shader>(
-        CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
+    crossHairshader = std::make_unique<Shader>(CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
     log::info("Initializing Textures...");
-    crossHairTexture = std::make_unique<Texture>(ICONS_DIRECTORY, GL_RGBA,
-                                                 GL_REPEAT, GL_NEAREST);
+    crossHairTexture = std::make_unique<Texture>(ICONS_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
     log::info("Initializing Player...");
     player = std::make_unique<Player>(glm::vec3(0.0f, (float)(chunkSize.y) - 1.0f, 0.0f), input);
     log::info("Initializing Chunk Manager...");
@@ -143,8 +140,7 @@ Application::Application(int width, int height)
     // Initialize ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    // ImGuiIO& io = ImGui::GetIO(); // Avoid unused variable warning if not using
-    // io directly
+    // ImGuiIO& io = ImGui::GetIO();
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460");
@@ -215,7 +211,7 @@ void Application::initWindow(void) {
     if (glfwRawMouseMotionSupported()) {
         glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
     } else {
-        log::error("Raw Mouse Motion not supported!");
+        log::info("Raw Mouse Motion not supported!");
     }
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
@@ -334,7 +330,9 @@ void Application::processInput() {
 
     if (input->isPressed(GLFW_KEY_H)) {
         chunkManager->chunkShader->reload();
+        playerShader->reload();
     }
+    playerShader->checkAndReloadIfModified();
 
 #if defined(DEBUG)
     // Toggle debug AABB visualization
@@ -619,21 +617,17 @@ void Application::Run(void) {
                                             1.0f);
                         ImGui::SliderFloat("LINE_WIDTH", &LINE_WIDTH, 0.001f, 9.0f);
                         // --- Player Model Attributes ---
+                        /*
                         ImGui::SliderFloat3("headSize", &player->headSize.x, 0.0f, 50.0f);
                         ImGui::SliderFloat3("torsoSize", &player->torsoSize.x, 0.0f, 50.0f);
                         ImGui::SliderFloat3("limbSize", &player->limbSize.x, 0.0f, 50.0f);
-                        ImGui::SliderFloat3("headOffset", &player->headOffset.x, -10.0f,
-                                            50.0f);
-                        ImGui::SliderFloat3("torsoOffset", &player->torsoOffset.x, -10.0f,
-                                            50.0f);
-                        ImGui::SliderFloat3("rightArmOffset", &player->rightArmOffset.x,
-                                            -10.0f, 50.0f);
-                        ImGui::SliderFloat3("leftArmOffset", &player->leftArmOffset.x,
-                                            -10.0f, 50.0f);
-                        ImGui::SliderFloat3("rightLegOffset", &player->rightLegOffset.x,
-                                            -10.0f, 50.0f);
-                        ImGui::SliderFloat3("leftLegOffset", &player->leftLegOffset.x,
-                                            -10.0f, 50.0f);
+                        ImGui::SliderFloat3("headOffset", &player->headOffset.x, -10.0f, 50.0f);
+                        ImGui::SliderFloat3("torsoOffset", &player->torsoOffset.x, -10.0f, 50.0f);
+                        ImGui::SliderFloat3("rightArmOffset", &player->rightArmOffset.x, -10.0f, 50.0f);
+                        ImGui::SliderFloat3("leftArmOffset", &player->leftArmOffset.x, -10.0f, 50.0f);
+                        ImGui::SliderFloat3("rightLegOffset", &player->rightLegOffset.x, -10.0f, 50.0f);
+                        ImGui::SliderFloat3("leftLegOffset", &player->leftLegOffset.x, -10.0f, 50.0f);
+                        */
                         ImGui::Checkbox("renderTerrain", &renderTerrain);
                         ImGui::Checkbox("renderPlayer", &player->renderSkin);
                         static bool debug = false;

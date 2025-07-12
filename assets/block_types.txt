@@ -1,5 +1,0 @@
-0 = air  = default
-1 = dirt = terra
-2 = grass = erba
-3 = stone = roccia
-4 = 

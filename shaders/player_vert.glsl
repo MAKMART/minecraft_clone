@@ -11,7 +11,7 @@ layout(std430, binding = 1) readonly buffer vertexPullBuffer
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
-uniform vec3 cubeSize; // Add cubeSize uniform
+uniform vec3 cubeSize;
 
 const vec3 facePositions[6][4] = vec3[6][4](
     // FRONT (+Z)
@@ -79,7 +79,8 @@ void main() {
     float x = float(packedPosition & 0x3FFu) * scale;
     float y = float((packedPosition >> 10) & 0x3FFu) * scale;
     float z = float((packedPosition >> 20) & 0x3FFu) * scale;
-    vec3 faceCenter = vec3(x, y, z);
+    float maxDim = max(max(cubeSize.x, cubeSize.y), cubeSize.z);
+    vec3 faceCenter = vec3(x, y, z) * maxDim; // Scale to match original offset
 
     // Unpack tex_info
     uint u_base = packedTexCoord & 0x3FFu;

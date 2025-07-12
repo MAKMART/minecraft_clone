@@ -51,7 +51,23 @@ void Player::toggleCameraMode(void) {
 }
 void Player::setupBodyParts(void) {
     bodyParts.resize(6);
+    
+    // Base sizes
+    glm::vec3 headSize = glm::vec3(8, 8, 8);
+    glm::vec3 torsoSize = glm::vec3(8, 12, 4);
+    glm::vec3 limbSize = glm::vec3(4, 12, 4);
 
+    // Base offsets
+    glm::vec3 headOffset = glm::vec3(0, 18, 0);
+    glm::vec3 torsoOffset = glm::vec3(0, 6, 0);
+    glm::vec3 rightArmOffset = glm::vec3(-6, 6, 0);
+    glm::vec3 leftArmOffset = glm::vec3(6, 6, 0);
+    glm::vec3 rightLegOffset = glm::vec3(-2, 0, 0);
+    glm::vec3 leftLegOffset = glm::vec3(2, 0, 0);
+
+
+
+ 
     // Apply scale factor
     headSize *= scaleFactor;
     torsoSize *= scaleFactor;
@@ -198,9 +214,13 @@ void Player::render(const Shader &shader) {
     shader.setMat4("projection", getCamera()->GetProjectionMatrix());
     skinTexture->Bind(1);
     glBindVertexArray(skinVAO);
+    log::system_info("Player", "Bound VAO: {}", skinVAO);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, bodyParts[0].cube->getSSBO()); // Bind first cube's SSBO
 
     glm::vec3 forward = getCamera()->getFront();
 
+    glDisable(GL_CULL_FACE);
 
     if (isThirdPerson) {
         // Flatten the camera direction to ignore Y (vertical) component for horizontal facing
@@ -227,6 +247,7 @@ void Player::render(const Shader &shader) {
         for (const auto &part : bodyParts) {
             glm::mat4 transform = baseTransform * glm::translate(glm::mat4(1.0f), part.offset) * part.transform;
             transform = glm::translate(transform, glm::vec3(0, 0.5, 0));
+            log::system_info("Player", "Rendering body part with size: {}", glm::to_string(part.cube->getSize()));
             shader.setVec3("cubeSize", part.cube->getSize()); // Pass size_ to shader
             shader.setMat4("model", transform);
             part.cube->render(transform);
@@ -246,14 +267,19 @@ void Player::render(const Shader &shader) {
         armTransform = glm::translate(armTransform, glm::vec3(0, 0.5, 0));
 
         shader.setMat4("model", armTransform);
+        shader.setVec3("cubeSize", rightArm.cube->getSize()); // Pass size_ to shader
+        log::system_info("Player", "Rendering body part with size: {}", glm::to_string(rightArm.cube->getSize()));
         rightArm.cube->render(armTransform);
         if (BLENDING) {
             glEnable(GL_BLEND);
         }
-        if(DEPTH_TEST) {
+        if (DEPTH_TEST) {
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_LEQUAL);
         }
+    }
+    if (FACE_CULLING) {
+        glEnable(GL_CULL_FACE);
     }
     skinTexture->Unbind(1);
 }

@@ -20,5 +20,6 @@ void main() {
         discard;
 
     // Set the fragment color to the sampled texture color
-    FragColor = TextureColor;
+    //FragColor = TextureColor;
+    FragColor = vec4(0.0, 1.0, 0.0, 1.0);
 }

@@ -83,6 +83,7 @@ Cube::Cube(glm::vec3 size, BodyPartType type) : size_(size), halfX(size.x / 2.0f
     pushFace(glm::vec3(0.0f,  height / 2.0f, 0.0f), glm::ivec2(topRegion.topLeft.x * 64, topRegion.topLeft.y * 64),   4); // Top
     pushFace(glm::vec3(0.0f, -height / 2.0f, 0.0f), glm::ivec2(bottomRegion.topLeft.x * 64, bottomRegion.topLeft.y * 64), 5); // Bottom
 
+
     sendData();
 }
 Cube::~Cube(void) {
@@ -91,6 +92,7 @@ Cube::~Cube(void) {
 }
 void Cube::sendData(void) {
     glCreateBuffers(1, &SSBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, SSBO);
     glNamedBufferData(SSBO, faces.size() * sizeof(Face), faces.data(), GL_DYNAMIC_DRAW);
 
 }
