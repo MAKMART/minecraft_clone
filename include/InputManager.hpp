@@ -6,9 +6,7 @@
 
 class InputManager {
   public:
-    enum class KeyState { RELEASED,
-                          PRESSED,
-                          HELD };
+    enum class KeyState { RELEASED, PRESSED, HELD };
 
     InputManager(GLFWwindow *window);
 
@@ -38,6 +36,9 @@ class InputManager {
     bool isMouseYaxisInverted(void) {
         return invertYAxis;
     }
+    bool isMouseTrackingEnabled() const { return mouseTrackingEnabled; }
+    void setMouseTrackingEnabled(bool enabled);
+
 
   private:
     GLFWwindow *_window;
@@ -51,6 +52,8 @@ class InputManager {
 
     std::array<KeyState, MAX_MOUSE_BUTTONS> _mouseButtonStates{};
     std::array<KeyState, MAX_MOUSE_BUTTONS> _previousMouseButtonStates{};
+
+    bool mouseTrackingEnabled = true; // Default: tracking enabled
 
     double _lastMouseX = 0.0, _lastMouseY = 0.0;
     double _mouseDeltaX = 0.0, _mouseDeltaY = 0.0;

@@ -1,4 +1,4 @@
-#include "InputManager.h"
+#include "InputManager.hpp"
 
 InputManager::InputManager(GLFWwindow *window) : _window(window) {
     glfwGetCursorPos(_window, &_lastMouseX, &_lastMouseY);
@@ -73,4 +73,18 @@ std::pair<double, double> InputManager::getMousePosition(void) const {
 
 std::pair<double, double> InputManager::getMouseDelta(void) const {
     return {_mouseDeltaX, _mouseDeltaY};
+}
+void InputManager::setMouseTrackingEnabled(bool enabled) {
+    if (mouseTrackingEnabled == enabled)
+        return; // No change
+
+    mouseTrackingEnabled = enabled;
+
+    if (enabled) {
+        // Hide cursor and capture it (disable OS cursor)
+        glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    } else {
+        // Show cursor and release capture (enable OS cursor)
+        glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
 }

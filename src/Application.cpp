@@ -16,7 +16,7 @@ Application::Application(int width, int height)
       width(width), height(height),
       /*backgroundColor(0.11f, 0.67f, 0.7f, 1.0f),*/ backgroundColor(
           0.0f, 0.0f, 0.0f, 1.0f),
-      nbFrames(0), deltaTime(0.0f), lastFrame(0.0f), mouseClickEnabled(true) {
+      nbFrames(0), deltaTime(0.0f), lastFrame(0.0f) {
 #if defined(DEBUG)
     std::cout << "----------------------------DEBUG MODE----------------------------\n";
 #elif defined(NDEBUG)
@@ -325,10 +325,10 @@ void Application::processInput() {
     handleFullscreenToggle(window);
 
     // --- Process Mouse Buttons ---
-    if (mouseClickEnabled) {
+    if (input->isMouseTrackingEnabled()) {
         player->processMouseInput(*chunkManager);
     }
-    player->processKeyInput(FREE_CURSOR);
+    player->processKeyInput();
 
     if (input->isPressed(GLFW_KEY_H)) {
         chunkManager->chunkShader->reload();
@@ -344,15 +344,12 @@ void Application::processInput() {
 #endif
 
 
+    // Toggle mouse tracking through MENU_KEY
     if (input->isPressed(MENU_KEY)) {
-        player->getCamera()->setMouseTracking(FREE_CURSOR);
 #if defined(DEBUG)
-        Rml::Debugger::SetVisible(!FREE_CURSOR);
+        Rml::Debugger::SetVisible(input->isMouseTrackingEnabled());
 #endif
-        glfwSetInputMode(window, GLFW_CURSOR,
-                         FREE_CURSOR ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
-        mouseClickEnabled = !mouseClickEnabled;
-        FREE_CURSOR = !FREE_CURSOR;
+        input->setMouseTrackingEnabled(!input->isMouseTrackingEnabled());
     }
 
 
@@ -400,7 +397,7 @@ void Application::Run(void) {
 
         // --- Input & Event Processing ---
         glfwPollEvents();
-        if (!mouseClickEnabled)
+        if (!input->isMouseTrackingEnabled())
             glLineWidth(LINE_WIDTH);
         processInput();
 
@@ -412,16 +409,14 @@ void Application::Run(void) {
                            : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         // --- Player Update && Third-Person Rendering ---
-        playerShader->setMat4("projection",
-                              player->getCamera()->GetProjectionMatrix());
-        playerShader->setMat4("view", player->getCamera()->GetViewMatrix());
+        playerShader->setMat4("projection", player->getProjectionMatrix());
+        playerShader->setMat4("view", player->getViewMatrix());
         player->update(deltaTime, *chunkManager);
 
         // --- Render World ---
         if (renderTerrain) {
             chunkManager->chunkShader->checkAndReloadIfModified();
-            chunkManager->renderChunks(player->getPos(), player->render_distance,
-                                       *player->getCamera(), glfwGetTime());
+            chunkManager->renderChunks(player->getPos(), player->render_distance, player->getCameraController(), glfwGetTime());
         }
 #if defined(DEBUG)
         if (debugRender) {
@@ -440,8 +435,7 @@ void Application::Run(void) {
 
                 getDebugDrawer().addAABB(chunkBox, chunkColor);
             }
-            glm::mat4 vp = player->getCamera()->GetProjectionMatrix() *
-                           player->getCamera()->GetViewMatrix();
+            glm::mat4 vp = player->getProjectionMatrix() * player->getViewMatrix(); // Render from the player's prospective
             getDebugDrawer().draw(vp);
         }
 #endif
@@ -454,8 +448,7 @@ void Application::Run(void) {
         if (renderUI) {
             glDisable(GL_DEPTH_TEST);
             // -- Crosshair Pass ---
-            glm::mat4 orthoProj = glm::ortho(0.0f, static_cast<float>(width), 0.0f,
-                                             static_cast<float>(height));
+            glm::mat4 orthoProj = glm::ortho(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height));
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             crossHairshader->setMat4("uProjection", orthoProj);
 
@@ -479,18 +472,17 @@ void Application::Run(void) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         ImGui::Begin("INFO", NULL,
-                     ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize |
-                         ImGuiWindowFlags_::ImGuiWindowFlags_NoMove |
-                         ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus |
-                         ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
-
+                ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize |
+                ImGuiWindowFlags_::ImGuiWindowFlags_NoMove |
+                ImGuiWindowFlags_::ImGuiWindowFlags_NoNavInputs |
+                ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus |
+                ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
         ImGui::Text("FPS: %f", getFPS());
         ImGui::Text("Selected block: ");
         ImGui::SameLine();
         ImGui::SetWindowFontScale(1.2f);
         ImGui::Text(Block::toString(player->selectedBlock));
         ImGui::SetWindowFontScale(1.0f);
-
         ImGui::SliderInt("Render distance", (int *)&player->render_distance, 0, 30);
         ImGui::End();
         ImGui::Render();
@@ -524,8 +516,6 @@ void Application::Run(void) {
             ImGui::Text("Draw Calls: %d", g_drawCallCount);
             RenderTimings();
             ImGui::Unindent();
-
-
             ImGui::Spacing();
             ImGui::PushFont(
             ImGui::GetFont()); // Or use a bold/large font if you have one
@@ -534,14 +524,10 @@ void Application::Run(void) {
             ImGui::PopStyleColor(1);
             ImGui::PopFont();
             ImGui::Indent();
-            ImGui::Text("Player position: %f, %f, %f", player->getPos().x,
-                        player->getPos().y, player->getPos().z);
-            ImGui::Text("Player is in chunk: %i, %i, %i", chunkCoords.x,
-                        chunkCoords.y, chunkCoords.z);
-            ImGui::Text("Player local position: %d, %d, %d", localCoords.x,
-                        localCoords.y, localCoords.z);
-            ImGui::Text("Player velocity: %f, %f, %f", player->velocity.x,
-                        player->velocity.y, player->velocity.z);
+            ImGui::Text("Player position: %f, %f, %f", player->getPos().x, player->getPos().y, player->getPos().z);
+            ImGui::Text("Player is in chunk: %i, %i, %i", chunkCoords.x, chunkCoords.y, chunkCoords.z);
+            ImGui::Text("Player local position: %d, %d, %d", localCoords.x, localCoords.y, localCoords.z);
+            ImGui::Text("Player velocity: %f, %f, %f", player->velocity.x, player->velocity.y, player->velocity.z);
             ImGui::Text("Player MODE: %s", player->getMode());
             ImGui::Text("Player STATE: %s", player->getState());
             ImGui::Text("Selected block: ");
@@ -565,9 +551,9 @@ void Application::Run(void) {
             DrawBool("is Swimming", player->isSwimming);
             DrawBool("is Walking", player->isWalking);
             DrawBool("is Crouched", player->isCrouched);
+            DrawBool("is third-person", player->isCameraThirdPerson());
             DrawBool("Player can place blocks", player->canPlaceBlocks);
             DrawBool("Player can break blocks", player->canBreakBlocks);
-            DrawBool("is Player third-person", player->isThirdPerson);
             DrawBool("renderSkin", player->renderSkin);
             ImGui::Unindent();
             ImGui::Spacing();
@@ -578,45 +564,47 @@ void Application::Run(void) {
             ImGui::PopStyleColor(1);
             ImGui::PopFont();
             ImGui::Indent();
-            ImGui::Text(
-                "Camera position: %f, %f, %f", player->getCamera()->getPosition().x,
-                player->getCamera()->getPosition().y, player->getCamera()->getPosition().z);
-            DrawBool("is camera third-person", player->getCamera()->isThirdPerson);
+            DrawBool("is Camera interpolating", player->getCameraController().isInterpolationEnabled());
+            ImGui::Text("Camera position: %f, %f, %f", player->getCameraController().getCurrentPosition().x, player->getCameraController().getCurrentPosition().y, player->getCameraController().getCurrentPosition().z);
             ImGui::Unindent();
-            if (renderUI && !mouseClickEnabled) {
+            if (renderUI && !input->isMouseTrackingEnabled()) {
                 if (ImGui::CollapsingHeader("Settings")) {
                     if (ImGui::TreeNode("Player")) {
-                        ImGui::SliderFloat("Player walking speed ", &player->walking_speed,
-                                           0.0f, 100.0f);
-                        ImGui::SliderFloat("Player flying speed", &player->flying_speed,
-                                           0.0f, 100.0f);
-                        ImGui::SliderFloat("Player running speed increment",
-                                           &player->running_speed_increment, 0.0f, 100.0f);
+                        ImGui::SliderFloat("Player walking speed ", &player->walking_speed, 0.0f, 100.0f);
+                        ImGui::SliderFloat("Player flying speed", &player->flying_speed, 0.0f, 100.0f);
+                        ImGui::SliderFloat("Player running speed increment", &player->running_speed_increment, 0.0f, 100.0f);
                         ImGui::SliderFloat("Max Interaction Distance", &player->max_interaction_distance, 0.0f, 100.0f);
                         ImGui::SliderFloat3("armOffset", &player->armOffset.x, -5.0f, 5.0f);
                         ImGui::TreePop();
                     }
                     if (ImGui::TreeNode("Camera")) {
-                        ImGui::SliderFloat("Sensitivity",
-                                           &player->getCamera()->MouseSensitivity, 0.0f,
-                                           1.5f);
-                        ImGui::SliderFloat("FOV", &player->getCamera()->FOV, 0.001f,
-                                           179.899f);
-                        ImGui::SliderFloat("Near Clip Plane",
-                                           &player->getCamera()->NEAR_PLANE, 0.001f, 1.5f);
-                        ImGui::SliderFloat("Far Clip Plane",
-                                           &player->getCamera()->FAR_PLANE, 1.5f,
-                                           1000000.0f);
-                        ImGui::SliderFloat("Camera Distance",
-                                           &player->getCamera()->Distance, 1.0f, 20.0f);
+                        auto camera = player->getCameraController();
+                        float mouseSens = camera.getSensitivity();
+                        float fov = camera.getFov();
+                        float nearPlane = camera.getNearPlane();
+                        float farPlane = camera.getFarPlane();
+                        glm::vec3 distance = camera.getThirdPersonOffset();
+                        if (ImGui::SliderFloat("Mouse Sensitivity", &mouseSens, 0.01f, 2.0f)) {
+                            camera.setSensitivity(mouseSens);
+                        }
+                        if (ImGui::SliderFloat("FOV", &fov, 0.001f, 179.899f)) {
+                            camera.setFov(fov);
+                        }
+                        if (ImGui::SliderFloat("Near Plane", &nearPlane, 0.001f, 10.0f)) {
+                            camera.setNearPlane(nearPlane);
+                        }
+                        if (ImGui::SliderFloat("Far Plane", &farPlane, 10.0f, 1000000.0f)) {
+                            camera.setFarPlane(farPlane);
+                        }
+                        if (ImGui::SliderFloat("Third Person Offset", &distance.z, 1.0f, 20.0f)) {
+                            camera.setThirdPersonDistance(distance.z);
+                        }
                         ImGui::TreePop();
                     }
                     if (ImGui::TreeNode("Miscellaneous")) {
-                        ImGui::SliderInt("Render distance", (int *)&player->render_distance,
-                                         0, 30);
+                        ImGui::SliderInt("Render distance", (int *)&player->render_distance, 0, 30);
                         ImGui::SliderFloat("GRAVITY", &GRAVITY, -30.0f, 20.0f);
-                        ImGui::SliderFloat3("BACKGROUND COLOR", &backgroundColor.r, 0.0f,
-                                            1.0f);
+                        ImGui::SliderFloat3("BACKGROUND COLOR", &backgroundColor.r, 0.0f, 1.0f);
                         ImGui::SliderFloat("LINE_WIDTH", &LINE_WIDTH, 0.001f, 9.0f);
                         // --- Player Model Attributes ---
                         /*
@@ -672,8 +660,7 @@ void Application::framebuffer_size_callback(GLFWwindow *window, int width,
     }
     if (app) {
         ImGui::SetNextWindowPos(ImVec2(width - 300, 32), ImGuiCond_Always);
-        app->aspectRatio = static_cast<float>(width) / height;
-        app->player->getCamera()->setAspectRatio(app->aspectRatio);
+        app->player->getCameraController().setAspectRatio(float(static_cast<float>(width) / height));
         app->ui->SetViewportSize(width, height);
     }
 }
@@ -695,13 +682,12 @@ void Application::cursor_callback(GLFWwindow *window, double xpos,
     glm::vec2 delta(static_cast<float>(mouseDelta.first), yDelta);
 
     application->player->processMouseMovement(delta.x, delta.y, true);
-    if (application->ui->context && application->FREE_CURSOR)
+    if (application->ui->context && application->input->isMouseTrackingEnabled())
         application->ui->context->ProcessMouseMove(
             static_cast<int>(xpos), static_cast<int>(ypos),
             application->ui->GetKeyModifiers());
 }
-void Application::mouse_callback(GLFWwindow *window, int button, int action,
-                                 int mods) {
+void Application::mouse_callback(GLFWwindow *window, int button, int action, int mods) {
     auto *application =
         static_cast<Application *>(glfwGetWindowUserPointer(window));
 

@@ -2,8 +2,6 @@
 #include "defines.h"
 #include <cmath>
 #include <stdexcept>
-#include <glm/glm.hpp>
-#include "Camera.h"
 #include "Timer.h"
 #include "logger.hpp"
 
@@ -295,10 +293,10 @@ Chunk *ChunkManager::getChunk(glm::vec3 worldPos, bool returnRawPointer) const {
     }
 }
 
-void ChunkManager::renderChunks(const glm::vec3& player_position, unsigned int render_distance, const Camera &camera, float time) {
+void ChunkManager::renderChunks(const glm::vec3& player_position, unsigned int render_distance, const CameraController &cam_ctrl, float time) {
     chunkShader->use();
-    chunkShader->setMat4("projection", camera.GetProjectionMatrix());
-    chunkShader->setMat4("view", camera.GetViewMatrix());
+    chunkShader->setMat4("projection", cam_ctrl.getProjectionMatrix());
+    chunkShader->setMat4("view", cam_ctrl.getViewMatrix());
     chunkShader->setFloat("time", time);
 
     int playerChunkX = static_cast<int>(floor(player_position.x / chunkSize.x));
@@ -324,13 +322,15 @@ void ChunkManager::renderChunks(const glm::vec3& player_position, unsigned int r
         if (!chunk)
             continue;
 
-        if (!camera.isChunkVisible(chunk->getAABB()))
+        if (!cam_ctrl.isAABBVisible(chunk->getAABB()))  // If the current chunk's AABB is outside the camera's frustum (a.k.a can't be seen), continue on with life
             continue;
+        else {
 
-        if (chunk->hasOpaqueMesh())
-            opaqueChunks.emplace_back(chunk);
-        if (chunk->hasTransparentMesh())
-            transparentChunks.emplace_back(chunk);
+            if (chunk->hasOpaqueMesh())
+                opaqueChunks.emplace_back(chunk);
+            if (chunk->hasTransparentMesh())
+                transparentChunks.emplace_back(chunk);
+        }
     }
 
     // Render opaque

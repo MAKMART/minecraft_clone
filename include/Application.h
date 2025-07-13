@@ -1,7 +1,7 @@
 #pragma once
 #include "CreativeMode.h"
 #include "FlyingState.h"
-#include "InputManager.h"
+#include "InputManager.hpp"
 #include "Player/Player.h"
 #include "RunningState.h"
 #include "Shader.h"
@@ -40,8 +40,6 @@ class Application {
     f32 lastFrame = 0.0f;
 
     b8 isFullscreen = false;
-    b8 FREE_CURSOR = false;
-    b8 mouseClickEnabled = false;
     b8 renderUI = true;
     b8 renderTerrain = true;
 #if defined(DEBUG)

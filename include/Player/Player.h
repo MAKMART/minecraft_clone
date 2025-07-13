@@ -3,9 +3,9 @@
 #include <optional>
 #include <GL/glew.h>
 #include "defines.h"
-#include "../InputManager.h"
+#include "InputManager.hpp"
 #include "ChunkManager.h"
-#include "Camera.h"
+#include "CameraController.hpp"
 #include "Cube.h"
 #include "AABB.h"
 #define GLM_ENABLE_EXPERIMENTAL
@@ -16,7 +16,7 @@ class PlayerMode;
 
 class Player {
   public:
-    Player(glm::vec3 spawnPos, std::shared_ptr<InputManager> input);
+    Player(glm::vec3 spawnPos, std::shared_ptr<InputManager> _input);
 
     ~Player();
 
@@ -27,10 +27,17 @@ class Player {
         return position;
     }
 
-    // Get the player's camera (for rendering or input handling)
-    Camera *getCamera(void) const {
-        return _camera;
+    // Get the player's camera controller (for rendering or input handling)
+    // Non-const version: allows modification
+    CameraController& getCameraController() { return camCtrl; }
+
+    // Const version: allows read-only access
+    const CameraController& getCameraController() const { return camCtrl; }
+
+    const Camera &getCamera() const {
+        return camCtrl.getCamera();
     }
+
 
 
     const char *getMode(void) const;  // For debugging
@@ -49,6 +56,11 @@ class Player {
         }
 
 
+    glm::mat4 getViewMatrix() const;
+    glm::mat4 getProjectionMatrix() const;
+    glm::vec3 getCameraFront() const;
+    glm::vec3 getCameraRight() const;
+    glm::vec3 getCameraUp() const;
     void changeMode(std::unique_ptr<PlayerMode> newMode);
     void changeState(std::unique_ptr<PlayerState> newState);
     void update(float deltaTime, ChunkManager &chunkManager);
@@ -57,10 +69,9 @@ class Player {
     void loadSkin(const std::filesystem::path &path);
     void processMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch);
     void processMouseInput(ChunkManager &chunkManager);
-    void processKeyInput(bool FREE_CURSOR);
+    void processKeyInput();
     void processMouseScroll(float yoffset);
     void setPos(glm::vec3 newPos);
-    void toggleCameraMode(void);
     void jump(void);
     void crouch(void);
 
@@ -105,7 +116,6 @@ class Player {
     std::unique_ptr<PlayerMode> currentMode;
     std::shared_ptr<InputManager> input;
     std::unique_ptr<Texture> skinTexture;
-    Camera *_camera;
 
     glm::vec3 position;
     glm::vec3 prevPosition;
@@ -121,6 +131,15 @@ class Player {
     std::vector<BodyPart> bodyParts;
 
     glm::vec3 armOffset = glm::vec3(0.3f, -0.792f, -0.5f); // Right, down, forward
+
+
+    bool isCameraThirdPerson() const {
+        return camCtrl.isThirdPersonMode();
+    }
+
+    void toggleCameraMode() {
+        camCtrl.toggleThirdPersonMode();
+    }
 
 
 
@@ -153,7 +172,6 @@ class Player {
     bool isFlying = false;
     bool isSwimming = false;
     bool isWalking = false;
-    bool isThirdPerson = false;
     bool canPlaceBlocks = false;
     bool canBreakBlocks = false;
     bool renderSkin = false;
@@ -166,6 +184,7 @@ class Player {
     bool hasInfiniteBlocks = false;
 
   private:
+    CameraController camCtrl;
     void updateCameraPosition(void);
     void setupBodyParts(void);
 };

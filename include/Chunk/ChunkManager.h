@@ -8,6 +8,7 @@
 #include <tuple>
 #include "../Shader.h"
 #include "../Texture.h"
+#include "CameraController.hpp"
 #include "Chunk.h"
 #include <functional>
 #include "../defines.h"
@@ -15,7 +16,7 @@
 #include <random>
 #include <optional>
 
-class Camera;
+class CameraController;
 namespace std {
 template <>
 struct hash<std::tuple<int, int, int>> {
@@ -63,7 +64,7 @@ class ChunkManager {
 
     void unloadDistantChunks(glm::vec3 playerPosition, int unloadDistance);
 
-    void renderChunks(const glm::vec3 &player_position, unsigned int render_distance, const Camera &camera, float time);
+    void renderChunks(const glm::vec3 &player_position, unsigned int render_distance, const CameraController &cam_ctrl, float time);
 
     // Get a chunk by its world position
     std::shared_ptr<Chunk> getChunk(glm::vec3 worldPos) const;

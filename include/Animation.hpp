@@ -3,6 +3,7 @@
  */
 #include <chrono>
 #include "Transitions.hpp"
+#include <glm/gtc/quaternion.hpp>
 #include <new>
 using namespace Interpolation;
 template<typename T>
@@ -57,7 +58,7 @@ struct Interpolated {
         T const delta{end - start};
         return start + delta * getRatio(t, transition);
     }
-
+    
 
     // Computes the speed given a duration
     void setDuration(float duration) {
@@ -76,3 +77,14 @@ struct Interpolated {
     }
 
 };
+
+// ✨ Specialization for glm::quat (inline in header)
+template<>
+inline glm::quat Interpolated<glm::quat>::getValue() const {
+    float const elapsed = getElapsedSeconds();
+    float const t = elapsed * speed;
+    if (t >= 1.0f) {
+        return end;
+    }
+    return glm::slerp(start, end, getRatio(t, transition));
+}
