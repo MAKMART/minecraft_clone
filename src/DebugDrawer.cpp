@@ -56,7 +56,7 @@ void DebugDrawer::draw(const glm::mat4& viewProj) {
 
 void DebugDrawer::initGLResources() {
     // Initialize shader (adjust paths to your debug shaders)
-    shader = std::make_unique<Shader>("shaders/debug_vert.glsl", "shaders/debug_frag.glsl");
+    shader = std::make_unique<Shader>("Debug", "shaders/debug_vert.glsl", "shaders/debug_frag.glsl");
 
     // Create wireframe cube
     std::vector<glm::vec3> vertices = {

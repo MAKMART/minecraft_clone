@@ -22,8 +22,17 @@ class Player {
 
     enum ACTION { BREAK_BLOCK, PLACE_BLOCK };
 
-    glm::vec3 getPos(void) const;
-    Camera *getCamera(void) const;
+    // Get the player's current position
+    glm::vec3 getPos(void) const {
+        return position;
+    }
+
+    // Get the player's camera (for rendering or input handling)
+    Camera *getCamera(void) const {
+        return _camera;
+    }
+
+
     const char *getMode(void) const;  // For debugging
     const char *getState(void) const; // For debugging
 
@@ -63,6 +72,7 @@ class Player {
 
     float ExtentX = 0.4f;
     float ExtentY = 0.4f;
+
 
     AABB aabb;
     const AABB &getAABB(void) const {

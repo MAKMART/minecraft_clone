@@ -108,16 +108,21 @@ Application::Application(int width, int height)
     glVertexArrayAttribBinding(crosshairVAO, 1, 0);
     glEnableVertexArrayAttrib(crosshairVAO, 1);
 
+
+    // TODO: Framebuffer implementation
+
+
+
     // Use smart pointers instead of raw pointers.
     log::info("Initializing Input Manager...");
     input = std::make_shared<InputManager>(window);
     log::info("Initializing Shaders...");
     try {
-        playerShader = std::make_unique<Shader>(PLAYER_VERTEX_SHADER_DIRECTORY, PLAYER_FRAGMENT_SHADER_DIRECTORY);
+        playerShader = std::make_unique<Shader>("Player", PLAYER_VERTEX_SHADER_DIRECTORY, PLAYER_FRAGMENT_SHADER_DIRECTORY);
     } catch (const std::exception &e) {
         log::error("Failed to create Shader!!");
     }
-    crossHairshader = std::make_unique<Shader>(CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
+    crossHairshader = std::make_unique<Shader>("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
     log::info("Initializing Textures...");
     crossHairTexture = std::make_unique<Texture>(ICONS_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
     log::info("Initializing Player...");
@@ -129,10 +134,7 @@ Application::Application(int width, int height)
         log::error("Error: {}", e.what());
     }
     try {
-        ui = std::make_unique<UI>(
-            width, height,
-            new Shader(UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY),
-            MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
+        ui = std::make_unique<UI>(width, height, new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
     } catch (const std::exception &e) {
         log::error("Error initializing UI class: {}", e.what());
     }

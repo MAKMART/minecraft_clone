@@ -22,9 +22,9 @@ ChunkManager::ChunkManager(int renderDistance, const glm::vec3 &player_pos, std:
     if (!chunksTexture.get())
         chunksTexture = std::make_unique<Texture>(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
     if (!chunkShader.get())
-        chunkShader = std::make_unique<Shader>(CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY);
+        chunkShader = std::make_unique<Shader>("Chunk", CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY);
     if (!waterShader.get())
-        waterShader = std::make_unique<Shader>(WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY);   
+        waterShader = std::make_unique<Shader>("Water", WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY);   
 
     if (chunkSize.x <= 0 || chunkSize.y <= 0 || chunkSize.z <= 0) {
         throw std::invalid_argument("chunkSize must be positive");

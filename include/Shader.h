@@ -16,6 +16,7 @@
 class Shader {
 private:
     unsigned int ID; // Shader program ID
+    std::string name;
     std::filesystem::path vertexShaderPath;
     std::filesystem::path fragmentShaderPath;
     mutable std::unordered_map<std::string, GLint> uniformCache; // Cache for uniform locations
@@ -24,12 +25,15 @@ private:
     std::filesystem::file_time_type lastVertexWriteTime;
     std::filesystem::file_time_type lastFragmentWriteTime;
 
+
 public:
-    unsigned int getProgramID(void) const { return ID; }
+    unsigned int getProgramID() const { return ID; }
+
+    std::string getName() const { return name; }
 
     // Constructor with filesystem::path
-    Shader(const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath)
-        : vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath) {
+    Shader(const std::string &_name, const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath)
+        : name(_name), vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath) {
         ID = loadAndCompile(vertexPath, fragmentPath);
         reflectUniforms();
         lastVertexWriteTime = std::filesystem::last_write_time(vertexShaderPath);
@@ -38,8 +42,8 @@ public:
     }
 
     // Constructor with C strings
-    Shader(const char* vertexPath, const char* fragmentPath)
-        : vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath) {
+    Shader(const char *_name, const char* vertexPath, const char* fragmentPath)
+        : name(_name), vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath) {
         ID = loadAndCompile(vertexShaderPath, fragmentShaderPath);
         reflectUniforms();
         lastVertexWriteTime = std::filesystem::last_write_time(vertexShaderPath);
@@ -58,7 +62,7 @@ public:
         if (glIsProgram(ID)) {
             glUseProgram(ID);
         } else {
-            log::system_error("Shader", "Program is not valid! ID = {}", ID);
+            log::system_error("Shader", "[{}] Program is not valid! ID = {}", name, ID);
         }
     }
 
@@ -74,7 +78,7 @@ public:
                 return reload();
             }
         } catch (const std::exception& e) {
-            log::system_warn("Shader", "Error checking shader file timestamps: {}", e.what());
+            log::system_warn("Shader", "[{}] Error checking shader file timestamps: {}", name, e.what());
         }
         return false;
     }
@@ -92,11 +96,10 @@ public:
             uniformCache.clear(); // Uniforms may have changed
             reflectUniforms();    // Make sure we re-cache common uniforms
 
-            log::system_info("Shader", "Reloaded shader from {} and {}", 
-                    vertexShaderPath.string(), fragmentShaderPath.string());
+            log::system_info("Shader", "[{}] Reloaded shader from {} and {}", name, vertexShaderPath.string(), fragmentShaderPath.string());
             return true;
         } catch (const std::exception& e) {
-            log::system_error("Shader", "Failed to reload shader: {}", e.what());
+            log::system_error("Shader", "[{}] Failed to reload shader: {}", name, e.what());
             return false;
         }
     }
@@ -176,20 +179,20 @@ private:
             }
         }
 
-        log::system_info("Shader", "Reflected and cached {} active uniforms.", uniformCache.size());
+        log::system_info("Shader", "[{}] Reflected and cached {} active uniforms.", name, uniformCache.size());
     }
     // Helper to get or cache uniform location
-    GLint getUniformLocation(const std::string& name) const {
+    GLint getUniformLocation(const std::string& uni_name) const {
         std::lock_guard<std::mutex> lock(uniformCacheMutex);
-        auto it = uniformCache.find(name);
+        auto it = uniformCache.find(uni_name);
         if (it != uniformCache.end()) {
             return it->second;
         }
         GLint location = glGetUniformLocation(ID, name.c_str());
         if (location == -1) {
-            log::system_warn("Shader", "Uniform {} not found in shader program!", name);
+            log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", name, uni_name);
         } else {
-            uniformCache[name] = location;
+            uniformCache[uni_name] = location;
         }
         return location;
     }
@@ -214,11 +217,11 @@ private:
             fragmentCode = fShaderStream.str();
 
             if (vertexCode.empty() || fragmentCode.empty()) {
-                log::system_error("Shader", "Shader source code is empty.");
+                log::system_error("Shader", "[{}] Shader source code is empty.", name);
                 throw std::runtime_error("Shader source code is empty.");
             }
         } catch (std::ifstream::failure& e) {
-            log::system_error("Shader", "Failed to read shader files: {}", std::string(e.what()));
+            log::system_error("Shader", "[{}] Failed to read shader files: {}", name, std::string(e.what()));
             throw std::runtime_error("Failed to read shader files: " + std::string(e.what()));
         }
 
@@ -247,7 +250,7 @@ private:
         if (!programSuccess) {
             char infoLog[1024];
             glGetProgramInfoLog(program, 1024, nullptr, infoLog);
-            log::system_error("Shader", "Shader validation failed: {}", infoLog);
+            log::system_error("Shader", "[{}] Shader validation failed: {}", name, infoLog);
             throw std::runtime_error(std::string("Shader validation failed:\n") + infoLog);
         }
 
@@ -264,14 +267,14 @@ private:
             glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
             if (!success) {
                 glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
-                log::system_error("Shader", "SHADER_COMPILATION_ERROR of type: {}\n{}", type, infoLog);
+                log::system_error("Shader", "[{}] SHADER_COMPILATION_ERROR of type: {}\n{}", name, type, infoLog);
                 throw std::runtime_error("SHADER_COMPILATION_ERROR of type: " + type + "\n" + infoLog);
             }
         } else {
             glGetProgramiv(shader, GL_LINK_STATUS, &success);
             if (!success) {
                 glGetProgramInfoLog(shader, 1024, nullptr, infoLog);
-                log::system_error("Shader", "PROGRAM_LINKING_ERROR of type: {}\n{}", type, infoLog);
+                log::system_error("Shader", "[{}] PROGRAM_LINKING_ERROR of type: {}\n{}", name, type, infoLog);
                 throw std::runtime_error("PROGRAM_LINKING_ERROR of type: " + type + "\n" + infoLog);
             }
         }

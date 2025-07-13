@@ -42,10 +42,10 @@ Player::~Player() {
 void Player::toggleCameraMode(void) {
     if (isThirdPerson) {
         // Switch to first-person
-        getCamera()->SwitchToFirstPerson(position + glm::vec3(0.0f, eyeHeight, 0.0f));
+        _camera->SwitchToFirstPerson(position + glm::vec3(0.0f, eyeHeight, 0.0f));
     } else {
         // Switch to third-person, preserving the current first-person orientation
-        getCamera()->SwitchToThirdPerson(position + glm::vec3(0.0f, eyeHeight, 0.0f), std::nullopt);
+        _camera->SwitchToThirdPerson(position + glm::vec3(0.0f, eyeHeight, 0.0f), std::nullopt);
     }
     isThirdPerson = !isThirdPerson;
 }
@@ -210,15 +210,15 @@ void Player::render(const Shader &shader) {
     }
 
     shader.use();
-    shader.setMat4("view", getCamera()->GetViewMatrix());
-    shader.setMat4("projection", getCamera()->GetProjectionMatrix());
+    shader.setMat4("view", _camera->GetViewMatrix());
+    shader.setMat4("projection", _camera->GetProjectionMatrix());
     skinTexture->Bind(1);
     glBindVertexArray(skinVAO);
     log::system_info("Player", "Bound VAO: {}", skinVAO);
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, bodyParts[0].cube->getSSBO()); // Bind first cube's SSBO
 
-    glm::vec3 forward = getCamera()->getFront();
+    glm::vec3 forward = _camera->getFront();
 
     glDisable(GL_CULL_FACE);
 
@@ -258,7 +258,7 @@ void Player::render(const Shader &shader) {
         const auto &rightArm = bodyParts[2]; // Right arm at index 2
 
         glm::mat4 armTransform = getModelMatrix();
-        glm::mat4 viewRotation = glm::mat4(glm::vec4(getCamera()->getRight(), 0.0f), glm::vec4(getCamera()->getUp(), 0.0f), glm::vec4(-forward, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        glm::mat4 viewRotation = glm::mat4(glm::vec4(_camera->getRight(), 0.0f), glm::vec4(_camera->getUp(), 0.0f), glm::vec4(-forward, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         armTransform = armTransform * viewRotation;
 
         armTransform = armTransform * glm::translate(glm::mat4(1.0f), armOffset);
@@ -335,11 +335,13 @@ void Player::update(float deltaTime, ChunkManager &chunkManager) {
 
     glm::vec3 newPosition = position + pendingMovement + velocity * deltaTime;
     pendingMovement = glm::vec3(0.0f);
+    // Model matrix calculation
     if (isThirdPerson) {
         modelMat = glm::translate(glm::mat4(1.0f), position);
     } else {
-        modelMat = glm::translate(glm::mat4(1.0f), getCamera()->getPosition());
+        modelMat = glm::translate(glm::mat4(1.0f), _camera->getPosition());
     }
+
     updateBoundingBox();
 
     // Handle collisions unless flying in Creative/Spectator
@@ -358,9 +360,9 @@ void Player::update(float deltaTime, ChunkManager &chunkManager) {
 // Update camera position
 void Player::updateCameraPosition(void) {
     if (isThirdPerson) {
-        getCamera()->UpdateThirdPerson(position + glm::vec3(0.0f, eyeHeight, 0.0f));
+        _camera->UpdateThirdPerson(position + glm::vec3(0.0f, eyeHeight, 0.0f));
     } else {
-        getCamera()->setPosition(position + glm::vec3(0.0f, eyeHeight, 0.0f)); // Eye level
+        _camera->setPosition(position + glm::vec3(0.0f, eyeHeight, 0.0f)); // Eye level
     }
 }
 // Handle jumping
@@ -389,16 +391,6 @@ void Player::jump(void) {
     }
     updateCameraPosition();
 }*/
-// Get the player's current position
-glm::vec3 Player::getPos(void) const {
-    return position;
-}
-
-// Get the player's camera (for rendering or input handling)
-Camera *Player::getCamera(void) const {
-    return _camera;
-}
-
 // Set the player's position (and update the camera's position)
 void Player::setPos(glm::vec3 newPos) {
     position = newPos;
@@ -450,13 +442,13 @@ void Player::processKeyInput(bool FREE_CURSOR) {
         toggleCameraMode();
 
     if (input->isPressed(MENU_KEY))
-        getCamera()->setMouseTracking(FREE_CURSOR);
+        _camera->setMouseTracking(FREE_CURSOR);
 
 
 }
 void Player::breakBlock(ChunkManager &chunkManager) {
     // Perform a raycast to find the block the player is targeting
-    std::optional<glm::ivec3> hitBlock = raycastVoxel(chunkManager, getCamera()->getPosition(), _camera->getFront(), max_interaction_distance);
+    std::optional<glm::ivec3> hitBlock = raycastVoxel(chunkManager, _camera->getPosition(), _camera->getFront(), max_interaction_distance);
 
     if (!hitBlock.has_value())
         return;
@@ -471,7 +463,7 @@ void Player::breakBlock(ChunkManager &chunkManager) {
 void Player::placeBlock(ChunkManager &chunkManager) {
     // Perform raycast to find the block the player is looking at
     std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycastVoxelWithNormal(
-        chunkManager, getCamera()->getPosition(), _camera->getFront(), max_interaction_distance);
+        chunkManager, _cameragetPosition(), _camera->getFront(), max_interaction_distance);
 
     if (!hitResult.has_value())
         return; // No valid block hit, exit
@@ -647,7 +639,7 @@ std::optional<std::pair<glm::ivec3, glm::ivec3>> Player::raycastVoxelWithNormal(
 
 // Handle mouse movement input
 void Player::processMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch) {
-    getCamera()->ProcessMouseMovement(xoffset, yoffset, constrainPitch);
+    _camera->ProcessMouseMovement(xoffset, yoffset, constrainPitch);
 }
 // Handle mouse scroll input
 void Player::processMouseScroll(float yoffset) {
@@ -664,5 +656,5 @@ void Player::processMouseScroll(float yoffset) {
         if (selectedBlock >= Block::toInt(Block::blocks::MAX_BLOCKS))
             selectedBlock = Block::toInt(Block::blocks::MAX_BLOCKS) - 1;
     }
-    getCamera()->ProcessMouseScroll(yoffset);
+    _camera->ProcessMouseScroll(yoffset);
 }
