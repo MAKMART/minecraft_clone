@@ -76,7 +76,7 @@ void RenderTimings() {
         float latestMs = series.values.back();
         ImGui::ColorButton(label.c_str(), color, ImGuiColorEditFlags_NoTooltip, ImVec2(10, 10));
         ImGui::SameLine();
-        ImGui::Text("%s took: %.2f ms", label.c_str(), latestMs);
+        ImGui::Text("%.2f ms : %s",latestMs, label.c_str());
         //log::info("{} took: {} ms", label, latestMs);
     }
 }

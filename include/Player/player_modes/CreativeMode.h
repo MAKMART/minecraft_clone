@@ -9,6 +9,7 @@
 class CreativeMode : public PlayerMode {
   public:
     void enterMode(Player &player) override {
+        player.isCreative = true;
         player.isDamageable = false; // No damage
         player.hasInfiniteBlocks = true;
         player.canPlaceBlocks = true;
@@ -16,6 +17,7 @@ class CreativeMode : public PlayerMode {
     }
 
     void exitMode(Player &player) override {
+        player.isCreative = false;
         player.hasInfiniteBlocks = false;
         player.isDamageable = true;
     }

@@ -26,13 +26,9 @@ CameraController::CameraController()
     setInterpolationDuration(0.5f); // half a second transition
 }
 
-glm::mat4 CameraController::getViewMatrix(const glm::vec3& target) const {
+glm::mat4 CameraController::getViewMatrix() const {
     if (viewDirty) {
-        cachedViewMatrix = camera.computeViewMatrix(
-                isThirdPerson,
-                currentPosition,
-                currentOrientation,
-                target);
+        cachedViewMatrix = camera.computeViewMatrix(currentPosition, currentOrientation);
         viewDirty = false;
     }
     return cachedViewMatrix;
@@ -75,7 +71,7 @@ bool CameraController::isAABBVisible(const AABB& box) const {
         if (plane.normal().z >= 0) positiveVertex.z = box.max.z;
 
         // If positive vertex is outside plane, the box is outside
-        if (glm::dot(plane.normal(), positiveVertex) + plane.distance() < 0) {
+        if (glm::dot(plane.normal(), positiveVertex) + plane.offset() < 0) {
             return false; // Outside this plane
         }
     }
@@ -166,8 +162,8 @@ void CameraController::processMouseMovement(float xoffset, float yoffset, bool c
 void CameraController::processMouseScroll(float yoffset) {
     // Adjust FOV for zoom effect
     fov -= yoffset;
-    if (fov < 20.0f) fov = 20.0f;
-    if (fov > 90.0f) fov = 90.0f;
+    if (fov < 10.0f) fov = 10.0f;
+    if (fov > 160.0f) fov = 160.0f;
 
     projectionDirty = true;  // Mark projection matrix dirty for recalculation
 }

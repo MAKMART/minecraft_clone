@@ -41,7 +41,7 @@ Player::Player(glm::vec3 spawnPos, std::shared_ptr<InputManager> _input)
 Player::~Player() {
     glDeleteVertexArrays(1, &skinVAO);
 }
-void Player::setupBodyParts(void) {
+void Player::setupBodyParts() {
     bodyParts.resize(6);
     
     // Base sizes
@@ -116,7 +116,7 @@ bool Player::isCollidingAt(const glm::vec3 &pos, ChunkManager &chunkManager) {
             for (int bz = blockMin.z; bz <= blockMax.z; ++bz) {
 
                 glm::ivec3 blockWorldPos(bx, by, bz);
-                glm::ivec3 chunkCoords = Chunk::worldToChunk(blockWorldPos, chunkSize);
+                glm::ivec3 chunkCoords = Chunk::worldToChunk(blockWorldPos);
 
                 std::shared_ptr<Chunk> chunk = chunkManager.getChunk(blockWorldPos);
                 if (!chunk) return true; // treat unloaded chunks as solid
@@ -193,24 +193,7 @@ groundCheck:
             isOnGround = true;
     }
 }
-glm::mat4 Player::getViewMatrix() const {
-    return camCtrl.getViewMatrix(position);
-}
 
-glm::mat4 Player::getProjectionMatrix() const {
-    return camCtrl.getCamera().computeProjectionMatrix(
-        camCtrl.getFov(), camCtrl.getAspectRatio(),
-        camCtrl.getNearPlane(), camCtrl.getFarPlane());
-}
-glm::vec3 Player::getCameraFront() const {
-    return camCtrl.getFront();
-}
-glm::vec3 Player::getCameraRight() const {
-    return camCtrl.getRight();
-}
-glm::vec3 Player::getCameraUp() const {
-    return camCtrl.getUp();
-}
 void Player::render(const Shader &shader) {
     if (!skinTexture) {
         log::system_error("Player", "skinTexture is null!");
@@ -218,11 +201,10 @@ void Player::render(const Shader &shader) {
     }
 
     shader.use();
-    shader.setMat4("view", camCtrl.getViewMatrix(position));
+    shader.setMat4("view", camCtrl.getViewMatrix());
     shader.setMat4("projection", camCtrl.getProjectionMatrix());
     skinTexture->Bind(1);
     glBindVertexArray(skinVAO);
-    log::system_info("Player", "Bound VAO: {}", skinVAO);
 
     glm::vec3 forward = camCtrl.getFront();
 
@@ -253,7 +235,7 @@ void Player::render(const Shader &shader) {
         for (const auto &part : bodyParts) {
             glm::mat4 transform = baseTransform * glm::translate(glm::mat4(1.0f), part.offset) * part.transform;
             transform = glm::translate(transform, glm::vec3(0, 0.5, 0));
-            log::system_info("Player", "Rendering body part with size: {}", glm::to_string(part.cube->getSize()));
+            //log::system_info("Player", "Rendering body part with size: {}", glm::to_string(part.cube->getSize()));
             shader.setVec3("cubeSize", part.cube->getSize()); // Pass size_ to shader
             shader.setMat4("model", transform);
             part.cube->render(transform);
@@ -274,7 +256,7 @@ void Player::render(const Shader &shader) {
 
         shader.setMat4("model", armTransform);
         shader.setVec3("cubeSize", rightArm.cube->getSize()); // Pass size_ to shader
-        log::system_info("Player", "Rendering body part with size: {}", glm::to_string(rightArm.cube->getSize()));
+        //log::system_info("Player", "Rendering body part with size: {}", glm::to_string(rightArm.cube->getSize()));
         rightArm.cube->render(armTransform);
         if (BLENDING) {
             glEnable(GL_BLEND);
@@ -289,7 +271,7 @@ void Player::render(const Shader &shader) {
     }
     skinTexture->Unbind(1);
 }
-const char *Player::getState(void) const {
+const char *Player::getState() const {
     if (isWalking)
         return "WALKING";
     if (isRunning)
@@ -300,12 +282,12 @@ const char *Player::getState(void) const {
         return "FLYING";
     return "UNKNOWN";
 }
-const char *Player::getMode(void) const {
-    if (dynamic_cast<SurvivalMode *>(currentMode.get()))
+const char *Player::getMode() const {
+    if (isSurvival)
         return "SURVIVAL";
-    if (dynamic_cast<CreativeMode *>(currentMode.get()))
+    if (isCreative)
         return "CREATIVE";
-    if (dynamic_cast<SpectatorMode *>(currentMode.get()))
+    if (isSpectator)
         return "SPECTATOR";
     return "UNKNOWN";
 }
@@ -361,7 +343,12 @@ void Player::update(float deltaTime, ChunkManager &chunkManager) {
     updateCameraPosition();
 
 
-    modelMat = glm::translate(glm::mat4(1.0f), position);
+    if (camCtrl.isThirdPersonMode()) {
+        modelMat = glm::translate(glm::mat4(1.0f), position + eyeHeight);
+    }
+    else {
+        modelMat = glm::translate(glm::mat4(1.0f), position);
+    }
 
     camCtrl.update(deltaTime);  // Update the CameraController
 }
@@ -372,16 +359,13 @@ void Player::updateCameraPosition() {
 
     if (camCtrl.isThirdPersonMode()) {
         // Set the target position for third person: behind and above player
-        camCtrl.setTargetPosition(eyePos + camCtrl.getThirdPersonOffset()); // Target distance at which to keep the camera
-        glm::vec3 target = position + glm::vec3(0.0f, eyeHeight, 0.0f);  // Player’s head pos
-        glm::vec3 camPos = target + camCtrl.getThirdPersonOffset();
+        glm::vec3 camPos = eyePos + camCtrl.getThirdPersonOffset();
 
-        glm::vec3 direction = glm::normalize(target - camPos);  // Vector pointing from camera to player
+        glm::vec3 direction = glm::normalize(eyePos - camCtrl.getCurrentPosition());  // Vector pointing from camera to player
         glm::quat targetOrientation = glm::quatLookAt(direction, glm::vec3(0, 1, 0));
         camCtrl.setTargetPosition(camPos);
         camCtrl.setTargetOrientation(targetOrientation);
         // Optionally, update target orientation or something if you want smooth following
-        // camCtrl.setTargetOrientation(...);
 
         // If you want third person offset, implement in CameraController or keep distance param there
     } else {
@@ -463,9 +447,6 @@ void Player::processKeyInput() {
     if (input->isPressed(CAMERA_SWITCH_KEY))
         toggleCameraMode();
 
-    //if (input->isPressed(MENU_KEY))
-        //camCtrl.setMouseTracking(input->isMouseTrackingEnabled());
-
 }
 void Player::breakBlock(ChunkManager &chunkManager) {
     // Perform a raycast to find the block the player is targeting
@@ -506,7 +487,7 @@ void Player::placeBlock(ChunkManager &chunkManager) {
     }
 
     // Convert world coordinates to local chunk coordinates
-    glm::ivec3 localBlockPos = Chunk::worldToLocal(placePos, chunkSize);
+    glm::ivec3 localBlockPos = Chunk::worldToLocal(placePos);
 
     // Validate block index
     int blockIndex = placeChunk->getBlockIndex(localBlockPos.x, localBlockPos.y, localBlockPos.z);
@@ -558,7 +539,7 @@ std::optional<glm::ivec3> Player::raycastVoxel(ChunkManager &chunkManager, glm::
         std::shared_ptr<Chunk> chunk = chunkManager.getChunk(worldResult);
 
         if (chunk) {
-            glm::ivec3 localVoxelPos = Chunk::worldToLocal(worldResult, chunkSize);
+            glm::ivec3 localVoxelPos = Chunk::worldToLocal(worldResult);
             int blockIndex = chunk->getBlockIndex(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
 
             if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < chunk->getChunkData().size() &&
@@ -617,10 +598,10 @@ std::optional<std::pair<glm::ivec3, glm::ivec3>> Player::raycastVoxelWithNormal(
 
     while (t < maxDistance) {
         // ** Get the chunk that contains this voxel **
-       Chunk *chunk = chunkManager.getChunk({worldResult.x, 0, worldResult.z}, true);
+       auto chunk = chunkManager.getChunk({worldResult.x, 0, worldResult.z});
 
         if (chunk) {
-            glm::ivec3 localVoxelPos = Chunk::worldToLocal(worldResult, chunkSize);
+            glm::ivec3 localVoxelPos = Chunk::worldToLocal(worldResult);
             int blockIndex = chunk->getBlockIndex(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
 
             if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < chunk->getChunkData().size() &&
@@ -659,12 +640,12 @@ std::optional<std::pair<glm::ivec3, glm::ivec3>> Player::raycastVoxelWithNormal(
 }
 
 // Handle mouse movement input
-void Player::processMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch) {
+void Player::processMouseMovement(float xoffset, float yoffset, bool constrainPitch) {
     camCtrl.processMouseMovement(xoffset, yoffset, constrainPitch);
 }
 // Handle mouse scroll input
 void Player::processMouseScroll(float yoffset) {
-    // Adjust movement speed in first-person
+    // Adjust scrolling speed
     float scroll_speed_multiplier = 1.0f;
     if (isFlying && dynamic_cast<SpectatorMode *>(currentMode.get())) {
         flying_speed += yoffset;
@@ -677,5 +658,6 @@ void Player::processMouseScroll(float yoffset) {
         if (selectedBlock >= Block::toInt(Block::blocks::MAX_BLOCKS))
             selectedBlock = Block::toInt(Block::blocks::MAX_BLOCKS) - 1;
     }
-    camCtrl.processMouseScroll(yoffset);
+    // To change FOV
+    //camCtrl.processMouseScroll(yoffset);
 }

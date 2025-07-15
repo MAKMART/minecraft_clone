@@ -129,7 +129,7 @@ Application::Application(int width, int height)
     player = std::make_unique<Player>(glm::vec3(0.0f, (float)(chunkSize.y) - 1.0f, 0.0f), input);
     log::info("Initializing Chunk Manager...");
     try {
-        chunkManager = std::make_unique<ChunkManager>(player->render_distance, player->getPos());
+        chunkManager = std::make_unique<ChunkManager>(player->render_distance);
     } catch (const std::exception &e) {
         log::error("Error: {}", e.what());
     }
@@ -285,10 +285,7 @@ void Application::initWindow(void) {
     }
 
     glViewport(0, 0, width, height);
-    if (!V_SYNC)
-        glfwSwapInterval(0); // Disables V-Sync
-    else
-        glfwSwapInterval(1);
+    glfwSwapInterval(V_SYNC ? 1 : 0);
 
     // OpenGL state setup
     if (FACE_CULLING) {
@@ -435,8 +432,8 @@ void Application::Run(void) {
 
                 getDebugDrawer().addAABB(chunkBox, chunkColor);
             }
-            glm::mat4 vp = player->getProjectionMatrix() * player->getViewMatrix(); // Render from the player's prospective
-            getDebugDrawer().draw(vp);
+            glm::mat4 pv = player->getProjectionMatrix() * player->getViewMatrix(); // Render from the player's camera's prospective
+            getDebugDrawer().draw(pv);
         }
 #endif
         // -- Render Player -- (BEFORE UI pass)
@@ -496,8 +493,8 @@ void Application::Run(void) {
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
-            glm::ivec3 chunkCoords = Chunk::worldToChunk(player->getPos(), chunkSize);
-            glm::ivec3 localCoords = Chunk::worldToLocal(player->getPos(), chunkSize);
+            glm::ivec3 chunkCoords = Chunk::worldToChunk(player->getPos());
+            glm::ivec3 localCoords = Chunk::worldToLocal(player->getPos());
             ImGui::Begin(
                 "DEBUG", NULL,
                 ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize |
@@ -574,7 +571,7 @@ void Application::Run(void) {
                         ImGui::SliderFloat("Player flying speed", &player->flying_speed, 0.0f, 100.0f);
                         ImGui::SliderFloat("Player running speed increment", &player->running_speed_increment, 0.0f, 100.0f);
                         ImGui::SliderFloat("Max Interaction Distance", &player->max_interaction_distance, 0.0f, 100.0f);
-                        ImGui::SliderFloat3("armOffset", &player->armOffset.x, -5.0f, 5.0f);
+                        ImGui::SliderFloat3("armOffset", &player->getArmOffset().x, -5.0f, 5.0f);
                         ImGui::TreePop();
                     }
                     if (ImGui::TreeNode("Camera")) {
@@ -666,46 +663,48 @@ void Application::framebuffer_size_callback(GLFWwindow *window, int width,
 }
 void Application::cursor_callback(GLFWwindow *window, double xpos,
                                   double ypos) {
-    auto *application =
+    Application *app =
         static_cast<Application *>(glfwGetWindowUserPointer(window));
 
-    if (!application)
+    if (!app)
         return;
 
-    std::pair<double, double> mouseDelta = application->input->getMouseDelta();
+    std::pair<double, double> mouseDelta = app->input->getMouseDelta();
 
     // Conditionally invert Y-axis based on the flag
-    float yDelta = application->input->invertYAxis
+    float yDelta = app->input->invertYAxis
                        ? static_cast<float>(mouseDelta.second)
                        : static_cast<float>(-mouseDelta.second);
 
     glm::vec2 delta(static_cast<float>(mouseDelta.first), yDelta);
 
-    application->player->processMouseMovement(delta.x, delta.y, true);
-    if (application->ui->context && application->input->isMouseTrackingEnabled())
-        application->ui->context->ProcessMouseMove(
+    if (app->input->isMouseTrackingEnabled()) {
+        app->player->processMouseMovement(delta.x, delta.y, true);
+    }
+    if (app->ui->context && app->input->isMouseTrackingEnabled())
+        app->ui->context->ProcessMouseMove(
             static_cast<int>(xpos), static_cast<int>(ypos),
-            application->ui->GetKeyModifiers());
+            app->ui->GetKeyModifiers());
 }
 void Application::mouse_callback(GLFWwindow *window, int button, int action, int mods) {
-    auto *application =
+    Application *app =
         static_cast<Application *>(glfwGetWindowUserPointer(window));
 
-    if (!application)
+    if (!app)
         return;
 
-    if (!application->ui->context)
+    if (!app->ui->context)
         return;
     if (action == GLFW_PRESS)
-        application->ui->context->ProcessMouseButtonDown(button, mods);
+        app->ui->context->ProcessMouseButtonDown(button, mods);
     else if (action == GLFW_RELEASE)
-        application->ui->context->ProcessMouseButtonUp(button, mods);
+        app->ui->context->ProcessMouseButtonUp(button, mods);
 }
 
 void Application::scroll_callback(GLFWwindow *window, double xoffset,
                                   double yoffset) {
     (void)xoffset;
-    auto *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
+    Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
 
     if (app)
         app->player->processMouseScroll(static_cast<float>(yoffset));
@@ -717,7 +716,7 @@ void Application::key_callback(GLFWwindow *window, int key, int scancode,
     (void)key;
     (void)scancode;
     (void)mods;
-    auto *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
+    Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
 
     if (!app)
         return;

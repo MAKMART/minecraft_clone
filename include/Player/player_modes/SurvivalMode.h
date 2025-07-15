@@ -8,6 +8,7 @@
 class SurvivalMode : public PlayerMode {
   public:
     void enterMode(Player &player) override {
+        player.isSurvival = true;
         player.hasHealth = true;
         player.hasInfiniteBlocks = false;
         player.isDamageable = true;
@@ -15,21 +16,15 @@ class SurvivalMode : public PlayerMode {
         player.canPlaceBlocks = true;
         player.renderSkin = true;
 
-        player.changeState<WalkingState>(); // Default state in Survival is Walking
     }
 
     void exitMode(Player &player) override {
-        (void)player;
-        // Cleanup if necessary
+        player.isSurvival = false;
     }
 
     void updateState(Player &player, std::unique_ptr<PlayerState> newState) override {
-        // Extract raw pointer for dynamic_cast
-        PlayerState *rawPtr = newState.get();
-
-        if (dynamic_cast<WalkingState *>(rawPtr) ||
-            dynamic_cast<RunningState *>(rawPtr) ||
-            dynamic_cast<SwimmingState *>(rawPtr)) {
+        // Only allow the player to be walking || running || swimming in survival mode
+        if (player.isWalking || player.isRunning || player.isSwimming) {
             player.changeState(std::move(newState)); // Move ownership
         }
     }

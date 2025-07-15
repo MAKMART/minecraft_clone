@@ -121,7 +121,7 @@ class Chunk {
     Chunk(const glm::ivec3 &chunkPos);
     ~Chunk();
 
-    std::vector<Block> &getChunkData(void) { return chunkData; }
+    std::vector<Block> &getChunkData() { return chunkData; }
 
     bool hasOpaqueMesh() const {
         return !faces.empty();
@@ -133,40 +133,41 @@ class Chunk {
 
     Block getBlockAt(int x, int y, int z) const {
         // 🌟 Fast path: in-bounds
-        if ((uint32_t)x < chunkSize.x &&
-                (uint32_t)y < chunkSize.y &&
-                (uint32_t)z < chunkSize.z) {
+        int index = getBlockIndex(x, y, z);
+        if (index != -1) {
             return chunkData[getBlockIndex(x, y, z)];
-        }
-
-        // 🧭 Out-of-bounds — determine neighbor and remap local position
-        const Chunk* neighbor = nullptr;
-        int nx = x, ny = y, nz = z;
-
-        if (x < 0) {
-            neighbor = leftChunk.lock().get();
-            nx = chunkSize.x + x;
-        } else if (x >= chunkSize.x) {
-            neighbor = rightChunk.lock().get();
-            nx = x - chunkSize.x;
-        } else if (z < 0) {
-            neighbor = backChunk.lock().get();
-            nz = chunkSize.z + z;
-        } else if (z >= chunkSize.z) {
-            neighbor = frontChunk.lock().get();
-            nz = z - chunkSize.z;
         } else {
-            // Y-axis out-of-bounds: no neighbor system for that
-            return Block(Block::blocks::AIR);
+            // 🧭 Out-of-bounds — determine neighbor and remap local position
+            const Chunk* neighbor = nullptr;
+            int nx = x, ny = y, nz = z;
+
+            if (x < 0) {
+                neighbor = leftChunk.lock().get();
+                nx = chunkSize.x + x;
+            } else if (x >= chunkSize.x) {
+                neighbor = rightChunk.lock().get();
+                nx = x - chunkSize.x;
+            } else if (z < 0) {
+                neighbor = backChunk.lock().get();
+                nz = chunkSize.z + z;
+            } else if (z >= chunkSize.z) {
+                neighbor = frontChunk.lock().get();
+                nz = z - chunkSize.z;
+            } else {
+                // Y-axis out-of-bounds: no neighbor system for that
+                return Block(Block::blocks::AIR);
+            }
+
+            // 💨 If neighbor doesn't exist, treat as air
+            if (!neighbor) {
+                return Block(Block::blocks::AIR);
+            }
+
+            // ✅ Recursively query neighbor (no further neighbor chaining)
+            return neighbor->getBlockAt(nx, ny, nz);
+
         }
 
-        // 💨 If neighbor doesn't exist, treat as air
-        if (!neighbor) {
-            return Block(Block::blocks::AIR);
-        }
-
-        // ✅ Recursively query neighbor (no further neighbor chaining)
-        return neighbor->getBlockAt(nx, ny, nz);
     }
 
 
@@ -227,7 +228,7 @@ class Chunk {
 #if defined(DEBUG)
         if (x < 0 || x >= chunkSize.x || y < 0 || y >= chunkSize.y || z < 0 ||
             z >= chunkSize.z) {
-            log::system_error("Chunk", "ACCESSED INDEX OUT OF BOUNDS FOR CURRENT CHUNK!");
+            //log::system_error("Chunk", "ACCESSED INDEX OUT OF BOUNDS FOR CURRENT CHUNK!");
             return -1;
         }
 #endif
@@ -248,36 +249,31 @@ class Chunk {
 
     bool isFaceVisible(const Block &block, int x, int y, int z);
     // Convert world coordinates to chunk coordinates
-    static glm::ivec3 worldToChunk(const glm::vec3 &worldPos,
-                                   const glm::vec3 &chunkSize) {
+    static glm::ivec3 worldToChunk(const glm::vec3 &worldPos) {
         return glm::ivec3(static_cast<int>(std::floor(worldPos.x / chunkSize.x)),
                           static_cast<int>(std::floor(worldPos.y / chunkSize.y)),
                           static_cast<int>(std::floor(worldPos.z / chunkSize.z)));
     }
 
     // Get local coordinates within a chunk
-    static glm::ivec3 worldToLocal(const glm::vec3 &worldPos,
-                                   const glm::vec3 &chunkSize) {
-        glm::ivec3 chunkPos = worldToChunk(worldPos, chunkSize);
-        glm::vec3 chunkOrigin = chunkToWorld(chunkPos, chunkSize);
+    static glm::ivec3 worldToLocal(const glm::vec3 &worldPos) {
+        glm::ivec3 chunkPos = worldToChunk(worldPos);
+        glm::vec3 chunkOrigin = chunkToWorld(chunkPos);
 
         return glm::ivec3(static_cast<int>(std::floor(worldPos.x - chunkOrigin.x)),
                           static_cast<int>(std::floor(worldPos.y - chunkOrigin.y)),
                           static_cast<int>(std::floor(worldPos.z - chunkOrigin.z)));
     }
 
-    // Convert chunk coordinates back to world coordinates (chunk's origin
-    // position)
-    static glm::vec3 chunkToWorld(const glm::ivec3 &chunkPos,
-                                  const glm::vec3 &chunkSize) {
-        return glm::vec3(chunkPos.x * chunkSize.x, chunkPos.y * chunkSize.y,
-                         chunkPos.z * chunkSize.z);
+    // Convert chunk coordinates back to world coordinates (chunk's origin position)
+    static glm::vec3 chunkToWorld(const glm::ivec3 &chunkPos) {
+        return glm::vec3(chunkPos.x * chunkSize.x, chunkPos.y * chunkSize.y, chunkPos.z * chunkSize.z);
     }
     bool isAir(int x, int y, int z) const {
         return chunkData[getBlockIndex(x, y, z)].type == Block::blocks::AIR;
     }
 
-    glm::mat4 getModelMatrix(void) const {
+    glm::mat4 getModelMatrix() const {
         return glm::translate(glm::mat4(1.0f), glm::vec3(position.x * chunkSize.x,
                                                          position.y * chunkSize.y,
                                                          position.z * chunkSize.z));
@@ -285,16 +281,13 @@ class Chunk {
 
     void generateTreeAt(int x, int y, int z);
 
-    void cleanup(void) {
-        if (SSBO)
-            glDeleteBuffers(1, &SSBO);
-    }
-
     // References to neighboring chunks
     std::weak_ptr<Chunk> leftChunk;  // -x direction
     std::weak_ptr<Chunk> rightChunk; // +x direction
     std::weak_ptr<Chunk> frontChunk; // +z direction
     std::weak_ptr<Chunk> backChunk;  // -z direction
+
+private:
     const int seaLevel = 5;
     GLuint SSBO;
     GLuint opaqueFaceCount = 0;

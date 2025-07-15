@@ -11,19 +11,17 @@
 
 Chunk::Chunk(const glm::ivec3 &chunkPos)
     : position(chunkPos), SSBO(0) {
-    try {
-        chunkData.resize(chunkSize.x * chunkSize.y * chunkSize.z);
-    } catch (const std::bad_alloc &e) {
-        throw std::runtime_error("Failed to allocate chunkData vector: " + std::string(e.what()));
-    }
+        chunkData.reserve(chunkSize.x * chunkSize.y * chunkSize.z); // No initialization
 
-    // Construct AABB
-    glm::vec3 worldOrigin = chunkToWorld(position, chunkSize);
-    glm::vec3 worldMax = worldOrigin + glm::vec3(chunkSize);
-    aabb = AABB(worldOrigin, worldMax);
-    glCreateBuffers(1, &SSBO);
-    srand(static_cast<unsigned int>(position.x ^ position.y ^ position.z));
-}
+
+
+        // Construct AABB
+        glm::vec3 worldOrigin = chunkToWorld(position);
+        glm::vec3 worldMax = worldOrigin + glm::vec3(chunkSize);
+        aabb = AABB(worldOrigin, worldMax);
+        glCreateBuffers(1, &SSBO);
+        srand(static_cast<unsigned int>(position.x ^ position.y ^ position.z));
+    }
 Chunk::~Chunk() {
     if (SSBO)
         glDeleteBuffers(1, &SSBO);

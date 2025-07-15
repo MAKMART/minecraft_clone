@@ -6,6 +6,7 @@
 class SpectatorMode : public PlayerMode {
   public:
     void enterMode(Player &player) override {
+        player.isSpectator = true;
         player.isDamageable = false; // No damage
         player.hasInfiniteBlocks = false;
         player.isFlying = true;
@@ -16,13 +17,13 @@ class SpectatorMode : public PlayerMode {
     }
 
     void exitMode(Player &player) override {
+        player.isSpectator = false;
         player.renderSkin = true;
     }
 
     void updateState(Player &player, std::unique_ptr<PlayerState> newState) override {
-        // In Spectator mode, only allow Flying
-        PlayerState *rawPtr = newState.get();
-        if (dynamic_cast<FlyingState *>(rawPtr)) {
+        // Only allow the player to be flying in spectator mode
+        if (player.isFlying) {
             player.changeState(std::move(newState));
         }
     }

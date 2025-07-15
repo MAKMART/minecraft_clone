@@ -2,29 +2,8 @@
 #include <glm/common.hpp>
 #include <optional>
 
-glm::mat4 Camera::computeViewMatrix(bool thirdPerson, const glm::vec3& cameraPos, const glm::quat& cameraOrientation, const glm::vec3& targetPos) const {
-    /*
-    glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    if (thirdPerson) {
-        return glm::lookAt(cameraPos, targetPos, worldUp);
-    } else {
-        glm::vec3 front = cameraOrientation * glm::vec3(0, 0, -1);
-        return glm::lookAt(cameraPos, cameraPos + front, worldUp);
-    }
-    */
-    glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    if (thirdPerson) {
-        return glm::lookAt(cameraPos, targetPos, worldUp);
-    } else {
-        // Create rotation matrix from camera orientation quaternion
-        glm::mat4 rotation = glm::mat4_cast(glm::conjugate(cameraOrientation)); // conjugate to invert rotation
-
-        // Create translation matrix to move the world opposite to camera position
-        glm::mat4 translation = glm::translate(glm::mat4(1.0f), -cameraPos);
-
-        // View matrix = rotation * translation
-        return rotation * translation;
-    }
+glm::mat4 Camera::computeViewMatrix(const glm::vec3& cameraPos, const glm::quat& cameraOrientation) const {
+    return glm::mat4_cast(glm::conjugate(cameraOrientation)) * glm::translate(glm::mat4(1.0f), -cameraPos);
 }
 
 glm::mat4 Camera::computeProjectionMatrix(float fovDegrees, float aspect, float nearPlane, float farPlane) const {

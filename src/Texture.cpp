@@ -4,52 +4,32 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-Texture::Texture(void) : ID(0), width(0), height(0) {}
+Texture::Texture() : ID(0), width(0), height(0) {}
 
-Texture::Texture(const std::string &path, GLenum format, GLenum wrapMode, GLenum filterMode) {
-    glCreateTextures(GL_TEXTURE_2D, 1, &ID);
-
-    // Load image using stb_image
-    stbi_set_flip_vertically_on_load(true);
-    int channels = 0;
-    unsigned char *data = stbi_load(path.c_str(), &width, &height, &channels, 0);
-    if (!data) {
-        throw std::runtime_error("Failed to load texture: " + path);
-    }
-    GLenum internalFormat = (channels == 4) ? GL_RGBA8 : GL_RGB8;
-
-    // Allocate immutable storage
-    int levels = 1 + (int)std::floor(std::log2(std::max(width, height)));
-    glTextureStorage2D(ID, levels, internalFormat, width, height);
-
-    // Upload texture data
-    glTextureSubImage2D(ID, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
-
-    // Generate mipmaps
-    glGenerateTextureMipmap(ID);
-
-    // Set texture parameters
-    glTextureParameteri(ID, GL_TEXTURE_WRAP_S, wrapMode);
-    glTextureParameteri(ID, GL_TEXTURE_WRAP_T, wrapMode);
-    glTextureParameteri(ID, GL_TEXTURE_MIN_FILTER, filterMode);
-    glTextureParameteri(ID, GL_TEXTURE_MAG_FILTER, filterMode);
-    stbi_image_free(data);
-}
 Texture::Texture(const std::filesystem::path &path, GLenum format, GLenum wrapMode, GLenum filterMode) {
+
+    static bool flipOnce = [](){
+        stbi_set_flip_vertically_on_load(true);
+        return true;
+    }();
+
+
     glCreateTextures(GL_TEXTURE_2D, 1, &ID);
 
     // Load image using stb_image
-    stbi_set_flip_vertically_on_load(true);
     int channels = 0;
     std::string strPath = path.string();
-    unsigned char *data = stbi_load(strPath.c_str(), &width, &height, &channels, 0);
+    unsigned char *data = stbi_load(strPath.c_str(), &width, &height, &channels, STBI_rgb_alpha);
     if (!data) {
         throw std::runtime_error("Failed to load texture: " + path.string());
     }
-    GLenum internalFormat = (channels == 4) ? GL_RGBA8 : GL_RGB8;
+    GLenum internalFormat = GL_RGBA8;
+    GLenum dataFormat = GL_RGBA;
 
     // Allocate immutable storage
-    int levels = 1 + (int)std::floor(std::log2(std::max(width, height)));
+    int maxDim = std::max(width, height);
+    int levels = 1;
+    while ((maxDim >>= 1) > 0) ++levels;
     glTextureStorage2D(ID, levels, internalFormat, width, height);
 
     // Upload texture data
@@ -89,6 +69,11 @@ Texture &Texture::operator=(Texture &&other) noexcept {
     }
     return *this;
 }
+Texture::~Texture() {
+    if (ID != 0) {
+        glDeleteTextures(1, &ID);
+    }
+}
 bool Texture::createEmpty(int width, int height, GLenum internalFormat) {
 
     if (ID != 0) {
@@ -115,16 +100,9 @@ bool Texture::createEmpty(int width, int height, GLenum internalFormat) {
     return true;
 }
 
-Texture::~Texture(void) {
-    if (ID != 0) {
-        glDeleteTextures(1, &ID);
-    }
-}
-
 void Texture::Bind(int unit) const {
     if (ID == 0) {
-        std::string error = "[Texture] Warning: Attempt to bind invalid texture ID 0 on unit " + std::to_string(unit);
-        throw std::runtime_error(error);
+        log::system_warn("Texture", "Attempt to bind invalid texture ID 0 on unit {}", std::to_string(unit));
         return;
     }
     glBindTextureUnit(unit, ID);
