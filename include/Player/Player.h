@@ -33,7 +33,7 @@ class Player {
     glm::mat4 getProjectionMatrix() const { return camCtrl.getProjectionMatrix(); };
     glm::vec3 getCameraFront() const { return camCtrl.getFront(); };
     glm::vec3 getCameraRight() const { return camCtrl.getRight(); };
-    glm::vec3 getCameraUp() const { return camCtrl.getRight(); };
+    glm::vec3 getCameraUp() const { return camCtrl.getUp(); };
     const glm::mat4 &getModelMatrix() const { return modelMat; }
 
     // Non-const ref can be changed
@@ -81,9 +81,6 @@ class Player {
     void crouch();
 
 
-
-
-
     const AABB &getAABB() const {
         return aabb;
     }
@@ -120,6 +117,12 @@ class Player {
         camCtrl.toggleThirdPersonMode();
     }
 
+    void updateCamPos() {
+        if (camCtrl.isThirdPersonMode())
+            camCtrl.setOrbitTarget(position + glm::vec3(0, eyeHeight, 0));
+        else
+            camCtrl.setPosition(position + glm::vec3(0, eyeHeight, 0));
+    }
     // --- Player Settings ---
     float animationTime;
     float scaleFactor;
@@ -195,6 +198,5 @@ class Player {
 
 
     CameraController camCtrl;
-    void updateCameraPosition();
     void setupBodyParts();
 };

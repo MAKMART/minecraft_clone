@@ -27,13 +27,14 @@ class DebugDrawer {
         DebugOBB(const glm::mat4& t, const glm::vec3& h, const glm::vec3& c)
             : transform(t), halfExtents(h), color(c) {}
     };
-    std::vector<DebugAABB> boxes; // Stores AABBs for rendering
-    std::vector<DebugOBB> obbs;   // Stores OBBs for rendering
-    std::unique_ptr<Shader> shader; // Debug shader for rendering
-    GLuint vao = 0; // Vertex Array Object for wireframe cube
-    GLuint vbo = 0; // Vertex Buffer Object for wireframe cube
+    std::vector<DebugAABB> aabbs;
+    std::vector<DebugOBB> obbs;
+    std::vector<glm::vec3> vertices;
+    Shader* shader;
+    GLuint vao = 0;
+    GLuint vbo = 0;
 
-    void initGLResources();   // Initialize OpenGL resources (VAO, VBO, shader)
-    void destroyGLResources(); // Clean up OpenGL resources
-    void checkGLError(const std::string& operation); // Check for OpenGL errors
+    void initGLResources();
+    void destroyGLResources();
+    void checkGLError(const std::string& operation);
 };

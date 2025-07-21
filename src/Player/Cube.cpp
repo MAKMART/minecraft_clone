@@ -86,7 +86,7 @@ Cube::Cube(glm::vec3 size, BodyPartType type) : size_(size), halfX(size.x / 2.0f
 
     sendData();
 }
-Cube::~Cube(void) {
+Cube::~Cube() {
     if (SSBO)
         glDeleteBuffers(1, &SSBO);
 }

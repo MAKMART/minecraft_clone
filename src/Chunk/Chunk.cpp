@@ -10,10 +10,10 @@
 #include "defines.h"
 
 Chunk::Chunk(const glm::ivec3 &chunkPos)
-    : position(chunkPos), SSBO(0) {
-        chunkData.reserve(chunkSize.x * chunkSize.y * chunkSize.z); // No initialization
+    : position(chunkPos), SSBO(0), logSizeX(std::log2(chunkSize.x)), logSizeY(std::log2(chunkSize.y)) {
 
 
+        chunkData.resize(chunkSize.x * chunkSize.y * chunkSize.z); // Preallocate memory
 
         // Construct AABB
         glm::vec3 worldOrigin = chunkToWorld(position);
@@ -55,7 +55,7 @@ void Chunk::generateTreeAt(int x, int y, int z) {
     }
 }
 
-void Chunk::generate(const std::vector<float> &noiseMap) {
+void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ) {
     Timer generation_timer("Chunk::generate");
 
     constexpr int dirtDepth = 3;
@@ -63,14 +63,14 @@ void Chunk::generate(const std::vector<float> &noiseMap) {
 
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
-            int noiseIndex = z * chunkSize.x + x;
+            int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
 #if defined(DEBUG)
-            if (noiseIndex < 0 || noiseIndex >= static_cast<int>(noiseMap.size())) {
+            if (noiseIndex < 0 || noiseIndex >= static_cast<int>(fullNoise.size())) {
                 log::system_warn("Chunk", "Noise index out of bounds: {}", noiseIndex);
                 continue;
             }
 #endif
-            int height = static_cast<int>(noiseMap[noiseIndex] * chunkSize.y);
+            int height = static_cast<int>(fullNoise[noiseIndex] * chunkSize.y);
             height = std::clamp(height, 0, chunkSize.y - 1);
 
             for (int y = 0; y < chunkSize.y; ++y) {
@@ -100,34 +100,37 @@ void Chunk::generate(const std::vector<float> &noiseMap) {
             }
         }
     }
+    
 
-    // Water pass
+}
+void Chunk::genWaterPlane(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ) {
+
+
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
-            int noiseIndex = z * chunkSize.x + x;
-            int height = static_cast<int>(noiseMap[noiseIndex] * chunkSize.y);
+            int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
+            int height = static_cast<int>(fullNoise[noiseIndex] * chunkSize.y);
             height = std::clamp(height, 0, chunkSize.y - 1);
 
-            // Fill from height up to sea level with water (if below sea level)
-            for (int y = height + 1; y <= seaLevel && y < chunkSize.y; ++y) {
+            int upperLimit = std::min(seaLevel, chunkSize.y - 1);
+            for (int y = height + 1; y <= upperLimit; ++y) {
                 int index = getBlockIndex(x, y, z);
                 if (index == -1)
                     continue;
                 Block &block = chunkData[index];
                 if (block.type == Block::blocks::AIR)
                     setBlockAt(x, y, z, Block::blocks::WATER);
-            }
+            }     
         }
     }
-
 }
-void Chunk::genTrees(const std::vector<float> &noiseMap) {
+void Chunk::genTrees(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ) {
     Timer tree_timer("trees_pass");
     // Tree pass
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
-            int noiseIndex = z * chunkSize.x + x;
-            int height = static_cast<int>(noiseMap[noiseIndex] * chunkSize.y);
+            int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
+            int height = static_cast<int>(fullNoise[noiseIndex] * chunkSize.y);
             height = std::clamp(height, 0, chunkSize.y - 1);
 
             // Rough condition for tree placement: 1 in 20 chance
@@ -206,8 +209,9 @@ void Chunk::updateMesh() {
 // Helper function to check if a face under the water is visible
 bool Chunk::isSeaFaceVisible(const Block &block, int x, int y, int z) {
     // Face is visible ONLY if neighbor block is NOT transparent
-    const Block::blocks type = getBlockAt(x, y, z).type;
-    return type == Block::blocks::WATER || type == Block::blocks::LEAVES;
+    //const Block::blocks type = getBlockAt(x, y, z).type;
+    //return type == Block::blocks::WATER || type == Block::blocks::LEAVES;
+    return Block::isTransparent(getBlockAt(x, y, z).type);
 }
 void Chunk::generateSeaBlockFace(const Block &block, int x, int y, int z) {
     // Lambda to push a face into the vector.
@@ -518,16 +522,16 @@ void Chunk::generateBlockFace(const Block &block, int x, int y, int z) {
         break;
     }
 }
-void Chunk::renderOpaqueMesh(std::unique_ptr<Shader> &shader) {
-    shader->setMat4("model", getModelMatrix());
+void Chunk::renderOpaqueMesh(const Shader &shader) {
+    shader.setMat4("model", getModelMatrix());
     if (!faces.empty()) {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
         DrawArraysWrapper(GL_TRIANGLES, 0, opaqueFaceCount * 6);
     }
 
 }
-void Chunk::renderTransparentMesh(std::unique_ptr<Shader> &shader) {
-    shader->setMat4("model", getModelMatrix());
+void Chunk::renderTransparentMesh(const Shader &shader) {
+    shader.setMat4("model", getModelMatrix());
     if (!waterFaces.empty()) {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
         DrawArraysWrapper(GL_TRIANGLES, opaqueFaceCount * 6, transparentFaceCount * 6);

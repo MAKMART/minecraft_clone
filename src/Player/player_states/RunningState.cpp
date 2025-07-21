@@ -10,13 +10,14 @@ void RunningState::exitState(Player &player) {
 
 void RunningState::handleInput(Player &player, float deltaTime) {
 
+    (void)deltaTime;
+
     glm::vec3 movement(0.0f);
 
     const auto &input = player.input;
     player.running_speed = player.walking_speed + player.running_speed_increment;
     float speed = player.running_speed;
 
-    // Use camCtrl's direction vectors instead of _camera
     glm::vec3 front = player.getCameraFront();
     glm::vec3 right = player.getCameraRight();
 
@@ -26,7 +27,6 @@ void RunningState::handleInput(Player &player, float deltaTime) {
     front = glm::normalize(front);
     right = glm::normalize(right);
 
-    // WASD Movement
     if (input->isHeld(FORWARD_KEY))
         movement += front;
     if (input->isHeld(BACKWARD_KEY))
@@ -46,7 +46,6 @@ void RunningState::handleInput(Player &player, float deltaTime) {
         player.velocity.z = 0.0f;
     }
 
-    // Jump
     if (input->isHeld(JUMP_KEY))
         player.jump();
 }

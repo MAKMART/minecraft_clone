@@ -1,18 +1,19 @@
 #include "SwimmingState.h"
 
-// Entering the Walking State
 void SwimmingState::enterState(Player &player) {
     player.isSwimming = true;
 }
 
-// Exiting the Walking State
 void SwimmingState::exitState(Player &player) {
     player.isSwimming = false;
 }
 
-// Handling input when in the Walking State
 void SwimmingState::handleInput(Player &player, float deltaTime) {
+
+    (void)deltaTime;
+
     glm::vec3 movement(0.0f);
+
     float speed = player.swimming_speed;
 
     if (player.input->isHeld(FORWARD_KEY))

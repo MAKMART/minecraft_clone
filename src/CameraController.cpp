@@ -1,29 +1,21 @@
 #include "CameraController.hpp"
+#include "logger.hpp"
 
 
 CameraController::CameraController(const glm::vec3& startPos, const glm::quat& startOrient)
-  : interpolateEnabled(false),
-    currentPosition(startPos),
-    currentOrientation(startOrient),
-    isThirdPerson(false)
+  : currentPosition(startPos),
+    currentOrientation(startOrient)
 {
     interpolatePosition = currentPosition;
     interpolateOrientation = currentOrientation;
-    setInterpolationDuration(0.5f);
 }
 
 CameraController::CameraController()
-    : interpolateEnabled(false),
-      currentPosition(glm::vec3(0.0f)),
-      currentOrientation(glm::quat(1.0f, 0.0f, 0.0f, 0.0f)),
-      isThirdPerson(false)
+    : currentPosition(glm::vec3(0.0f)),
+      currentOrientation(glm::quat(1.0f, 0.0f, 0.0f, 0.0f))
 {
-    // Initialize interpolation targets with current values
     interpolatePosition = currentPosition;
     interpolateOrientation = currentOrientation;
-
-    // Default interpolation duration (speed inverse)
-    setInterpolationDuration(0.5f); // half a second transition
 }
 
 glm::mat4 CameraController::getViewMatrix() const {
@@ -94,7 +86,7 @@ void CameraController::setInterpolationDuration(float seconds) {
     interpolateOrientation.setDuration(seconds);
 }
 
-void CameraController::setTargetPosition(const glm::vec3& pos) {
+void CameraController::setPosition(const glm::vec3& pos) {
     if (interpolateEnabled) {
         interpolatePosition = pos;
     } else {
@@ -103,8 +95,7 @@ void CameraController::setTargetPosition(const glm::vec3& pos) {
     }
     viewDirty = true;  // position affects view matrix
 }
-
-void CameraController::setTargetOrientation(const glm::quat& orient) {
+void CameraController::setOrientation(const glm::quat& orient) {
     if (interpolateEnabled) {
         interpolateOrientation = orient;
     } else {
@@ -119,44 +110,72 @@ void CameraController::snapToTarget() {
 }
 
 void CameraController::update(float deltaTime) {
-    if (interpolateEnabled) {
+    if (isThirdPerson) {
+        float yawRad = glm::radians(orbitYaw);
+        float pitchRad = glm::radians(orbitPitch);
+
+        glm::vec3 offset;
+        offset.x = orbitDistance * std::cos(pitchRad) * std::cos(yawRad);
+        offset.y = orbitDistance * std::sin(pitchRad);
+        offset.z = orbitDistance * std::cos(pitchRad) * std::sin(yawRad);
+
+        currentPosition = target - offset;
+        glm::vec3 front = glm::normalize(target - currentPosition);
+
+        // Recompute orientation from front
+        currentOrientation = glm::quatLookAt(front, worldUp);
+        viewDirty = true;
+    } else if (interpolateEnabled) {
         currentPosition = interpolatePosition.getValue();
         currentOrientation = interpolateOrientation.getValue();
         viewDirty = true;
     }
-    viewDirty = true;
-    // No else, currentPosition/orientation already set for no interpolation
+
 }
-void CameraController::processMouseMovement(float xoffset, float yoffset, bool constrainPitch) {
-    // Update currentOrientation based on input offsets (you probably have pitch/yaw tracking)
-    // For example, update Euler angles, then recalc currentOrientation quaternion
+void CameraController::syncYawPitchFromOrientation() {
+    glm::vec3 front = glm::normalize(currentOrientation * glm::vec3(0, 0, -1));
     
-    // Here's a typical implementation idea:
-    static float yaw = -90.0f;  // Initialize facing forward -Z
-    static float pitch = 0.0f;
+    float yaw   = glm::degrees(atan2(front.z, front.x));
+    float pitch = glm::degrees(asin(glm::clamp(front.y, -1.0f, 1.0f)));
 
-    yaw += xoffset * sensitivity;
-    pitch += yoffset * sensitivity;
+    fpsYaw = orbitYaw = yaw;
+    fpsPitch = orbitPitch = pitch;
+}
 
-    // Clamp pitch
-    if (constrainPitch) {
-        if (pitch > 89.0f) pitch = 89.0f;
-        if (pitch < -89.0f) pitch = -89.0f;
+void CameraController::processMouseMovement(float xoffset, float yoffset, bool constrainPitch) {
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+    const float pitchLimit = 89.0f;
+
+    if (isThirdPerson) {
+        orbitYaw += xoffset;
+        orbitPitch -= yoffset;
+
+        if (constrainPitch) {
+            orbitPitch = glm::clamp(orbitPitch, -pitchLimit, pitchLimit);
+        }
+
+        viewDirty = true;
+        return;
     }
 
-    // Calculate new orientation quaternion from yaw/pitch (roll=0)
-    glm::vec3 front;
-    front.x = std::cos(glm::radians(yaw)) * std::cos(glm::radians(pitch));
-    front.y = std::sin(glm::radians(pitch));
-    front.z = std::sin(glm::radians(yaw)) * std::cos(glm::radians(pitch));
-    front = glm::normalize(front);
+    // FPS mode
+    fpsYaw += xoffset;
+    fpsPitch -= yoffset;
 
-    // Construct quaternion facing that direction: 
-    // Since you want orientation quaternion, you can do lookAt from world forward
-    // Or use glm::quatLookAt or equivalent:
+    if (constrainPitch)
+        fpsPitch = glm::clamp(fpsPitch, -pitchLimit, pitchLimit);
 
-    currentOrientation = glm::quatLookAt(front, glm::vec3(0, 1, 0));
-    viewDirty = true;  // Mark view matrix dirty for recalculation
+    // Rebuild orientation from yaw and pitch
+    glm::vec3 direction;
+    direction.x = std::cos(glm::radians(fpsYaw)) * std::cos(glm::radians(fpsPitch));
+    direction.y = std::sin(glm::radians(fpsPitch));
+    direction.z = std::sin(glm::radians(fpsYaw)) * std::cos(glm::radians(fpsPitch));
+
+    glm::vec3 front = glm::normalize(direction);
+    
+    currentOrientation = glm::quatLookAt(front, worldUp);
+    viewDirty = true;
 }
 
 void CameraController::processMouseScroll(float yoffset) {

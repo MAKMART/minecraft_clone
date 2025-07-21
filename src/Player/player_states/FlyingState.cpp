@@ -10,6 +10,9 @@ void FlyingState::exitState(Player &player) {
 }
 
 void FlyingState::handleInput(Player &player, float deltaTime) {
+
+    (void)deltaTime;
+
     glm::vec3 movement(0.0f);
     float speed = player.flying_speed;
 
@@ -22,9 +25,9 @@ void FlyingState::handleInput(Player &player, float deltaTime) {
     if (player.input->isHeld(RIGHT_KEY))
         movement += player.getCameraRight() * speed;
     if (player.input->isHeld(DOWN_KEY))
-        movement -= player.getCameraUp() * speed;
+        movement -= player.getCameraController().getWorldUp() * speed;
     if (player.input->isHeld(UP_KEY))
-        movement += player.getCameraUp() * speed;
+        movement += player.getCameraController().getWorldUp() * speed;
 
     // Normalize movement and apply speed
     if (glm::length(movement) > 0.0f) {

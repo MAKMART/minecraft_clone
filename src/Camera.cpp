@@ -1,6 +1,5 @@
 #include "Camera.hpp"
 #include <glm/common.hpp>
-#include <optional>
 
 glm::mat4 Camera::computeViewMatrix(const glm::vec3& cameraPos, const glm::quat& cameraOrientation) const {
     return glm::mat4_cast(glm::conjugate(cameraOrientation)) * glm::translate(glm::mat4(1.0f), -cameraPos);

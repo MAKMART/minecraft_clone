@@ -1,16 +1,14 @@
 #include "WalkingState.h" // Include the header to get WalkingState class declaration
-
-// Entering the Walking State
 void WalkingState::enterState(Player &player) {
     player.isWalking = true;
 }
-// Exiting the Walking State
 void WalkingState::exitState(Player &player) {
     player.isWalking = false;
 }
-
-// Handling input when in the Walking State
 void WalkingState::handleInput(Player &player, float deltaTime) {
+
+
+    (void)deltaTime;
 
     glm::vec3 movement(0.0f);
 

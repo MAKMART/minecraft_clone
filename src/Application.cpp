@@ -6,17 +6,13 @@
 #include "imgui.h"
 #include <algorithm>
 #include <exception>
+#include <memory>
 #include <stb_image.h>
 #include <stdexcept>
 #include <string>
 
-Application::Application(int width, int height)
-    : title(std::string(PROJECT_NAME) + std::string(" ") +
-            std::string(PROJECT_VERSION)),
-      width(width), height(height),
-      /*backgroundColor(0.11f, 0.67f, 0.7f, 1.0f),*/ backgroundColor(
-          0.0f, 0.0f, 0.0f, 1.0f),
-      nbFrames(0), deltaTime(0.0f), lastFrame(0.0f) {
+Application::Application(int width, int height) : width(width), height(height), backgroundColor(0.0f, 0.0f, 0.0f, 1.0f) {
+
 #if defined(DEBUG)
     std::cout << "----------------------------DEBUG MODE----------------------------\n";
 #elif defined(NDEBUG)
@@ -27,6 +23,67 @@ Application::Application(int width, int height)
 #endif
 
     // First thing you have to do is fix the damn stencil buffer to allow cropping in RmlUI
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // TODO:    FIX THE CAMERA CONTROLLER TO WORK WITH INTERPOLATION
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     initWindow();
     // Set the Application pointer for callbacks.
@@ -176,9 +233,7 @@ void Application::initWindow(void) {
 #endif
 
 
-    glfwWindowHint(
-        GLFW_TRANSPARENT_FRAMEBUFFER,
-        GLFW_FALSE); // !!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!
+    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE); // !!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_SAMPLES, MSAA_STRENGHT);
 
@@ -189,17 +244,14 @@ void Application::initWindow(void) {
     glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 
     // Get primary monitor and its video mode
-    // if(isFullscreen) {
     GLFWmonitor *monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode *mode = glfwGetVideoMode(monitor);
-    //}
 
-    window = (isFullscreen) ? glfwCreateWindow(mode->width, mode->height,
-                                               title.c_str(), monitor, nullptr)
-                            : glfwCreateWindow(width, height, title.c_str(),
-                                               nullptr, nullptr);
+    window = isFullscreen ? glfwCreateWindow(mode->width, mode->height, title.c_str(), monitor, nullptr)
+                            : glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!window) {
         glfwTerminate();
+        log::error("Failed to create GLFW window");
         throw std::runtime_error("Failed to create GLFW window");
     }
     glfwMakeContextCurrent(window);
@@ -328,7 +380,7 @@ void Application::processInput() {
     player->processKeyInput();
 
     if (input->isPressed(GLFW_KEY_H)) {
-        chunkManager->chunkShader->reload();
+        chunkManager->getShader().reload();
         playerShader->reload();
     }
     playerShader->checkAndReloadIfModified();
@@ -405,15 +457,21 @@ void Application::Run(void) {
                                  GL_STENCIL_BUFFER_BIT
                            : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+
+        // --- Chunk Generation ---
+        chunkManager->generateChunks(player->getPos(), player->render_distance);
+
+
         // --- Player Update && Third-Person Rendering ---
         playerShader->setMat4("projection", player->getProjectionMatrix());
         playerShader->setMat4("view", player->getViewMatrix());
         player->update(deltaTime, *chunkManager);
 
+
         // --- Render World ---
         if (renderTerrain) {
-            chunkManager->chunkShader->checkAndReloadIfModified();
-            chunkManager->renderChunks(player->getPos(), player->render_distance, player->getCameraController(), glfwGetTime());
+            chunkManager->getShader().checkAndReloadIfModified();
+            chunkManager->renderChunks(player->getCameraController(), glfwGetTime());
         }
 #if defined(DEBUG)
         if (debugRender) {
@@ -580,7 +638,7 @@ void Application::Run(void) {
                         float fov = camera.getFov();
                         float nearPlane = camera.getNearPlane();
                         float farPlane = camera.getFarPlane();
-                        glm::vec3 distance = camera.getThirdPersonOffset();
+                        float distance = camera.getOrbitDistance();
                         if (ImGui::SliderFloat("Mouse Sensitivity", &mouseSens, 0.01f, 2.0f)) {
                             camera.setSensitivity(mouseSens);
                         }
@@ -593,8 +651,8 @@ void Application::Run(void) {
                         if (ImGui::SliderFloat("Far Plane", &farPlane, 10.0f, 1000000.0f)) {
                             camera.setFarPlane(farPlane);
                         }
-                        if (ImGui::SliderFloat("Third Person Offset", &distance.z, 1.0f, 20.0f)) {
-                            camera.setThirdPersonDistance(distance.z);
+                        if (ImGui::SliderFloat("Third Person Offset", &distance, 1.0f, 20.0f)) {
+                            camera.setOrbitDistance(distance);
                         }
                         ImGui::TreePop();
                     }
@@ -619,7 +677,7 @@ void Application::Run(void) {
                         ImGui::Checkbox("renderPlayer", &player->renderSkin);
                         static bool debug = false;
                         ImGui::Checkbox("debug", &debug); // Updates the value
-                        chunkManager->chunkShader->setBool("debug", debug);
+                        chunkManager->getShader().setBool("debug", debug);
                         ImGui::TreePop();
                     }
                 }
@@ -638,21 +696,17 @@ void Application::Run(void) {
             glDepthFunc(GL_LEQUAL);
         }
         glPolygonMode(GL_FRONT_AND_BACK, WIREFRAME_MODE ? GL_LINE : GL_FILL);
-        // --- Swap Buffers ---
         glfwSwapBuffers(window);
     }
 }
-// GLFW Callback implementations
-void Application::framebuffer_size_callback(GLFWwindow *window, int width,
-                                            int height) {
+// GLFW Callbacks implementations
+void Application::framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     glViewport(0, 0, width, height);
 
-    Application *app =
-        static_cast<Application *>(glfwGetWindowUserPointer(window));
+    Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
 
     if (width <= 0 || height <= 0) {
-        // Don't recalculate the projection matrix, skip this frame's rendering, or
-        // log a warning
+        // Don't recalculate the projection matrix, skip this frame's rendering, or log a warning
         return;
     }
     if (app) {
@@ -661,25 +715,16 @@ void Application::framebuffer_size_callback(GLFWwindow *window, int width,
         app->ui->SetViewportSize(width, height);
     }
 }
-void Application::cursor_callback(GLFWwindow *window, double xpos,
-                                  double ypos) {
-    Application *app =
-        static_cast<Application *>(glfwGetWindowUserPointer(window));
+void Application::cursor_callback(GLFWwindow *window, double xpos, double ypos) {
+    Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
 
     if (!app)
         return;
 
     std::pair<double, double> mouseDelta = app->input->getMouseDelta();
 
-    // Conditionally invert Y-axis based on the flag
-    float yDelta = app->input->invertYAxis
-                       ? static_cast<float>(mouseDelta.second)
-                       : static_cast<float>(-mouseDelta.second);
-
-    glm::vec2 delta(static_cast<float>(mouseDelta.first), yDelta);
-
     if (app->input->isMouseTrackingEnabled()) {
-        app->player->processMouseMovement(delta.x, delta.y, true);
+        app->player->processMouseMovement(mouseDelta.first, mouseDelta.second, true);
     }
     if (app->ui->context && app->input->isMouseTrackingEnabled())
         app->ui->context->ProcessMouseMove(
@@ -687,8 +732,7 @@ void Application::cursor_callback(GLFWwindow *window, double xpos,
             app->ui->GetKeyModifiers());
 }
 void Application::mouse_callback(GLFWwindow *window, int button, int action, int mods) {
-    Application *app =
-        static_cast<Application *>(glfwGetWindowUserPointer(window));
+    Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
 
     if (!app)
         return;
@@ -701,8 +745,7 @@ void Application::mouse_callback(GLFWwindow *window, int button, int action, int
         app->ui->context->ProcessMouseButtonUp(button, mods);
 }
 
-void Application::scroll_callback(GLFWwindow *window, double xoffset,
-                                  double yoffset) {
+void Application::scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     (void)xoffset;
     Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
 

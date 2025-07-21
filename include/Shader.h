@@ -15,11 +15,11 @@
 
 class Shader {
 private:
-    unsigned int ID; // Shader program ID
+    unsigned int ID;
     std::string name;
     std::filesystem::path vertexShaderPath;
     std::filesystem::path fragmentShaderPath;
-    mutable std::unordered_map<std::string, GLint> uniformCache; // Cache for uniform locations
+    mutable std::unordered_map<std::string, GLint> uniformCache;
     mutable std::mutex uniformCacheMutex;
 
     std::filesystem::file_time_type lastVertexWriteTime;
@@ -31,7 +31,6 @@ public:
 
     std::string getName() const { return name; }
 
-    // Constructor with filesystem::path
     Shader(const std::string &_name, const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath)
         : name(_name), vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath) {
         ID = loadAndCompile(vertexPath, fragmentPath);
@@ -41,8 +40,7 @@ public:
 
     }
 
-    // Constructor with C strings
-    Shader(const char *_name, const char* vertexPath, const char* fragmentPath)
+    Shader(std::string _name, std::string vertexPath, std::string fragmentPath)
         : name(_name), vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath) {
         ID = loadAndCompile(vertexShaderPath, fragmentShaderPath);
         reflectUniforms();
@@ -51,14 +49,17 @@ public:
 
     }
 
-    ~Shader(void) {
+    Shader(const Shader&) = delete;
+    Shader& operator=(const Shader&) = delete;
+
+
+    ~Shader() {
         if (glIsProgram(ID)) {
             glDeleteProgram(ID);
         }
     }
 
-    // Activate the shader
-    void use(void) const {
+    void use() const {
         if (glIsProgram(ID)) {
             glUseProgram(ID);
         } else {
@@ -66,7 +67,6 @@ public:
         }
     }
 
-    // Method to check and reload the shader only if it has been modified
     bool checkAndReloadIfModified() {
         try {
             auto currentVertexTime = std::filesystem::last_write_time(vertexShaderPath);
@@ -82,19 +82,19 @@ public:
         }
         return false;
     }
-    // Reload shader and clear uniform cache
+
+
     bool reload() {
         try {
             unsigned int newProgram = loadAndCompile(vertexShaderPath, fragmentShaderPath);
 
-            // New program built and validated; safe to delete old one
             if (glIsProgram(ID)) {
                 glDeleteProgram(ID);
             }
 
             ID = newProgram;
             uniformCache.clear(); // Uniforms may have changed
-            reflectUniforms();    // Make sure we re-cache common uniforms
+            reflectUniforms();
 
             log::system_info("Shader", "[{}] Reloaded shader from {} and {}", name, vertexShaderPath.string(), fragmentShaderPath.string());
             return true;
@@ -104,7 +104,6 @@ public:
         }
     }
 
-    // Uniform setting methods with caching
     void setBool(const std::string& name, bool value) const {
         GLint location = getUniformLocation(name);
         if (location != -1) {
@@ -155,7 +154,6 @@ public:
     }
 
 private:
-    // Helper function to preload common used uniforms
     void reflectUniforms() {
 
         std::lock_guard<std::mutex> lock(uniformCacheMutex);
@@ -181,7 +179,7 @@ private:
 
         log::system_info("Shader", "[{}] Reflected and cached {} active uniforms.", name, uniformCache.size());
     }
-    // Helper to get or cache uniform location
+
     GLint getUniformLocation(const std::string& uni_name) const {
         std::lock_guard<std::mutex> lock(uniformCacheMutex);
         auto it = uniformCache.find(uni_name);
@@ -196,6 +194,7 @@ private:
         }
         return location;
     }
+
     unsigned int loadAndCompile(const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath) {
         std::string vertexCode;
         std::string fragmentCode;

@@ -1,13 +1,14 @@
 #include "ChunkManager.h"
-#include "defines.h"
 #include <cmath>
+#include <cstdint>
 #include <stdexcept>
+#include "Chunk.h"
 #include "Timer.h"
-#include "logger.hpp"
-#include <unordered_set>
 
-ChunkManager::ChunkManager(int renderDistance, std::optional<siv::PerlinNoise::seed_type> seed) {
-    // Initialize Perlin noise
+ChunkManager::ChunkManager(int renderDistance, std::optional<siv::PerlinNoise::seed_type> seed)
+    : Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST),
+      shader("Chunk", CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY),
+      waterShader("Water", WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY){
     if (seed.has_value()) {
         perlin = siv::PerlinNoise(seed.value());
         log::system_info("ChunkManager", "initialized with seed: {}", seed.value());
@@ -18,12 +19,6 @@ ChunkManager::ChunkManager(int renderDistance, std::optional<siv::PerlinNoise::s
         perlin = siv::PerlinNoise(random_seed);
         log::system_info("ChunkManager", "initialized with random seed: {}", random_seed);
     }
-    if (!chunksTexture.get())
-        chunksTexture = std::make_unique<Texture>(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
-    if (!chunkShader.get())
-        chunkShader = std::make_unique<Shader>("Chunk", CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY);
-    if (!waterShader.get())
-        waterShader = std::make_unique<Shader>("Water", WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY);   
 
     if (chunkSize.x <= 0 || chunkSize.y <= 0 || chunkSize.z <= 0) {
         throw std::invalid_argument("chunkSize must be positive");
@@ -31,27 +26,16 @@ ChunkManager::ChunkManager(int renderDistance, std::optional<siv::PerlinNoise::s
     if ((chunkSize.x & (chunkSize.x - 1)) != 0 || (chunkSize.y & (chunkSize.y - 1)) != 0 || (chunkSize.z & (chunkSize.z - 1)) != 0) {
         throw std::invalid_argument("chunkSize must be a power of 2");
     }
-    uint64_t totalSize = static_cast<uint64_t>(chunkSize.x) * chunkSize.y * chunkSize.z;
-    if (totalSize > 1'000'000) { // Arbitrary limit, adjust as needed
-        throw std::invalid_argument("chunkSize too large: " + std::to_string(totalSize) + " elements");
-    }
-
-    // Initialize with a value that is not equal to any valid chunk position.
-    lastChunkX = -99999999;
-    lastChunkZ = -99999999;
 
     glCreateVertexArrays(1, &VAO);
 
-    loadChunksAroundPlayer({0.0f, 0.0f, 0.0f}, renderDistance);
 }
 ChunkManager::~ChunkManager() {
     clearChunks();
 }
 
-// Unload a chunk at the given world position
 void ChunkManager::unloadChunk(glm::vec3 worldPos) {
-    auto chunkKey = getChunkKey(worldPos);
-    auto it = chunks.find(chunkKey);
+    auto it = chunks.find(Chunk::worldToChunk(worldPos));
     if (it == chunks.end())
         return;
 
@@ -74,12 +58,12 @@ void ChunkManager::unloadChunk(glm::vec3 worldPos) {
         back->updateMesh();
     }
 
-    // Clean up and remove the chunk
     chunks.erase(it);
 }
 
 void ChunkManager::updateBlock(glm::vec3 worldPos, Block::blocks newType) {
-    auto chunk = getChunk(worldPos);
+    Chunk* chunk = getChunk(worldPos);
+
     if (!chunk)
         return;
 
@@ -126,206 +110,319 @@ float ChunkManager::LayeredPerlin(float x, float z, int octaves, float baseFreq,
 
     return total; // raw value, unnormalized
 }
-bool ChunkManager::neighborsAreGenerated(const std::shared_ptr<Chunk> &chunk) {
-    return isGenerated(chunk->leftChunk.lock()) &&
-           isGenerated(chunk->rightChunk.lock()) &&
-           isGenerated(chunk->frontChunk.lock()) &&
-           isGenerated(chunk->backChunk.lock());
+bool ChunkManager::neighborsAreGenerated(Chunk* chunk) {
+    return chunk &&
+        chunk->leftChunk.lock() && chunk->leftChunk.lock()->state >= ChunkState::Generated &&
+        chunk->rightChunk.lock() && chunk->rightChunk.lock()->state >= ChunkState::Generated &&
+        chunk->frontChunk.lock() && chunk->frontChunk.lock()->state >= ChunkState::Generated &&
+        chunk->backChunk.lock() && chunk->backChunk.lock()->state >= ChunkState::Generated;
 }
+/*
+void ChunkManager::loadChunksAroundPlayer(const glm::ivec3& playerChunkPos, int renderDistance) {
 
-bool ChunkManager::isGenerated(const std::shared_ptr<Chunk>& chunk) {
-    return chunk && chunk->state >= ChunkState::Generated;
-}
-
-void ChunkManager::loadChunksAroundPlayer(glm::vec3 playerPosition, int renderDistance) {
     Timer chunksTimer("chunk_generation");
-    if (renderDistance <= 0)
-        return;
+    if (renderDistance <= 0) return;
 
-    const int playerChunkX = static_cast<int>(floor(playerPosition.x / chunkSize.x));
-    const int playerChunkZ = static_cast<int>(floor(playerPosition.z / chunkSize.z));
+    const int side = 2 * renderDistance + 1;
 
-    // Define the total region size based on render distance and chunk size
-    const int regionWidth = (2 * renderDistance + 1) * chunkSize.x;
-    const int regionHeight = (2 * renderDistance + 1) * chunkSize.z;
-    std::vector<float> noiseRegion(regionWidth * regionHeight);
-    std::vector<float> chunkNoise(chunkSize.x * chunkSize.z);
-    std::unordered_set<std::shared_ptr<Chunk>> updatedChunks; // Track chunks needing mesh updates
+    glm::ivec2 region = {side * chunkSize.x, side * chunkSize.z};
 
-    // Precompute noise for the entire region
+    // Precomputed noise for the full region
+    static std::vector<float> cachedNoiseRegion;
+    static glm::ivec2 lastRegion = {-1, -1};
+
+    static glm::ivec2 lastChunkOrigin = {-99999, -99999};
+
+    // Pass 1: generate the noise map for all the chunks in the current region that we want to render
     {
         Timer noiseTimer("Noise precomputation");
-        for (int z = 0; z < regionHeight; ++z) {
-            for (int x = 0; x < regionWidth; ++x) {
-                const float wx = static_cast<float>((playerChunkX - renderDistance) * chunkSize.x + x);
-                const float wz = static_cast<float>((playerChunkZ - renderDistance) * chunkSize.z + z);
-                const float rawNoise = LayeredPerlin(wx, wz, 7, 0.003f, 1.2f);
-                noiseRegion[z * regionWidth + x] = std::pow(std::abs(rawNoise), 1.3f) * glm::sign(rawNoise);
+        if (lastRegion != region) {
+            cachedNoiseRegion.resize(region.x * region.y);
+            for (int y = 0; y < region.y; ++y) {
+                for (int x = 0; x < region.x; ++x) {
+                    float wx = float((playerChunkPos.x - renderDistance) * chunkSize.x + x);
+                    float wz = float((playerChunkPos.z - renderDistance) * chunkSize.z + y);
+                    float rawNoise = LayeredPerlin(wx, wz, 7, 0.003f, 1.2f);
+                    cachedNoiseRegion[y * region.x + x] = std::pow(std::abs(rawNoise), 1.3f) * glm::sign(rawNoise);
+                }
             }
+            lastRegion = region;
         }
     }
 
+    std::vector<float> noiseRegion = cachedNoiseRegion;
 
+
+    // Pass 1: Construct chunks (doesn't generate 'em)
     for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
         for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
-            const int chunkX = playerChunkX + dx;
-            const int chunkZ = playerChunkZ + dz;
-            const int worldX = chunkX * chunkSize.x;
-            const int worldZ = chunkZ * chunkSize.z;
-            const int regionX = (dx + renderDistance) * chunkSize.x;
-            const int regionZ = (dz + renderDistance) * chunkSize.z;
+            glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
+            // Make sure to not overrwrite the chunk if it already exists
+            chunks.try_emplace(chunkPos, std::make_shared<Chunk>(chunkPos));
+        }
+    }
 
-            auto chunkPtr = getOrCreateChunk({worldX, 0, worldZ});
 
-            // Stage 1: Terrain generation using precomputed noise
-            if (chunkPtr->state == ChunkState::Empty) {
-                Timer terrainTimer("Chunk terrain generation");
-                // Extract the relevant noise subregion for this chunk
-                for (int cz = 0; cz < chunkSize.z; ++cz) {
-                    for (int cx = 0; cx < chunkSize.x; ++cx) {
-                        chunkNoise[cz * chunkSize.x + cx] = noiseRegion[(regionZ + cz) * regionWidth + (regionX + cx)];
-                    }
-                }
-                chunkPtr->generate(chunkNoise);
-                chunkPtr->state = ChunkState::Generated;
-                updatedChunks.insert(chunkPtr);
-            }
+    // Pass 2: Generate the block data from the noise for all the chunks
+    for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
+        for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
 
-            // Stage 2: Neighbor linking with caching
-            {
-                Timer linkTimer("Neighbor chunk linking");
-                auto createNeighbor = [&](int offsetX, int offsetZ) {
-                    return getOrCreateChunk({(chunkX + offsetX) * chunkSize.x, 0, (chunkZ + offsetZ) * chunkSize.z});
-                };
-                chunkPtr->leftChunk = createNeighbor(-1, 0);
-                chunkPtr->rightChunk = createNeighbor(1, 0);
-                chunkPtr->frontChunk = createNeighbor(0, 1);
-                chunkPtr->backChunk = createNeighbor(0, -1);
-            }
+            glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
+            glm::vec3 worldPos = Chunk::chunkToWorld(chunkPos);
 
-            // Stage 3: Tree placement and neighbor updates if neighbors are ready
-            if (neighborsAreGenerated(chunkPtr) && chunkPtr->state == ChunkState::Generated) {
-                Timer neighborTimer("Neighboring chunks checks");
-                // Reuse the same chunkNoise subregion for trees
-                chunkPtr->genTrees(chunkNoise);
-                chunkPtr->state = ChunkState::TreesPlaced;
-                updatedChunks.insert(chunkPtr);
 
-                // Batch neighbor updates
-                std::array<std::pair<std::shared_ptr<Chunk>, std::shared_ptr<Chunk>>, 4> neighbors = {
-                    { {chunkPtr->leftChunk.lock(), chunkPtr}, {chunkPtr->rightChunk.lock(), chunkPtr},
-                      {chunkPtr->frontChunk.lock(), chunkPtr}, {chunkPtr->backChunk.lock(), chunkPtr} }
-                };
-                for (const auto& [neighbor, selfPtr] : neighbors) {
-                    if (neighbor) {
-                        // Compare raw pointers to check identity
-                        if (selfPtr.get() == neighbor->rightChunk.lock().get()) neighbor->leftChunk = selfPtr;
-                        else if (selfPtr.get() == neighbor->leftChunk.lock().get()) neighbor->rightChunk = selfPtr;
-                        else if (selfPtr.get() == neighbor->frontChunk.lock().get()) neighbor->backChunk = selfPtr;
-                        else if (selfPtr.get() == neighbor->backChunk.lock().get()) neighbor->frontChunk = selfPtr;
-                        updatedChunks.insert(neighbor);
-                    }
-                }
+            int offsetX = (dx + renderDistance) * chunkSize.x;
+            int offsetZ = (dz + renderDistance) * chunkSize.z;
+
+            Chunk* chunk = getChunk(worldPos);
+
+            if (chunk->state == ChunkState::Empty) {
+                Timer terrain_timer("Chunk terrain generation");
+                chunk->generate(std::span{noiseRegion}, region.x, offsetX, offsetZ);
+                chunk->state = ChunkState::Generated;
             }
         }
     }
 
-    // Batch mesh updates
-    {
-        Timer meshTimer("Mesh updates");
-        for (auto chunk : updatedChunks) {
+
+    // Pass 3: Link neighbors
+    for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
+        for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
+            glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
+            glm::vec3 worldPos = Chunk::chunkToWorld(chunkPos);
+
+            Chunk* chunk = getChunk(worldPos);
+            if (!chunk) {
+                log::system_error("ChunkManager", "chunk at {} not found for neighbor linking", glm::to_string(chunk->getPos()));
+                continue;
+            }
+
+            auto getNeighbor = [&](int ndx, int ndz) -> std::shared_ptr<Chunk> {
+                if (ndx < -renderDistance || ndx > renderDistance || ndz < -renderDistance || ndz > renderDistance)
+                    return nullptr;
+
+                glm::ivec3 neighborChunkPos{playerChunkPos.x + ndx, 0, playerChunkPos.z + ndz};
+                auto it = chunks.find(neighborChunkPos);
+                if (it != chunks.end())
+                    return it->second;
+                else
+                    return nullptr;
+            };
+
+
+            Timer timer3("Neighbor chunk linking");
+            chunk->leftChunk  = getNeighbor(dx - 1, dz);
+            chunk->rightChunk = getNeighbor(dx + 1, dz);
+            chunk->backChunk  = getNeighbor(dx, dz - 1);
+            chunk->frontChunk = getNeighbor(dx, dz + 1);
+        }
+    }
+
+
+    // Pass 4: Neighbor-dependent generation (trees, water, etc)
+    for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
+        for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
+            glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
+            glm::vec3 worldPos = Chunk::chunkToWorld(chunkPos);
+
+
+            Chunk* chunk = getChunk(worldPos);
+            int offsetX = (dx + renderDistance) * chunkSize.x;
+            int offsetZ = (dz + renderDistance) * chunkSize.z;
+
+            Timer neighbor_timer("Neighboring chunks checks");
             chunk->updateMesh();
+
+            if (neighborsAreGenerated(chunk) && chunk->state == ChunkState::Generated) {
+                chunk->genWaterPlane(std::span{noiseRegion}, region.x, offsetX, offsetZ);
+                chunk->genTrees(std::span{noiseRegion}, region.x, offsetX, offsetZ);
+                chunk->state = ChunkState::TreesPlaced;
+                chunk->updateMesh();
+
+                chunk->updateNeighborMeshes();
+            }
+
         }
     }
 }
+*/
+void ChunkManager::loadChunksAroundPlayer(const glm::ivec3& playerChunkPos, int renderDistance) {
+
+    Timer chunksTimer("chunk_generation");
+    if (renderDistance <= 0) return;
+
+    const int side = 2 * renderDistance + 1;
+
+    glm::ivec2 region = {side * chunkSize.x, side * chunkSize.z};
+
+    // Precomputed noise for the full region
+    static std::vector<float> cachedNoiseRegion;
+    static glm::ivec2 lastRegion = {-1, -1};
+
+    static glm::ivec2 lastChunkOrigin = {-99999, -99999};
+
+    // Pass 1: generate the noise map for all the chunks in the current region that we want to render
+    {
+        Timer noiseTimer("Noise precomputation");
+        if (lastRegion != region) {
+            cachedNoiseRegion.resize(region.x * region.y);
+            for (int y = 0; y < region.y; ++y) {
+                for (int x = 0; x < region.x; ++x) {
+                    float wx = float((playerChunkPos.x - renderDistance) * chunkSize.x + x);
+                    float wz = float((playerChunkPos.z - renderDistance) * chunkSize.z + y);
+                    float rawNoise = LayeredPerlin(wx, wz, 7, 0.003f, 1.2f);
+                    cachedNoiseRegion[y * region.x + x] = std::pow(std::abs(rawNoise), 1.3f) * glm::sign(rawNoise);
+                }
+            }
+            lastRegion = region;
+        }
+    }
+
+    std::vector<float> noiseRegion = cachedNoiseRegion;
 
 
+    glm::ivec3 chunkPos{playerChunkPos.x, 0, playerChunkPos.z };
+    // Make sure to not overrwrite the chunk if it already exists
+    chunks.try_emplace(chunkPos, std::make_shared<Chunk>(chunkPos));
 
 
-void ChunkManager::unloadDistantChunks(glm::vec3 playerPosition, int unloadDistance) {
-    int playerChunkX = static_cast<int>(floor(playerPosition.x / chunkSize.x));
-    int playerChunkY = static_cast<int>(floor(playerPosition.y / chunkSize.y));
-    (void)playerChunkY;
-    int playerChunkZ = static_cast<int>(floor(playerPosition.z / chunkSize.z));
+    // Pass 2: Generate the block data from the noise for all the chunks
 
-    int unloadDistSquared = unloadDistance * unloadDistance; // Avoid sqrt()
+    glm::vec3 worldPos = Chunk::chunkToWorld(chunkPos);
+
+
+    int offsetX = (renderDistance) * chunkSize.x;
+    int offsetZ = (renderDistance) * chunkSize.z;
+
+    Chunk* chunk = getChunk(worldPos);
+
+    if (!chunk) {
+        log::system_error("ChunkManager", "chunk at {} not found for neighbor linking", glm::to_string(chunk->getPos()));
+    }
+
+    if (chunk->state == ChunkState::Empty) {
+        Timer terrain_timer("Chunk terrain generation");
+        chunk->generate(std::span{noiseRegion}, region.x, offsetX, offsetZ);
+        chunk->state = ChunkState::Generated;
+    }
+
+    auto getNeighbor = [&](int ndx, int ndz) -> std::shared_ptr<Chunk> {
+        if (ndx < -renderDistance || ndx > renderDistance || ndz < -renderDistance || ndz > renderDistance)
+            return nullptr;
+
+        glm::ivec3 neighborChunkPos{playerChunkPos.x + ndx, 0, playerChunkPos.z + ndz};
+        auto it = chunks.find(neighborChunkPos);
+        if (it != chunks.end())
+            return it->second;
+        else
+            return nullptr;
+    };
+
+
+    Timer timer3("Neighbor chunk linking");
+    chunk->leftChunk  = getNeighbor(-1, 0);
+    chunk->rightChunk = getNeighbor(1, 0);
+    chunk->backChunk  = getNeighbor(0, -1);
+    chunk->frontChunk = getNeighbor(0, 1);
+
+
+    if (chunk->hasNeighbors()) {
+        log::system_info("ChunkManager", "Chunk at {} has neigbors", glm::to_string(chunk->getPos()));
+    }
+
+
+    /*
+    // Pass 4: Neighbor-dependent generation (trees, water, etc)
+    for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
+        for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
+            glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
+            glm::vec3 worldPos = Chunk::chunkToWorld(chunkPos);
+
+
+            Chunk* chunk = getChunk(worldPos);
+            int offsetX = (dx + renderDistance) * chunkSize.x;
+            int offsetZ = (dz + renderDistance) * chunkSize.z;
+
+            Timer neighbor_timer("Neighboring chunks checks");
+            chunk->updateMesh();
+
+            if (neighborsAreGenerated(chunk) && chunk->state == ChunkState::Generated) {
+                chunk->genWaterPlane(std::span{noiseRegion}, region.x, offsetX, offsetZ);
+                chunk->genTrees(std::span{noiseRegion}, region.x, offsetX, offsetZ);
+                chunk->state = ChunkState::TreesPlaced;
+                chunk->updateMesh();
+
+                chunk->updateNeighborMeshes();
+            }
+
+        }
+    }
+    */
+}
+
+
+void ChunkManager::unloadDistantChunks(const glm::ivec3 &playerChunkPos, int unloadDistance) {
+
+    const int unloadDistSquared = unloadDistance * unloadDistance; // Avoid sqrt()
 
     std::erase_if(chunks, [&](const auto &pair) {
-        auto [chunkX, chunkY, chunkZ] = pair.first;
+        glm::ivec3 chunkPos = pair.first;
 
-        int distX = chunkX - playerChunkX;
-        int distZ = chunkZ - playerChunkZ;
+        int distX = chunkPos.x - playerChunkPos.x;
+        int distZ = chunkPos.z - playerChunkPos.z;
         int distSquared = distX * distX + distZ * distZ;
 
         return distSquared > unloadDistSquared; // Remove if too far
     });
 }
-// Get or create a chunk if failed to getChunk
 std::shared_ptr<Chunk> ChunkManager::getOrCreateChunk(glm::vec3 worldPos) {
-    auto chunkPosition = getChunkKey(worldPos);
-    auto [it, inserted] = chunks.try_emplace(chunkPosition, nullptr);
-
-    if (!inserted && it->second) {
+    glm::ivec3 chunkPos = Chunk::worldToChunk(worldPos);
+    auto it = chunks.find(chunkPos);
+    if (it != chunks.end() && it->second)
         return it->second;
-    }
 
-    auto [chunkX, chunkY, chunkZ] = chunkPosition;
-    auto& chunkPtr = it->second;
-    chunkPtr = std::make_shared<Chunk>(glm::ivec3(chunkX, chunkY, chunkZ));
-    return chunkPtr;
+    auto newChunk = std::make_shared<Chunk>(chunkPos);
+    chunks[chunkPos] = newChunk;
+    return newChunk;
+
 }
-// Get a chunk by its world position
-std::shared_ptr<Chunk> ChunkManager::getChunk(glm::vec3 worldPos) const {
-    std::tuple<int, int, int> chunkPosition = getChunkKey(worldPos);
-    auto [chunkX, chunkY, chunkZ] = chunkPosition;
-    if (chunks.find(chunkPosition) != chunks.end()) {
-        return chunks.find(chunkPosition)->second;
-    } else {
-#if defined(DEBUG)
-        log::system_error("ChunkManager", "Chunk at {}, {}, {} not found!", chunkX, chunkY, chunkZ);
-#endif
-        return nullptr;
-    }
-}
-// Function returning a raw pointer (Chunk*) with a flag
-Chunk *ChunkManager::getChunk(glm::vec3 worldPos, bool returnRawPointer) const {
-    (void)returnRawPointer;
-    std::tuple<int, int, int> chunkPosition = getChunkKey(worldPos);
-    auto [chunkX, chunkY, chunkZ] = chunkPosition;
-    auto it = chunks.find(chunkPosition);
+
+Chunk* ChunkManager::getChunk(glm::vec3 worldPos) const {
+    glm::ivec3 localPos = Chunk::worldToChunk(worldPos);
+    auto it = chunks.find(localPos);
     if (it != chunks.end()) {
         return it->second.get(); // Return raw pointer (Chunk*)
     } else {
 #if defined(DEBUG)
-        log::system_error("ChunkManager", "Chunk at {}, {}, {} not found!", chunkX, chunkY, chunkZ);
+        log::system_error("ChunkManager", "Chunk at {} not found!", glm::to_string(localPos));
 #endif
         return nullptr;
     }
 }
+void ChunkManager::generateChunks(glm::vec3 playerPos, unsigned int renderDistance) {
+    glm::ivec3 playerChunk{Chunk::worldToChunk(playerPos)};
 
-void ChunkManager::renderChunks(const glm::vec3& player_position, unsigned int render_distance, const CameraController &cam_ctrl, float time) {
-    chunkShader->use();
-    chunkShader->setMat4("projection", cam_ctrl.getProjectionMatrix());
-    chunkShader->setMat4("view", cam_ctrl.getViewMatrix());
-    chunkShader->setFloat("time", time);
+    if (playerChunk.x != last_player_chunk_pos.x || playerChunk.z != last_player_chunk_pos.z) {
+        if  (renderDistance > 0)
+            loadChunksAroundPlayer(playerChunk, renderDistance);
+        if (renderDistance > 0)
+            unloadDistantChunks(playerChunk, renderDistance + 3);
 
-    int playerChunkX = static_cast<int>(floor(player_position.x / chunkSize.x));
-    int playerChunkZ = static_cast<int>(floor(player_position.z / chunkSize.z));
-
-    if (playerChunkX != lastChunkX || playerChunkZ != lastChunkZ) {
-        if  (render_distance > 0)
-            loadChunksAroundPlayer(player_position, render_distance);
-        if (render_distance > 0)
-            unloadDistantChunks(player_position, render_distance + 3);
-
-        lastChunkX = playerChunkX;
-        lastChunkZ = playerChunkZ;
+        last_player_chunk_pos.x = playerChunk.x;
+        last_player_chunk_pos.z = playerChunk.z;
     }
 
-    chunksTexture->Bind(0);
+}
+void ChunkManager::renderChunks(const CameraController &cam_ctrl, float time) {
+    shader.use();
+    shader.setMat4("projection", cam_ctrl.getProjectionMatrix());
+    shader.setMat4("view", cam_ctrl.getViewMatrix());
+    shader.setFloat("time", time);
+
+
+    Atlas.Bind(0);
     glBindVertexArray(VAO);
 
-    // Separate opaque and transparent lists
     std::vector<std::shared_ptr<Chunk>> opaqueChunks;
     std::vector<std::shared_ptr<Chunk>> transparentChunks;
 
@@ -333,7 +430,7 @@ void ChunkManager::renderChunks(const glm::vec3& player_position, unsigned int r
         if (!chunk)
             continue;
 
-        if (!cam_ctrl.isAABBVisible(chunk->getAABB()))  // If the current chunk's AABB is outside the camera's frustum (a.k.a can't be seen), continue on with life
+        if (!cam_ctrl.isAABBVisible(chunk->getAABB())) 
             continue;
         if (chunk->hasOpaqueMesh())
             opaqueChunks.emplace_back(chunk);
@@ -341,9 +438,8 @@ void ChunkManager::renderChunks(const glm::vec3& player_position, unsigned int r
             transparentChunks.emplace_back(chunk);
     }
 
-    // Render opaque
     for (auto& chunk : opaqueChunks) {
-        chunk->renderOpaqueMesh(chunkShader);
+        chunk->renderOpaqueMesh(shader);
     }
 
     glDisable(GL_CULL_FACE);
@@ -351,17 +447,24 @@ void ChunkManager::renderChunks(const glm::vec3& player_position, unsigned int r
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
-    // Render transparent
+
+    std::sort(transparentChunks.begin(), transparentChunks.end(),
+            [&](const auto& a, const auto& b) {
+            float distA = glm::distance(cam_ctrl.getCurrentPosition(), a->getCenter());
+            float distB = glm::distance(cam_ctrl.getCurrentPosition(), b->getCenter());
+            return distA > distB; // farthest first
+            });
+
+
     for (auto& chunk : transparentChunks) {
-        chunk->renderTransparentMesh(chunkShader);
+        chunk->renderTransparentMesh(shader);
     }
-    // Restore GL state if needed
+
     if (FACE_CULLING) {
         glEnable(GL_CULL_FACE);
     }
 
 
     glBindVertexArray(0);
-    chunksTexture->Unbind(0);
+    Atlas.Unbind(0);
 }
-

@@ -4,7 +4,7 @@ InputManager::InputManager(GLFWwindow *window) : _window(window) {
     glfwGetCursorPos(_window, &_lastMouseX, &_lastMouseY);
 }
 
-void InputManager::update(void) {
+void InputManager::update() {
     // Store previous states before updating
     _previousKeyStates = _keyStates;
     _previousMouseButtonStates = _mouseButtonStates;
@@ -67,12 +67,15 @@ bool InputManager::isMouseReleased(int_fast8_t button) const {
 }
 
 // --- Mouse Movement Functions ---
-std::pair<double, double> InputManager::getMousePosition(void) const {
+std::pair<double, double> InputManager::getMousePosition() const {
     return {_lastMouseX, _lastMouseY};
 }
 
-std::pair<double, double> InputManager::getMouseDelta(void) const {
-    return {_mouseDeltaX, _mouseDeltaY};
+std::pair<double, double> InputManager::getMouseDelta() const {
+    return {
+        invertXAxis ? -_mouseDeltaX : _mouseDeltaX,
+        invertYAxis ? -_mouseDeltaY : _mouseDeltaY
+    };
 }
 void InputManager::setMouseTrackingEnabled(bool enabled) {
     if (mouseTrackingEnabled == enabled)

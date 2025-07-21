@@ -3,63 +3,10 @@
 #include "logger.hpp"
 
 DebugDrawer::DebugDrawer() {
-    initGLResources();
-}
+    // TODO: Adjust paths
+    shader = new Shader("Debug", std::filesystem::path("shaders/debug_vert.glsl"), std::filesystem::path("shaders/debug_frag.glsl"));
 
-DebugDrawer::~DebugDrawer() {
-    destroyGLResources();
-}
-
-void DebugDrawer::addAABB(const AABB& box, const glm::vec3& color) {
-    boxes.emplace_back(box, color); // Use emplace_back
-}
-
-void DebugDrawer::addOBB(const glm::mat4& transform, const glm::vec3& halfExtents, const glm::vec3& color) {
-    obbs.emplace_back(transform, halfExtents, color); // Use emplace_back
-}
-
-void DebugDrawer::draw(const glm::mat4& viewProj) {
-    if (boxes.empty() && obbs.empty()) return;
-
-    shader->use();
-    shader->setMat4("viewProj", viewProj);
-
-    glBindVertexArray(vao);
-    checkGLError("AABBDebugDrawer::draw - glBindVertexArray");
-
-    // Render AABBs
-    for (const auto& box : boxes) {
-        glm::vec3 size = box.box.max - box.box.min;
-        glm::vec3 center = (box.box.min + box.box.max) * 0.5f;
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), center) * glm::scale(glm::mat4(1.0f), size);
-        shader->setMat4("model", model);
-        shader->setVec3("debugColor", box.color);
-        glDrawArrays(GL_LINES, 0, 24);
-        checkGLError("AABBDebugDrawer::draw - AABB glDrawArrays");
-    }
-
-    // Render OBBs
-    for (const auto& obb : obbs) {
-        glm::mat4 model = obb.transform * glm::scale(glm::mat4(1.0f), obb.halfExtents * 2.0f);
-        shader->setMat4("model", model);
-        shader->setVec3("debugColor", obb.color);
-        glDrawArrays(GL_LINES, 0, 24);
-        checkGLError("AABBDebugDrawer::draw - OBB glDrawArrays");
-    }
-
-    glBindVertexArray(0);
-    checkGLError("AABBDebugDrawer::draw - glBindVertexArray(0)");
-
-    boxes.clear();
-    obbs.clear();
-}
-
-void DebugDrawer::initGLResources() {
-    // Initialize shader (adjust paths to your debug shaders)
-    shader = std::make_unique<Shader>("Debug", "shaders/debug_vert.glsl", "shaders/debug_frag.glsl");
-
-    // Create wireframe cube
-    std::vector<glm::vec3> vertices = {
+    vertices = {
         // Front face
         {-0.5f, -0.5f, 0.5f}, {0.5f, -0.5f, 0.5f},
         {0.5f, -0.5f, 0.5f}, {0.5f, 0.5f, 0.5f},
@@ -77,6 +24,58 @@ void DebugDrawer::initGLResources() {
         {-0.5f, 0.5f, 0.5f}, {-0.5f, 0.5f, -0.5f}
     };
 
+
+    initGLResources();
+}
+
+DebugDrawer::~DebugDrawer() {
+    destroyGLResources();
+    delete shader;
+}
+
+void DebugDrawer::addAABB(const AABB& box, const glm::vec3& color) {
+    aabbs.emplace_back(box, color); // Use emplace_back
+}
+
+void DebugDrawer::addOBB(const glm::mat4& transform, const glm::vec3& halfExtents, const glm::vec3& color) {
+    obbs.emplace_back(transform, halfExtents, color); // Use emplace_back
+}
+
+void DebugDrawer::draw(const glm::mat4& viewProj) {
+    if (aabbs.empty() && obbs.empty()) return;
+
+    shader->use();
+    shader->setMat4("viewProj", viewProj);
+
+    glBindVertexArray(vao);
+    checkGLError("AABBDebugDrawer::draw - glBindVertexArray");
+
+    for (const auto& aabb : aabbs) {
+        glm::vec3 size = aabb.box.max - aabb.box.min;
+        glm::vec3 center = (aabb.box.min + aabb.box.max) * 0.5f;
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), center) * glm::scale(glm::mat4(1.0f), size);
+        shader->setMat4("model", model);
+        shader->setVec3("debugColor", aabb.color);
+        glDrawArrays(GL_LINES, 0, 24);
+        checkGLError("AABBDebugDrawer::draw - AABB glDrawArrays");
+    }
+
+    for (const auto& obb : obbs) {
+        glm::mat4 model = obb.transform * glm::scale(glm::mat4(1.0f), obb.halfExtents * 2.0f);
+        shader->setMat4("model", model);
+        shader->setVec3("debugColor", obb.color);
+        glDrawArrays(GL_LINES, 0, 24);
+        checkGLError("AABBDebugDrawer::draw - OBB glDrawArrays");
+    }
+
+    glBindVertexArray(0);
+    checkGLError("AABBDebugDrawer::draw - glBindVertexArray(0)");
+
+    aabbs.clear();
+    obbs.clear();
+}
+
+void DebugDrawer::initGLResources() {
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
     glBindVertexArray(vao);

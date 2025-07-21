@@ -33,21 +33,23 @@ public:
     float getNearPlane() const { return nearPlane; }
     float getFarPlane() const { return farPlane; }
     float getSensitivity() const { return sensitivity; }
+    const float& getOrbitDistance() const { return orbitDistance; }
     glm::vec3 getFront() const;
     glm::vec3 getRight() const;
     glm::vec3 getUp() const;
-    const glm::vec3& getThirdPersonOffset() const { return thirdPersonOffset; }
+    const glm::vec3& getWorldUp() const { return worldUp; }
     bool isThirdPersonMode() const { return isThirdPerson; }
     bool isInterpolationEnabled() const;
     bool isAABBVisible(const AABB &box) const;
 
 
-    void setThirdPersonDistance(float d) {
-        thirdPersonDistance = d;
-        thirdPersonOffset = glm::vec3(0.0f, 2.0f, -thirdPersonDistance);
+
+    void setOrbitTarget(const glm::vec3& newTarget) {
+        target = newTarget;
+        viewDirty = true;
     }
-    void setThirdPersonOffset(const glm::vec3& offset) {
-        thirdPersonOffset = offset;
+    void setOrbitDistance(float distance) {
+        orbitDistance = glm::max(distance, 0.1f); // avoid zero
         viewDirty = true;
     }
 
@@ -85,14 +87,16 @@ public:
             isThirdPerson = enabled;
             viewDirty = true;  // Because view depends on mode
         }
+        syncYawPitchFromOrientation();
     }
     void toggleThirdPersonMode() {
         setThirdPersonMode(!isThirdPerson);
+        syncYawPitchFromOrientation();
     }
     void setInterpolationEnabled(bool enabled);
     void setInterpolationDuration(float seconds);
-    void setTargetPosition(const glm::vec3& pos);
-    void setTargetOrientation(const glm::quat& orient);
+    void setPosition(const glm::vec3& pos);
+    void setOrientation(const glm::quat& orient);
 
     void snapToTarget();
 
@@ -101,7 +105,7 @@ public:
     void processMouseMovement(float xoffset, float yoffset, bool constrainPitch = true);
     void processMouseScroll(float yoffset);
     void updateFrustumPlanes() const;
-
+    void syncYawPitchFromOrientation();
 
 private:
     Camera camera;
@@ -109,7 +113,7 @@ private:
     Interpolated<glm::vec3> interpolatePosition;
     Interpolated<glm::quat> interpolateOrientation;
 
-    bool interpolateEnabled;
+    bool interpolateEnabled = false;
 
     mutable bool viewDirty = true;
     mutable bool projectionDirty = true;
@@ -120,6 +124,7 @@ private:
     mutable glm::mat4 cachedViewMatrix;
     mutable glm::mat4 cachedProjectionMatrix;
 
+    glm::vec3 worldUp = glm::vec3(0, 1, 0);
     glm::vec3 currentPosition;
     glm::quat currentOrientation;
 
@@ -128,10 +133,19 @@ private:
     float aspectRatio = 16.0f / 9.0f;
     float nearPlane = 0.01f;
     float farPlane = 1000.0f;
+
+
+
     float sensitivity = 0.1f;
 
 
-    float thirdPersonDistance = 6.0f;
-    glm::vec3 thirdPersonOffset = glm::vec3(0.0f, 2.0f, -thirdPersonDistance);
-    bool isThirdPerson;
+    float orbitYaw = -90.0f;
+    float orbitPitch = 0.0f;
+    float fpsYaw = -90.0f;
+    float fpsPitch = 0.0f;
+
+
+    glm::vec3 target = glm::vec3(0.0f);
+    float orbitDistance = 5.0f;
+    bool isThirdPerson = false;
 };

@@ -1,16 +1,9 @@
 #pragma once
-#include "CreativeMode.h"
-#include "FlyingState.h"
+#include "defines.h"
 #include "InputManager.hpp"
 #include "Player/Player.h"
-#include "RunningState.h"
 #include "Shader.h"
-#include "SpectatorMode.h"
-#include "SurvivalMode.h"
-#include "SwimmingState.h"
 #include "UI.h"
-#include "WalkingState.h"
-#include "defines.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -30,7 +23,7 @@ class Application {
 
   private:
     GLFWwindow *window;
-    std::string title;
+    std::string title = std::string(PROJECT_NAME) + std::string(" ") + std::string(PROJECT_VERSION);
     u16 width, height;
     float aspectRatio;
     glm::vec4 backgroundColor;

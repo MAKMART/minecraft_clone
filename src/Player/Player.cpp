@@ -23,7 +23,6 @@
 Player::Player(glm::vec3 spawnPos, std::shared_ptr<InputManager> _input)
     : prevPosition(spawnPos), velocity(0.0f), animationTime(0.0f), scaleFactor(0.076f), prevPlayerHeight(playerHeight), camCtrl() {
 
-
     eyeHeight = playerHeight * 0.9f;
     lastScaleFactor = scaleFactor;
     this->input = std::move(_input);
@@ -32,9 +31,9 @@ Player::Player(glm::vec3 spawnPos, std::shared_ptr<InputManager> _input)
     setupBodyParts();
     changeMode<SurvivalMode>(); // STARTING DEFAULT MODE
     //camCtrl.setTargetPosition(spawnPos);
-    camCtrl.setTargetOrientation(glm::quat(1,0,0,0)); // identity quaternion
+    camCtrl.setOrientation(glm::quat(1,0,0,0)); // identity quaternion
+    camCtrl.setOrbitDistance(6.0f);
     updateBoundingBox();
-    updateCameraPosition();
     glCreateVertexArrays(1, &skinVAO);
     glBindVertexArray(skinVAO);
 }
@@ -93,7 +92,6 @@ void Player::changeMode(std::unique_ptr<PlayerMode> newMode) {
     }
 }
 
-// Change the state by moving a new state into currentState
 void Player::changeState(std::unique_ptr<PlayerState> newState) {
     if (newState) {
         if (currentState)
@@ -118,7 +116,7 @@ bool Player::isCollidingAt(const glm::vec3 &pos, ChunkManager &chunkManager) {
                 glm::ivec3 blockWorldPos(bx, by, bz);
                 glm::ivec3 chunkCoords = Chunk::worldToChunk(blockWorldPos);
 
-                std::shared_ptr<Chunk> chunk = chunkManager.getChunk(blockWorldPos);
+                Chunk* chunk = chunkManager.getChunk(blockWorldPos);
                 if (!chunk) return true; // treat unloaded chunks as solid
 
                 glm::ivec3 local = blockWorldPos - chunkCoords * chunkSize;
@@ -318,9 +316,9 @@ void Player::update(float deltaTime, ChunkManager &chunkManager) {
     }
 
     if (currentState)
-        currentState->handleInput(*this, deltaTime); // Delegate movement to state
+        currentState->handleInput(*this, deltaTime);
 
-    // Apply gravity if not flying
+
     if (!isFlying && !isOnGround)
         velocity.y += GRAVITY * deltaTime;
     else if (isOnGround && velocity.y < 0.0f)
@@ -330,7 +328,7 @@ void Player::update(float deltaTime, ChunkManager &chunkManager) {
     pendingMovement = glm::vec3(0.0f);
 
     // Handle collisions unless flying in Creative/Spectator
-    if (dynamic_cast<SurvivalMode *>(currentMode.get()) || dynamic_cast<CreativeMode *>(currentMode.get())) {
+    if (isSurvival || isCreative) {
         Timer collisions_timer("player_collision_testing");
         handleCollisions(newPosition, velocity, position, chunkManager);
     }
@@ -340,42 +338,17 @@ void Player::update(float deltaTime, ChunkManager &chunkManager) {
         position = newPosition;
         updateBoundingBox();
     }
-    updateCameraPosition();
 
+    updateCamPos();
 
-    if (camCtrl.isThirdPersonMode()) {
+    if (camCtrl.isThirdPersonMode())
         modelMat = glm::translate(glm::mat4(1.0f), position + eyeHeight);
-    }
-    else {
+    else
         modelMat = glm::translate(glm::mat4(1.0f), position);
-    }
 
     camCtrl.update(deltaTime);  // Update the CameraController
 }
-
-// Update camera position
-void Player::updateCameraPosition() {
-    glm::vec3 eyePos = position + glm::vec3(0.0f, eyeHeight, 0.0f);
-
-    if (camCtrl.isThirdPersonMode()) {
-        // Set the target position for third person: behind and above player
-        glm::vec3 camPos = eyePos + camCtrl.getThirdPersonOffset();
-
-        glm::vec3 direction = glm::normalize(eyePos - camCtrl.getCurrentPosition());  // Vector pointing from camera to player
-        glm::quat targetOrientation = glm::quatLookAt(direction, glm::vec3(0, 1, 0));
-        camCtrl.setTargetPosition(camPos);
-        camCtrl.setTargetOrientation(targetOrientation);
-        // Optionally, update target orientation or something if you want smooth following
-
-        // If you want third person offset, implement in CameraController or keep distance param there
-    } else {
-        // First person mode: camera sits at eyePos exactly
-        camCtrl.setTargetPosition(eyePos);
-        // Orientation controlled separately via input updates
-    }
-}
-// Handle jumping
-void Player::jump(void) {
+void Player::jump() {
     if (isOnGround && !isFlying) {
         velocity.y = /*JUMP_FORCE*/ std::sqrt(2 * std::abs(GRAVITY) * h); // Maybe precalculate this at compile time or smth but please do not use sqrt()
         isOnGround = false;
@@ -405,7 +378,7 @@ void Player::setPos(glm::vec3 newPos) {
     position = newPos;
     prevPosition = newPos; // Cache the new position to optimize the next update
     updateBoundingBox();
-    updateCameraPosition();
+    updateCamPos();
 }
 
 // Handle mouse movement input
@@ -421,18 +394,15 @@ void Player::processMouseInput(ChunkManager &chunkManager) {
 }
 void Player::processKeyInput() {
     if (input->isPressed(SURVIVAL_MODE_KEY)) {
-        // Switch to Survival mode
         changeMode<SurvivalMode>();
         changeState<WalkingState>(); // Default state in Survival is Walking
     }
 
     if (input->isPressed(CREATIVE_MODE_KEY))
-        // Switch to Creative mode
         changeMode<CreativeMode>();
 
 
     if (input->isPressed(SPECTATOR_MODE_KEY))
-        // Switch to Spectator mode
         changeMode<SpectatorMode>();
 
 
@@ -449,7 +419,6 @@ void Player::processKeyInput() {
 
 }
 void Player::breakBlock(ChunkManager &chunkManager) {
-    // Perform a raycast to find the block the player is targeting
     std::optional<glm::ivec3> hitBlock = raycastVoxel(chunkManager, camCtrl.getCurrentPosition(), camCtrl.getFront(), max_interaction_distance);
 
     if (!hitBlock.has_value())
@@ -459,44 +428,36 @@ void Player::breakBlock(ChunkManager &chunkManager) {
 
     //log::system_info("Player", "Breaking block at: {}, {}, {}", blockPos.x, blockPos.y, blockPos.z);
 
-    // Use updateBlock to set the block to AIR
     chunkManager.updateBlock(blockPos, Block::blocks::AIR);
 }
 void Player::placeBlock(ChunkManager &chunkManager) {
-    // Perform raycast to find the block the player is looking at
     std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycastVoxelWithNormal(
         chunkManager, camCtrl.getCurrentPosition(), camCtrl.getFront(), max_interaction_distance);
 
     if (!hitResult.has_value())
-        return; // No valid block hit, exit
+        return;
 
-    glm::ivec3 hitBlockPos = hitResult->first; // The block that was hit
-    glm::ivec3 normal = hitResult->second;     // The normal of the hit face
+    glm::ivec3 hitBlockPos = hitResult->first;
+    glm::ivec3 normal = hitResult->second;
 
-    // Determine the  world position to place the new block
     glm::ivec3 placePos = hitBlockPos + (-normal);
 
-    // Check if the placement position intersects with the player's bounding box
     if (isInsidePlayerBoundingBox(placePos))
         return;
 
-    // Get the chunk where the new block should be placed
-    std::shared_ptr<Chunk> placeChunk = chunkManager.getChunk(placePos);
+    Chunk* placeChunk = chunkManager.getChunk(placePos);
     if (!placeChunk) {
         return;
     }
 
-    // Convert world coordinates to local chunk coordinates
     glm::ivec3 localBlockPos = Chunk::worldToLocal(placePos);
 
-    // Validate block index
     int blockIndex = placeChunk->getBlockIndex(localBlockPos.x, localBlockPos.y, localBlockPos.z);
     if (blockIndex < 0 || static_cast<size_t>(blockIndex) >= placeChunk->getChunkData().size()) {
         log::system_info("Player", "❌ Invalid block index: {}", blockIndex);
         return;
     }
 
-    // Check if the target position is air
     if (placeChunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
         log::system_info("Player", "❌ Target block is NOT air! It's type: {}", Block::toString(placeChunk->getChunkData()[blockIndex].type));
         return;
@@ -504,7 +465,6 @@ void Player::placeBlock(ChunkManager &chunkManager) {
 
     //log::system_info("Player", "Placing block at: {}, {}, {}", placePos.x, placePos.y, placePos.z);
 
-    // Place the block using updateBlock
     chunkManager.updateBlock(placePos, static_cast<Block::blocks>(selectedBlock));
 }
 
@@ -535,8 +495,7 @@ std::optional<glm::ivec3> Player::raycastVoxel(ChunkManager &chunkManager, glm::
 
     float t = 0.0f;
     while (t <= maxDistance) {
-        // Get the chunk the voxel belongs to
-        std::shared_ptr<Chunk> chunk = chunkManager.getChunk(worldResult);
+        Chunk* chunk = chunkManager.getChunk(worldResult);
 
         if (chunk) {
             glm::ivec3 localVoxelPos = Chunk::worldToLocal(worldResult);
@@ -548,71 +507,6 @@ std::optional<glm::ivec3> Player::raycastVoxel(ChunkManager &chunkManager, glm::
             }
         }
 
-        // Move to the next voxel along the ray
-        if (tMax.x < tMax.y) {
-            if (tMax.x < tMax.z) {
-                worldResult.x += step.x;
-                t = tMax.x;
-                tMax.x += tDelta.x;
-            } else {
-                worldResult.z += step.z;
-                t = tMax.z;
-                tMax.z += tDelta.z;
-            }
-        } else {
-            if (tMax.y < tMax.z) {
-                worldResult.y += step.y;
-                t = tMax.y;
-                tMax.y += tDelta.y;
-            } else {
-                worldResult.z += step.z;
-                t = tMax.z;
-                tMax.z += tDelta.z;
-            }
-        }
-    }
-
-    return std::nullopt; // No solid block found within range
-}
-
-std::optional<std::pair<glm::ivec3, glm::ivec3>> Player::raycastVoxelWithNormal(
-    ChunkManager &chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance) {
-    glm::ivec3 worldResult = glm::floor(rayOrigin);  // Start voxel
-    glm::ivec3 step = glm::sign(rayDirection); // Step direction (-1 or +1)
-
-    glm::vec3 tMax;
-    glm::vec3 tDelta = glm::vec3(
-        (rayDirection.x != 0.0f) ? (1.0f / std::abs(rayDirection.x)) : std::numeric_limits<float>::max(),
-        (rayDirection.y != 0.0f) ? (1.0f / std::abs(rayDirection.y)) : std::numeric_limits<float>::max(),
-        (rayDirection.z != 0.0f) ? (1.0f / std::abs(rayDirection.z)) : std::numeric_limits<float>::max());
-
-    for (int i = 0; i < 3; i++) {
-        if (rayDirection[i] > 0)
-            tMax[i] = (worldResult[i] + 1 - rayOrigin[i]) * tDelta[i];
-        else
-            tMax[i] = (rayOrigin[i] - worldResult[i]) * tDelta[i];
-    }
-
-    float t = 0.0f;
-    glm::ivec3 lastVoxel = worldResult;
-
-    while (t < maxDistance) {
-        // ** Get the chunk that contains this voxel **
-       auto chunk = chunkManager.getChunk({worldResult.x, 0, worldResult.z});
-
-        if (chunk) {
-            glm::ivec3 localVoxelPos = Chunk::worldToLocal(worldResult);
-            int blockIndex = chunk->getBlockIndex(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
-
-            if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < chunk->getChunkData().size() &&
-                chunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
-                return std::make_pair(worldResult, worldResult - lastVoxel);
-            }
-        }
-
-        lastVoxel = worldResult;
-
-        // ** Move to next voxel **
         if (tMax.x < tMax.y) {
             if (tMax.x < tMax.z) {
                 worldResult.x += step.x;
@@ -639,15 +533,74 @@ std::optional<std::pair<glm::ivec3, glm::ivec3>> Player::raycastVoxelWithNormal(
     return std::nullopt;
 }
 
-// Handle mouse movement input
+std::optional<std::pair<glm::ivec3, glm::ivec3>> Player::raycastVoxelWithNormal(
+    ChunkManager &chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance) {
+    glm::ivec3 worldResult = glm::floor(rayOrigin);
+    glm::ivec3 step = glm::sign(rayDirection); // Step direction (-1 or +1)
+
+    glm::vec3 tMax;
+    glm::vec3 tDelta = glm::vec3(
+        (rayDirection.x != 0.0f) ? (1.0f / std::abs(rayDirection.x)) : std::numeric_limits<float>::max(),
+        (rayDirection.y != 0.0f) ? (1.0f / std::abs(rayDirection.y)) : std::numeric_limits<float>::max(),
+        (rayDirection.z != 0.0f) ? (1.0f / std::abs(rayDirection.z)) : std::numeric_limits<float>::max());
+
+    for (int i = 0; i < 3; i++) {
+        if (rayDirection[i] > 0)
+            tMax[i] = (worldResult[i] + 1 - rayOrigin[i]) * tDelta[i];
+        else
+            tMax[i] = (rayOrigin[i] - worldResult[i]) * tDelta[i];
+    }
+
+    float t = 0.0f;
+    glm::ivec3 lastVoxel = worldResult;
+
+    while (t < maxDistance) {
+       Chunk* chunk = chunkManager.getChunk({worldResult.x, 0, worldResult.z});
+
+        if (chunk) {
+            glm::ivec3 localVoxelPos = Chunk::worldToLocal(worldResult);
+            int blockIndex = chunk->getBlockIndex(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
+
+            if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < chunk->getChunkData().size() &&
+                chunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
+                return std::make_pair(worldResult, worldResult - lastVoxel);
+            }
+        }
+
+        lastVoxel = worldResult;
+
+        if (tMax.x < tMax.y) {
+            if (tMax.x < tMax.z) {
+                worldResult.x += step.x;
+                t = tMax.x;
+                tMax.x += tDelta.x;
+            } else {
+                worldResult.z += step.z;
+                t = tMax.z;
+                tMax.z += tDelta.z;
+            }
+        } else {
+            if (tMax.y < tMax.z) {
+                worldResult.y += step.y;
+                t = tMax.y;
+                tMax.y += tDelta.y;
+            } else {
+                worldResult.z += step.z;
+                t = tMax.z;
+                tMax.z += tDelta.z;
+            }
+        }
+    }
+
+    return std::nullopt;
+}
+
 void Player::processMouseMovement(float xoffset, float yoffset, bool constrainPitch) {
     camCtrl.processMouseMovement(xoffset, yoffset, constrainPitch);
 }
-// Handle mouse scroll input
 void Player::processMouseScroll(float yoffset) {
-    // Adjust scrolling speed
     float scroll_speed_multiplier = 1.0f;
-    if (isFlying && dynamic_cast<SpectatorMode *>(currentMode.get())) {
+    if (isFlying && isSpectator) {
         flying_speed += yoffset;
         if (flying_speed <= 0)
             flying_speed = 0;
@@ -658,6 +611,7 @@ void Player::processMouseScroll(float yoffset) {
         if (selectedBlock >= Block::toInt(Block::blocks::MAX_BLOCKS))
             selectedBlock = Block::toInt(Block::blocks::MAX_BLOCKS) - 1;
     }
+
     // To change FOV
     //camCtrl.processMouseScroll(yoffset);
 }
