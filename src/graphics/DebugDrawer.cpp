@@ -1,6 +1,6 @@
-#include "DebugDrawer.h"
+#include "graphics/DebugDrawer.h"
 #include <GL/glew.h>
-#include "logger.hpp"
+#include "core/logger.hpp"
 
 DebugDrawer::DebugDrawer() {
     // TODO: Adjust paths

@@ -7,3 +7,4 @@ imgui.ini
 .clangd
 .clang-tidy
 .clang-format
+CMakeUserPresets.json

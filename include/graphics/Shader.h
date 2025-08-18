@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <mutex>
 #include <filesystem>
-#include "logger.hpp"
+#include "core/logger.hpp"
 
 class Shader {
 private:
@@ -217,11 +217,9 @@ private:
 
             if (vertexCode.empty() || fragmentCode.empty()) {
                 log::system_error("Shader", "[{}] Shader source code is empty.", name);
-                throw std::runtime_error("Shader source code is empty.");
             }
         } catch (std::ifstream::failure& e) {
             log::system_error("Shader", "[{}] Failed to read shader files: {}", name, std::string(e.what()));
-            throw std::runtime_error("Failed to read shader files: " + std::string(e.what()));
         }
 
         const GLchar* vShaderCode = vertexCode.c_str();
@@ -250,7 +248,6 @@ private:
             char infoLog[1024];
             glGetProgramInfoLog(program, 1024, nullptr, infoLog);
             log::system_error("Shader", "[{}] Shader validation failed: {}", name, infoLog);
-            throw std::runtime_error(std::string("Shader validation failed:\n") + infoLog);
         }
 
         glDeleteShader(vertex);
@@ -267,14 +264,12 @@ private:
             if (!success) {
                 glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
                 log::system_error("Shader", "[{}] SHADER_COMPILATION_ERROR of type: {}\n{}", name, type, infoLog);
-                throw std::runtime_error("SHADER_COMPILATION_ERROR of type: " + type + "\n" + infoLog);
             }
         } else {
             glGetProgramiv(shader, GL_LINK_STATUS, &success);
             if (!success) {
                 glGetProgramInfoLog(shader, 1024, nullptr, infoLog);
                 log::system_error("Shader", "[{}] PROGRAM_LINKING_ERROR of type: {}\n{}", name, type, infoLog);
-                throw std::runtime_error("PROGRAM_LINKING_ERROR of type: " + type + "\n" + infoLog);
             }
         }
     }

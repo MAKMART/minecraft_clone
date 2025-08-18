@@ -1,7 +1,7 @@
-#include "SystemInterfaceGLFW.h"
+#include "ui/SystemInterfaceGLFW.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include "logger.hpp"
+#include "core/logger.hpp"
 
 double SystemInterface::GetElapsedTime() {
     return glfwGetTime();

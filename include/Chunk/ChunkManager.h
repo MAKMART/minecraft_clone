@@ -7,15 +7,15 @@
 #include <glm/glm.hpp>
 #include <vector>
 #include <tuple>
-#include "../Shader.h"
-#include "../Texture.h"
-#include "CameraController.hpp"
-#include "Chunk.h"
-#include "../defines.h"
+#include "graphics/Shader.h"
+#include "graphics/Texture.h"
+#include "core/CameraController.hpp"
+#include "chunk/Chunk.h"
+#include "core/defines.h"
 #include <PerlinNoise.hpp>
 #include <optional>
 #include "glm/ext/vector_int3.hpp"
-#include "logger.hpp"
+#include "core/logger.hpp"
 #include <functional>
 
 
@@ -35,7 +35,7 @@ struct ivec3_hash {
 
 class ChunkManager {
   public:
-    ChunkManager(int renderDistance, std::optional<siv::PerlinNoise::seed_type> seed = std::nullopt);
+    ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed = std::nullopt);
     ~ChunkManager();
 
     Shader& getShader() {
@@ -100,11 +100,11 @@ class ChunkManager {
     bool neighborsAreGenerated(Chunk* chunk);
 
     // initialize with a value that's != to any reasonable spawn chunk position
-    glm::ivec3 last_player_chunk_pos{-99999999};        
+    glm::ivec3 last_player_chunk_pos{INT_MIN};        
 
     std::shared_ptr<Chunk> getOrCreateChunk(glm::vec3 worldPos);
 
-    void loadChunksAroundPlayer(const glm::ivec3 &playerChunkPos, int renderDistance);
+    void loadChunksAroundPos(const glm::ivec3 &playerChunkPos, int renderDistance);
 
     void unloadDistantChunks(const glm::ivec3 &playerChunkPos, int unloadDistance);
 

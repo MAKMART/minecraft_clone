@@ -1,23 +1,25 @@
 #pragma once
-#include "../../defines.h"
-#include "AABB.h"
+#include "core/defines.h"
+#include "core/AABB.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <PerlinNoise.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <system_error>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 #include <memory>
 #include <vector>
 #include <span>
-#include "logger.hpp"
+#include "core/logger.hpp"
 
 class Shader;
 
 enum class ChunkState {
     Empty,
     Generated,
+    Linked,
     TreesPlaced,
     Meshed
 };
@@ -33,6 +35,7 @@ struct Block {
         WOOD    = 6,
         LEAVES  = 7,
         SAND    = 8,
+	PLANKS	= 9,
         MAX_BLOCKS
     }; // Up to 256 blocks
     blocks type = blocks::AIR;
@@ -58,6 +61,8 @@ struct Block {
             return "LEAVES";
         case blocks::SAND:
             return "SAND";
+	case blocks::PLANKS:
+	    return "PLANKS";
         default:
             return "UNKNOWN BLOCK TYPE";
         }
@@ -82,6 +87,8 @@ struct Block {
                 return "LEAVES";
             case 8:
                 return "SAND";
+	    case 9:
+		return "PLANKS";
             default:
                 return "UNKNOWN BLOCK TYPE";
         }
@@ -183,34 +190,8 @@ class Chunk {
     bool setBlockAt(int x, int y, int z, Block::blocks type) {
         int index = getBlockIndex(x, y, z);
         if (index == -1) {
-
-            // OUT OF BOUNDS – resolve neighbor chunk
-            std::shared_ptr<Chunk> neighbor;
-            glm::ivec3 localPos(x, y, z);
-
-            if (x < 0) {
-                neighbor = leftChunk.lock();
-                localPos.x = chunkSize.x + x;
-            } else if (x >= chunkSize.x) {
-                neighbor = rightChunk.lock();
-                localPos.x = x - chunkSize.x;
-            } else if (z < 0) {
-                neighbor = backChunk.lock();
-                localPos.z = chunkSize.z + z;
-            } else if (z >= chunkSize.z) {
-                neighbor = frontChunk.lock();
-                localPos.z = z - chunkSize.z;
-            } else {
-                // y bounds? You can handle this later if you support vertical chunks
-                return false;
-            }
-
-            if (!neighbor)
-                return false;
-
-            return neighbor->setBlockAt(localPos.x, localPos.y, localPos.z, type);
-
-
+            log::system_error("Chunk", "tried to set block out-of-bounds for chunk at {}", glm::to_string(position));
+            return false;
         }
         chunkData[index].type = type;
         return true;
@@ -246,7 +227,7 @@ class Chunk {
 
     static glm::ivec3 worldToChunk(const glm::vec3 &worldPos) {
         return glm::ivec3(static_cast<int>(std::floor(worldPos.x / chunkSize.x)),
-                          static_cast<int>(std::floor(worldPos.y / chunkSize.y)),
+                          0,  // ✅ Flat world — no vertical chunking
                           static_cast<int>(std::floor(worldPos.z / chunkSize.z)));
     }
 
@@ -303,11 +284,8 @@ class Chunk {
 private:
 
 
-    void generateSeaBlockFace(const Block &block, int x, int y, int z);
 
     void generateBlockFace(const Block &block, int x, int y, int z);
-
-    bool isSeaFaceVisible(const Block &block, int x, int y, int z);
 
     bool isFaceVisible(const Block &block, int x, int y, int z);
 

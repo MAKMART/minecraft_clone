@@ -1,4 +1,4 @@
-#include "SwimmingState.h"
+#include "player/player_states/SwimmingState.h"
 
 void SwimmingState::enterState(Player &player) {
     player.isSwimming = true;

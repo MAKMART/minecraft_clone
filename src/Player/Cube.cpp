@@ -1,9 +1,9 @@
-#include "Cube.h"
+#include "player/Cube.h"
 #include <iostream>
-#include "defines.h"
+#include "core/defines.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_int2.hpp"
-#include "logger.hpp"
+#include "core/logger.hpp"
 
 Cube::Cube(glm::vec3 size, BodyPartType type) : size_(size), halfX(size.x / 2.0f), yBase(0.0f), yTop(size.y), halfZ(size.z / 2.0f) {
 

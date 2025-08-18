@@ -1,37 +1,34 @@
-#include "Player.h"
-#include "CameraController.hpp"
-#include "Cube.h"
-#include "PlayerState.h" // Full definition of PlayerState
-#include "PlayerMode.h"  // Full definition of PlayerMode
-#include "FlyingState.h"
-#include "WalkingState.h"
-#include "SurvivalMode.h"
-#include "CreativeMode.h"
-#include "SpectatorMode.h"
-#include "defines.h"
+#include "player/Player.h"
+#include "core/CameraController.hpp"
+#include "player/Cube.h"
+#include "player/player_states/PlayerState.h"
+#include "player/player_modes/PlayerMode.h"
+#include "player/player_states/FlyingState.h"
+#include "player/player_states/WalkingState.h"
+#include "player/player_modes/SurvivalMode.h"
+#include "player/player_modes/CreativeMode.h"
+#include "player/player_modes/SpectatorMode.h"
+#include "core/defines.h"
 #include "glm/ext/matrix_transform.hpp"
 #include <memory>
 #include <numbers>
 #include <optional>
 #include <stdexcept>
 #include <algorithm>
+#include "glm/ext/quaternion_float.hpp"
 #include "glm/trigonometric.hpp"
-#include "logger.hpp"
-#include "Timer.h"
+#include "core/logger.hpp"
+#include "core/Timer.h"
+#include <tracy/Tracy.hpp>
 
-// Constructor
 Player::Player(glm::vec3 spawnPos, std::shared_ptr<InputManager> _input)
-    : prevPosition(spawnPos), velocity(0.0f), animationTime(0.0f), scaleFactor(0.076f), prevPlayerHeight(playerHeight), camCtrl() {
-
-    eyeHeight = playerHeight * 0.9f;
+    : playerHeight(1.8f), position(glm::vec3(spawnPos.x, spawnPos.y - playerHeight, spawnPos.z)), eyeHeight(playerHeight * 0.9), prevPosition(spawnPos), scaleFactor(0.076f), prevPlayerHeight(playerHeight), camCtrl(glm::vec3(position + glm::vec3(0, eyeHeight, 0)), glm::quat(1, 0, 0, 0)), skinTexture(std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST))
+{
+    log::info("Initializing Player...");
     lastScaleFactor = scaleFactor;
     this->input = std::move(_input);
-    skinTexture = std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST); // Default skin
-    position = glm::vec3(spawnPos.x, spawnPos.y - playerHeight, spawnPos.z);
     setupBodyParts();
     changeMode<SurvivalMode>(); // STARTING DEFAULT MODE
-    //camCtrl.setTargetPosition(spawnPos);
-    camCtrl.setOrientation(glm::quat(1,0,0,0)); // identity quaternion
     camCtrl.setOrbitDistance(6.0f);
     updateBoundingBox();
     glCreateVertexArrays(1, &skinVAO);
@@ -130,21 +127,21 @@ bool Player::isCollidingAt(const glm::vec3 &pos, ChunkManager &chunkManager) {
                     getDebugDrawer().addAABB({worldPos, worldPos + glm::vec3(1.0f)}, glm::vec3(1.0f, 0.0f, 0.0f));
                 }
 #endif
-                if (block.type != Block::blocks::AIR && block.type != Block::blocks::WATER) {
-                    return true; // Collide with non-air, non-water blocks
-                }
+		if (block.type != Block::blocks::AIR && block.type != Block::blocks::WATER && block.type != Block::blocks::LAVA) {
+			return true;
+		}
             }
         }
     }
    return false;
 }
 
-
 bool Player::isInsidePlayerBoundingBox(const glm::vec3 &checkPos) const {
     return aabb.intersects({checkPos, checkPos + glm::vec3(1.0f)});
 }
 
 void Player::handleCollisions(glm::vec3 &newPosition, glm::vec3 &velocity, const glm::vec3 &oldPosition, ChunkManager &chunkManager) {
+	ZoneScoped;
     glm::vec3 testPos = newPosition;
     isOnGround = false;
 
@@ -160,8 +157,10 @@ void Player::handleCollisions(glm::vec3 &newPosition, glm::vec3 &velocity, const
         newPosition.y = testPos.y;
     } else {
         newPosition.y = oldPosition.y;
-        velocity.y = 0;
-        if (velocity.y < 0) isOnGround = true;
+	if (velocity.y < 0) {
+		isOnGround = true;
+		velocity.y = 0;
+	}
     }
 
     // X-axis
@@ -193,6 +192,7 @@ groundCheck:
 }
 
 void Player::render(const Shader &shader) {
+	ZoneScoped;
     if (!skinTexture) {
         log::system_error("Player", "skinTexture is null!");
         return;
@@ -290,6 +290,7 @@ const char *Player::getMode() const {
     return "UNKNOWN";
 }
 void Player::update(float deltaTime, ChunkManager &chunkManager) {
+	ZoneScoped;
     animationTime += deltaTime;
     float speed = isRunning ? 6.0f : 4.0f;
     float amplitude = isRunning ? 0.7f : 0.5f;
@@ -381,13 +382,12 @@ void Player::setPos(glm::vec3 newPos) {
     updateCamPos();
 }
 
-// Handle mouse movement input
 void Player::processMouseInput(ChunkManager &chunkManager) {
 
-    if (input->isMousePressed(ATTACK_BUTTON)) {
+    if (input->isMousePressed(ATTACK_BUTTON) && this->canBreakBlocks) {
         breakBlock(chunkManager);
     }
-    if (input->isMousePressed(DEFENSE_BUTTON)) {
+    if (input->isMousePressed(DEFENSE_BUTTON) && this->canPlaceBlocks) {
         placeBlock(chunkManager);
     }
 

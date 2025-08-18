@@ -3,7 +3,7 @@
 #include <GL/glew.h> // or your appropriate OpenGL header
 #include <filesystem>
 #include <stdexcept>
-#include "logger.hpp"
+#include "core/logger.hpp"
 
 class Texture {
   public:
@@ -33,9 +33,8 @@ class Texture {
 
     const GLuint &getID() const {
         if (ID == 0)
-            throw std::runtime_error("Trying to get invalid ID == 0");
-        else
-            return ID;
+		log::system_error("Texture", "Trying to get invalid ID == 0");
+	return ID;
     }
     const int &getWidth() const { return width; }
     const int &getHeight() const { return height; }

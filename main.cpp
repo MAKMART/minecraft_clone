@@ -1,15 +1,17 @@
+#include "tracy/Tracy.hpp"
 #include <Application.h>
-#include <exception>
+#include <cstdlib>
+#include <new>
+void* operator new(std::size_t size) {
+	void* ptr = malloc(size);
+	TracyAlloc(ptr, size);
+	return ptr;
+}
+void operator delete(void* ptr) noexcept {
+	TracyFree(ptr);
+	free(ptr);
+}
 int main() {
-    try {
-        Application app(1920, 1080);
-        app.Run();
-    } catch (const std::exception &e) {
-        log::error("\nError: {}", e.what());
-        return 1;
-    } catch (...) {
-        log::error("Caught unknown exception!");
-        return 1;
-    }
-    return 0;
+	Application app(1920, 1080);
+	app.Run();
 }

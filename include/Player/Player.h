@@ -2,12 +2,12 @@
 #include <memory>
 #include <optional>
 #include <GL/glew.h>
-#include "defines.h"
-#include "InputManager.hpp"
-#include "ChunkManager.h"
-#include "CameraController.hpp"
+#include "core/defines.h"
+#include "core/InputManager.hpp"
+#include "chunk/ChunkManager.h"
+#include "core/CameraController.hpp"
 #include "Cube.h"
-#include "AABB.h"
+#include "core/AABB.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 
@@ -107,10 +107,7 @@ class Player {
     std::unique_ptr<PlayerMode> currentMode;
     std::shared_ptr<InputManager> input;
 
-    glm::vec3 position;
-    glm::vec3 prevPosition;
-    glm::vec3 velocity;
-    glm::vec3 pendingMovement = glm::vec3(0.0f);
+
 
 
     void toggleCameraMode() {
@@ -124,7 +121,7 @@ class Player {
             camCtrl.setPosition(position + glm::vec3(0, eyeHeight, 0));
     }
     // --- Player Settings ---
-    float animationTime;
+    float animationTime = 0.0f;
     float scaleFactor;
     float lastScaleFactor;
     float walking_speed = 3.6f;
@@ -137,7 +134,7 @@ class Player {
     float max_interaction_distance = 10.0f;
     unsigned int render_distance = 5;
 
-    float playerHeight = 1.8f;
+    float playerHeight;
     float prevPlayerHeight;
     float eyeHeight;
     std::uint8_t selectedBlock = 1;
@@ -165,6 +162,12 @@ class Player {
     bool isCrouched = false;
     bool hasHealth = true;
     bool hasInfiniteBlocks = false;
+
+
+    glm::vec3 position;
+    glm::vec3 prevPosition;
+    glm::vec3 velocity{0.0f};
+    glm::vec3 pendingMovement = glm::vec3(0.0f);
 
   private:
     // -- Player Model ---

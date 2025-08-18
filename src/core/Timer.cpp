@@ -1,7 +1,7 @@
-#include "Timer.h"
+#include "core/Timer.h"
 #include <chrono>
 #include <imgui.h>
-#include "logger.hpp"
+#include "core/logger.hpp"
 
 TimingHistory g_TimingHistory;
 ImGuiTimerData g_TimerData;

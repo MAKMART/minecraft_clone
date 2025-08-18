@@ -1,4 +1,4 @@
-#include "defines.h"
+#include "core/defines.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -27,7 +27,7 @@ class OpenGLError : public std::runtime_error {
 // Controls
 uint_fast16_t FORWARD_KEY = GLFW_KEY_W;
 uint_fast16_t BACKWARD_KEY = GLFW_KEY_S;
-uint_fast16_t RIGHT_KEY = GLFW_KEY_D;
+uint_fast16_t RIGHT_KEY = GLFW_KEY_Q;
 uint_fast16_t LEFT_KEY = GLFW_KEY_A;
 uint_fast16_t JUMP_KEY = GLFW_KEY_SPACE;
 uint_fast16_t UP_KEY = GLFW_KEY_LEFT_SHIFT;
@@ -115,42 +115,6 @@ void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei
     }
 #endif
 }
-/*
-void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count) {
-    glDrawArrays(mode, first, count);
-    g_drawCallCount++;
-
-#if defined(DEBUG)
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        throw OpenGLError(error);
-    }
-#endif
-}
-
-void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void* indices) {
-    glDrawElements(mode, count, type, indices);
-    g_drawCallCount++;
-
-#if defined(DEBUG)
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        throw OpenGLError(error);
-    }
-#endif
-}
-
-void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount) {
-    glDrawArraysInstanced(mode, first, count, instanceCount);
-    g_drawCallCount++;
-
-#if defined(DEBUG)
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        throw OpenGLError(error);
-    }
-#endif
-}*/
 
 float LINE_WIDTH = 1.5f;
 bool WIREFRAME_MODE = false;

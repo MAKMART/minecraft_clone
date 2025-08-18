@@ -1,15 +1,8 @@
 #include "Application.h"
-#include "GLFW/glfw3.h"
-#include "Shader.h"
-#include "Timer.h"
-#include "defines.h"
-#include "imgui.h"
-#include <algorithm>
-#include <exception>
-#include <memory>
 #include <stb_image.h>
-#include <stdexcept>
 #include <string>
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyOpenGL.hpp>
 
 Application::Application(int width, int height) : width(width), height(height), backgroundColor(0.0f, 0.0f, 0.0f, 1.0f) {
 
@@ -63,6 +56,18 @@ Application::Application(int width, int height) : width(width), height(height), 
 
 
 
+    log::structured(log::LogLevel::INFO,
+		    "SIZES", 
+		    {
+		    {"\nInput Manager", SIZE_OF(InputManager)},
+		    {"\nChunk Manager", SIZE_OF(ChunkManager)},
+		    {"\nShader", SIZE_OF(Shader)},
+		    {"\nTexture", SIZE_OF(Texture)},
+		    {"\nPlayer", SIZE_OF(Player)},
+		    {"\nUI", SIZE_OF(UI)},
+		    {"\nApplication", SIZE_OF(Application)}
+		    }
+		   );
 
 
 
@@ -170,31 +175,19 @@ Application::Application(int width, int height) : width(width), height(height), 
 
 
 
-    // Use smart pointers instead of raw pointers.
+
+
+
+
     log::info("Initializing Input Manager...");
     input = std::make_shared<InputManager>(window);
     log::info("Initializing Shaders...");
-    try {
-        playerShader = std::make_unique<Shader>("Player", PLAYER_VERTEX_SHADER_DIRECTORY, PLAYER_FRAGMENT_SHADER_DIRECTORY);
-    } catch (const std::exception &e) {
-        log::error("Failed to create Shader!!");
-    }
+    playerShader = std::make_unique<Shader>("Player", PLAYER_VERTEX_SHADER_DIRECTORY, PLAYER_FRAGMENT_SHADER_DIRECTORY);
     crossHairshader = std::make_unique<Shader>("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
-    log::info("Initializing Textures...");
     crossHairTexture = std::make_unique<Texture>(ICONS_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
-    log::info("Initializing Player...");
     player = std::make_unique<Player>(glm::vec3(0.0f, (float)(chunkSize.y) - 1.0f, 0.0f), input);
-    log::info("Initializing Chunk Manager...");
-    try {
-        chunkManager = std::make_unique<ChunkManager>(player->render_distance);
-    } catch (const std::exception &e) {
-        log::error("Error: {}", e.what());
-    }
-    try {
-        ui = std::make_unique<UI>(width, height, new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
-    } catch (const std::exception &e) {
-        log::error("Error initializing UI class: {}", e.what());
-    }
+    chunkManager = std::make_unique<ChunkManager>();
+    ui = std::make_unique<UI>(width, height, new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
     ui->SetViewportSize(width, height);
     // Initialize ImGui
     IMGUI_CHECKVERSION();
@@ -205,17 +198,17 @@ Application::Application(int width, int height) : width(width), height(height), 
     ImGui_ImplOpenGL3_Init("#version 460");
     glLineWidth(LINE_WIDTH);
 }
-Application::~Application(void) {
-    // Clean up ImGui and GLFW and UI
+Application::~Application() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     glfwDestroyWindow(window);
     glfwTerminate();
 }
-void Application::initWindow(void) {
+void Application::initWindow() {
     if (!glfwInit()) {
-        throw std::runtime_error("Failed to initialize GLFW");
+	    log::error("failed to initialize GLFW for window stuff");
+	    std::exit(1);
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -252,7 +245,6 @@ void Application::initWindow(void) {
     if (!window) {
         glfwTerminate();
         log::error("Failed to create GLFW window");
-        throw std::runtime_error("Failed to create GLFW window");
     }
     glfwMakeContextCurrent(window);
 
@@ -272,13 +264,16 @@ void Application::initWindow(void) {
     GLuint err = glewInit();
     if (err != GLEW_OK) {
         const GLubyte *errorStr = glewGetErrorString(err);
-        std::string errorMessage =
-            errorStr ? std::string(reinterpret_cast<const char *>(errorStr))
-                     : "Unknown GLEW error";
-        throw std::runtime_error("Failed to set window icon, OpenGL error: " +
-                                 errorMessage);
+        std::string errorMessage = errorStr ? std::string(reinterpret_cast<const char *>(errorStr)) : "Unknown GLEW error";
+	log::error("Failed to initialize GLEW: {}", errorMessage);
         return;
     }
+
+
+    // CONTEX CREATION TERMINATED
+
+
+    TracyGpuContext;
 
     // --- DEBUG SETUP ---
 #if defined(DEBUG)
@@ -315,8 +310,7 @@ void Application::initWindow(void) {
         glfwSetWindowIcon(window, 1, &image);
         stbi_image_free(icon_data);
     } else {
-        throw std::runtime_error("Failed to load icon: " +
-                                 std::string(stbi_failure_reason()));
+	log::error("Failed to load window icon: {}", std::string(stbi_failure_reason()));
     }
 
     GLenum err3 = glGetError();
@@ -332,8 +326,7 @@ void Application::initWindow(void) {
         default:
             errorMessage = "Unknown OpenGL error (" + std::to_string(err3) + ")";
         }
-        throw std::runtime_error("Failed to set window icon, OpenGL error: " +
-                                 errorMessage);
+	log::error("Failed to set window icon, OpenGL error: {}", errorMessage);
     }
 
     glViewport(0, 0, width, height);
@@ -435,8 +428,10 @@ void DrawBool(const char *label, bool value) {
     ImGui::TextColored(value ? ImVec4(0, 1, 0, 1) : ImVec4(1, 0, 0, 1),
                        value ? "TRUE" : "FALSE");
 }
-void Application::Run(void) {
+void Application::Run() {
     while (!glfwWindowShouldClose(window) && window) {
+
+
         // --- Time Management ---
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
@@ -462,7 +457,7 @@ void Application::Run(void) {
         chunkManager->generateChunks(player->getPos(), player->render_distance);
 
 
-        // --- Player Update && Third-Person Rendering ---
+        // --- Player Update ---
         playerShader->setMat4("projection", player->getProjectionMatrix());
         playerShader->setMat4("view", player->getViewMatrix());
         player->update(deltaTime, *chunkManager);
@@ -697,6 +692,7 @@ void Application::Run(void) {
         }
         glPolygonMode(GL_FRONT_AND_BACK, WIREFRAME_MODE ? GL_LINE : GL_FILL);
         glfwSwapBuffers(window);
+	FrameMark;
     }
 }
 // GLFW Callbacks implementations
@@ -857,7 +853,7 @@ void Application::MessageCallback(GLenum source, GLenum type, GLuint id,
     }
 
     // Construct a detailed log message with structured info
-    log::structured(
+    log::system_structured(
         "OpenGL",
         level,
         message,

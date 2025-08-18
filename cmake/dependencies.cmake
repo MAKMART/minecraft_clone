@@ -1,0 +1,108 @@
+include(FetchContent)
+
+# ==== GLEW ====
+set(GLEW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLEW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLEW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(glew-cmake_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(glew-cmake_BUILD_STATIC ON CACHE BOOL "" FORCE)
+set(ONLY_LIBS ON CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    glew
+    GIT_REPOSITORY https://github.com/Perlmint/glew-cmake.git
+    GIT_TAG        glew-cmake-2.2.0
+    GIT_SHALLOW    TRUE
+    GIT_PROGRESS   TRUE
+)
+
+FetchContent_MakeAvailable(glew)
+
+# ==== GLFW ====
+set(GLFW_BUILD_WAYLAND ON CACHE BOOL "" FORCE)
+set(GLFW_BUILD_X11 OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG        3.4
+    GIT_SHALLOW    TRUE
+    GIT_PROGRESS   TRUE
+)
+FetchContent_MakeAvailable(glfw)
+
+# ==== GLM ====
+FetchContent_Declare(
+    glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG        1.0.1
+    GIT_SHALLOW    TRUE
+    GIT_PROGRESS   TRUE
+)
+FetchContent_MakeAvailable(glm)
+
+# ==== IMGUI ====
+file(GLOB IMGUI_SOURCES 
+    include/external/imgui/imgui.cpp
+    include/external/imgui/imgui_draw.cpp
+    include/external/imgui/imgui_tables.cpp
+    include/external/imgui/imgui_widgets.cpp
+    include/external/imgui/backends/imgui_impl_glfw.cpp
+    include/external/imgui/backends/imgui_impl_opengl3.cpp
+)
+set(IMGUI_INCLUDE_DIRS
+    ${PROJECT_SOURCE_DIR}/include/external/imgui
+    ${PROJECT_SOURCE_DIR}/include/external/imgui/backends
+)
+add_library(imgui STATIC ${IMGUI_SOURCES})
+target_link_libraries(imgui
+    PUBLIC glfw
+)
+target_include_directories(imgui PUBLIC
+    ${IMGUI_INCLUDE_DIRS}
+    ${glfw_SOURCE_DIR}/include
+)
+
+# ==== FreeType ====
+FetchContent_Declare(
+    freetype
+    GIT_REPOSITORY https://github.com/freetype/freetype.git
+    GIT_TAG        VER-2-13-2  # pinned
+    GIT_SHALLOW    TRUE
+    GIT_PROGRESS   TRUE
+)
+set(FT_DISABLE_ZLIB ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(freetype)
+add_library(Freetype::Freetype ALIAS freetype)
+
+# ==== RmlUi ====
+FetchContent_Declare(
+    RmlUi
+    GIT_REPOSITORY https://github.com/mikke89/RmlUi.git
+    GIT_TAG        6.1
+    GIT_SHALLOW    TRUE
+    GIT_PROGRESS   TRUE
+)
+set(RMLUI_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+set(RMLUI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(RMLUI_BUILD_LIBRMLDEBUGGER ON CACHE BOOL "" FORCE)
+set(RMLUI_FONT_ENGINE "freetype" CACHE STRING "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(RMLUI_SHELL OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(RmlUi)
+
+# ==== Tracy (optional) ====
+if(ENABLE_TRACY)
+    FetchContent_Declare(
+        tracy
+        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+        GIT_TAG        v0.12.2
+	GIT_SHALLOW    TRUE
+        GIT_PROGRESS   TRUE
+    )
+    set(TRACY_SKIP_GIT_UPDATE ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(tracy)
+endif()

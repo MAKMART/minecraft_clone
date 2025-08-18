@@ -131,13 +131,22 @@ public:
     }
 
     // Structured logging (just key=value for now)
-    static void structured(std::string_view system, LogLevel level, std::string_view message, const std::map<std::string, std::string>& fields) {
+    static void system_structured(std::string_view system, LogLevel level, std::string_view message, const std::map<std::string, std::string>& fields) {
         std::ostringstream msg;
         msg << message;
         for (auto it = fields.rbegin(); it != fields.rend(); ++it) {
             msg << " " << it->first << "=" << it->second;
         }
         write_log(level, system, "{}", msg.str());
+    }
+
+    static void structured(LogLevel level, std::string_view message, const std::map<std::string, std::string>& fields) {
+        std::ostringstream msg;
+        msg << message;
+        for (auto it = fields.rbegin(); it != fields.rend(); ++it) {
+            msg << " " << it->first << "=" << it->second;
+        }
+        write_log(level, "GLOBAL", "{}", msg.str());
     }
 
     // Scoped system logger

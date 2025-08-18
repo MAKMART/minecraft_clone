@@ -8,12 +8,11 @@
 #include <memory>
 #include <unordered_map>
 #include <GL/glew.h> // or glad
-#include <vector>
-#include "Core/Input.h"
-#include "Shader.h"
-#include "SystemInterfaceGLFW.h"
+#include <RmlUi/Core/Input.h>
+#include "graphics/Shader.h"
+#include "ui/SystemInterfaceGLFW.h"
 #include <filesystem>
-#include "Texture.h"
+#include "graphics/Texture.h"
 
 class FileInterface : public Rml::FileInterface {
   public:

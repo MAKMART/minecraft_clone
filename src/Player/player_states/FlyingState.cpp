@@ -1,4 +1,4 @@
-#include "FlyingState.h"
+#include "player/player_states/FlyingState.h"
 void FlyingState::enterState(Player &player) {
     player.velocity = glm::vec3(0.0f);
     player.isFlying = true;

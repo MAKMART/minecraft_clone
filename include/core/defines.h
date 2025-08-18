@@ -1,8 +1,11 @@
 #pragma once
-#include "DebugDrawer.h"
+#include "graphics/DebugDrawer.h"
 #include "glm/ext/vector_int3.hpp"
 #include <cstdint>
 #include <filesystem>
+#include <string>
+#include <cstddef>
+#include <cstdio>
 
 #ifndef GL_TYPES_DEFINED
 #define GL_TYPES_DEFINED
@@ -87,6 +90,32 @@ extern bool V_SYNC;
 extern bool FACE_CULLING;
 extern bool MSAA;
 extern uint8_t MSAA_STRENGHT;
+
+
+
+inline std::string pretty_size(std::size_t bytes) {
+    constexpr const char* IEC_UNITS[] = { "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB" };
+
+    double value = static_cast<double>(bytes);
+    std::size_t unit_index = 0;
+
+    while (value >= 1024.0 && unit_index < (sizeof(IEC_UNITS) / sizeof(*IEC_UNITS)) - 1) {
+        value /= 1024.0;
+        ++unit_index;
+    }
+
+    char buf[64];
+    if (value - static_cast<long long>(value) < 0.005)
+        std::snprintf(buf, sizeof(buf), "%lld %s", static_cast<long long>(value), IEC_UNITS[unit_index]);
+    else
+        std::snprintf(buf, sizeof(buf), "%.2f %s", value, IEC_UNITS[unit_index]);
+
+    return std::string(buf);
+}
+
+#define SIZE_OF(x) pretty_size(sizeof(x))
+
+
 
 #if defined(DEBUG)
 inline DebugDrawer& getDebugDrawer() {

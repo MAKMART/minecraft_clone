@@ -1,5 +1,5 @@
-#include "CameraController.hpp"
-#include "logger.hpp"
+#include "core/CameraController.hpp"
+#include "core/logger.hpp"
 
 
 CameraController::CameraController(const glm::vec3& startPos, const glm::quat& startOrient)

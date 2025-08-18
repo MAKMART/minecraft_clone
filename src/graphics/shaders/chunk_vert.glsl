@@ -117,7 +117,7 @@ void main()
   vec4 worldPos = model * vec4(position, 1.0);
 
   // WATER EFFECTS
-  if (block_type == 5) {
+  if (block_type == 5 || block_type == 4) {
       // Wobble parameters
       float wobbleStrength = 0.1;
       float wobbleSpeed = 2.0;

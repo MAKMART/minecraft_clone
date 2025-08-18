@@ -1,4 +1,4 @@
-#include "Texture.h"
+#include "graphics/Texture.h"
 #include <stdexcept>
 #include <string>
 #define STB_IMAGE_IMPLEMENTATION
@@ -21,7 +21,7 @@ Texture::Texture(const std::filesystem::path &path, GLenum format, GLenum wrapMo
     std::string strPath = path.string();
     unsigned char *data = stbi_load(strPath.c_str(), &width, &height, &channels, STBI_rgb_alpha);
     if (!data) {
-        throw std::runtime_error("Failed to load texture: " + path.string());
+	    log::system_error("Texture", "Failed to load texture: {}", path.string());
     }
     GLenum internalFormat = GL_RGBA8;
     GLenum dataFormat = GL_RGBA;
@@ -83,13 +83,12 @@ bool Texture::createEmpty(int width, int height, GLenum internalFormat) {
         // this->height = 0;
     }
     if (width <= 0 || height <= 0) {
-        std::string error = "Invalid texture dimensions: " + std::to_string(width) + " x " + std::to_string(height);
-        throw std::runtime_error(error);
+	log::system_error("Texture", "Invalid texture dimensions: {} x {}", std::to_string(width), std::to_string(height));
     }
 
     glCreateTextures(GL_TEXTURE_2D, 1, &ID);
     if (ID == 0)
-        throw std::runtime_error("Failed to create OpenGL texture");
+	    log::system_error("Texture", "Failed to create OpenGL texture");
     glTextureStorage2D(ID, 1, internalFormat, width, height);
 
     glTextureParameteri(ID, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

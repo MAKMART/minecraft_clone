@@ -1,4 +1,4 @@
-#include "WalkingState.h" // Include the header to get WalkingState class declaration
+#include "player/player_states/WalkingState.h"
 void WalkingState::enterState(Player &player) {
     player.isWalking = true;
 }

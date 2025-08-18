@@ -1,9 +1,9 @@
 #pragma once
-#include "defines.h"
-#include "InputManager.hpp"
+#include "core/defines.h"
+#include "core/InputManager.hpp"
 #include "Player/Player.h"
-#include "Shader.h"
-#include "UI.h"
+#include "graphics/Shader.h"
+#include "ui/UI.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -12,8 +12,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <memory>
-#include "Timer.h"
-#include "logger.hpp"
+#include "core/Timer.h"
+#include "core/logger.hpp"
+#include "chunk/ChunkManager.h"
 
 class Application {
   public:

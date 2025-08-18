@@ -1,12 +1,12 @@
-#include "UI.h"
-#include "Shader.h"
+#include "ui/UI.h"
+#include "graphics/Shader.h"
 #include "glm/gtc/type_ptr.hpp"
 #include <iostream>
 #include <cstring>
 #include <GLFW/glfw3.h>
 #include <stdexcept>
-#include "defines.h"
-#include "logger.hpp"
+#include "core/defines.h"
+#include "core/logger.hpp"
 
 using namespace Rml::Input;
 UI::UI(int width, int height, Shader *ui_shader, std::filesystem::path fontPath, std::filesystem::path docPath) : viewport_width(width), viewport_height(height) {
@@ -26,11 +26,11 @@ UI::UI(int width, int height, Shader *ui_shader, std::filesystem::path fontPath,
     Rml::Debugger::Initialise(context);
 #endif
     if (!Rml::LoadFontFace(fontPath.string())) {
-        throw std::runtime_error("Failed to load font: " + fontPath.string());
+	    log::system_error("UI", "Failed to load font: {}", fontPath.string());
     }
     doc = context->LoadDocument(docPath.string());
     if (!doc) {
-        throw std::runtime_error("Failed to load RML document: " + docPath.string());
+	    log::system_error("UI", "Failed to load RML document: {}", docPath.string());
     } else {
         doc->Show();
     }

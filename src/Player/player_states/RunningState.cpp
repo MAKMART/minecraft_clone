@@ -1,4 +1,4 @@
-#include "RunningState.h"
+#include "player/player_states/RunningState.h"
 
 void RunningState::enterState(Player &player) {
     player.isRunning = true;
