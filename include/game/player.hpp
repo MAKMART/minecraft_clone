@@ -10,7 +10,7 @@
 #include "core/aabb.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
-#include "game/ecs/ECS.hpp"
+#include "game/ecs/ecs.hpp"
 #include "game/ecs/components/position.hpp"
 #include "game/ecs/components/velocity.hpp"
 #include "game/ecs/components/player_state.hpp"
