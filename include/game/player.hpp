@@ -145,7 +145,7 @@ class Player {
 	    return velocity->value;
     }
 
-    const AABB& getAABB() const {
+    AABB getAABB() const {
         return collider->getBoundingBoxAt(position->value);
     }
 

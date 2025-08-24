@@ -679,7 +679,9 @@ void Application::Run() {
         }
         glPolygonMode(GL_FRONT_AND_BACK, WIREFRAME_MODE ? GL_LINE : GL_FILL);
         glfwSwapBuffers(window);
+#if defined (TRACY_ENABLE)
 	FrameMark;
+#endif
     }
 }
 // GLFW Callbacks implementations
