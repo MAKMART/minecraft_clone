@@ -3,7 +3,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include "Animation.hpp"
-#include "core/AABB.h"
+#include "core/AABB.hpp"
 
 
 enum class Camera_Movement {

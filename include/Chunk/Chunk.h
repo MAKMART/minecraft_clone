@@ -1,6 +1,6 @@
 #pragma once
 #include "core/defines.h"
-#include "core/AABB.h"
+#include "core/AABB.hpp"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <PerlinNoise.hpp>

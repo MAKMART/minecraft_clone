@@ -1,5 +1,5 @@
 #pragma once
-#include "core/AABB.h"
+#include "core/AABB.hpp"
 #include <vector>
 #include "Shader.h"
 #include <memory>

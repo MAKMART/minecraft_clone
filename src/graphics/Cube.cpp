@@ -1,4 +1,4 @@
-#include "player/Cube.h"
+#include "graphics/Cube.h"
 #include <iostream>
 #include "core/defines.h"
 #include "glm/ext/matrix_transform.hpp"

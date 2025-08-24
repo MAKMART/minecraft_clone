@@ -1,0 +1,28 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        build-type: [debug, release]  # your CMake presets
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build g++ clang
+
+      - name: Configure with CMake preset
+        run: cmake --preset ${{ matrix.build-type }}
+
+      - name: Build with CMake preset
+        run: cmake --build --preset ${{ matrix.build-type }}

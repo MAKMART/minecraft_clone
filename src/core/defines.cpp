@@ -76,7 +76,7 @@ std::filesystem::path MAIN_FONT_DIRECTORY = FONTS_DIRECTORY / "Hack-Regular.ttf"
 std::filesystem::path MAIN_DOC_DIRECTORY = UI_DIRECTORY / "main.html";
 
 // World Attributes
-float GRAVITY = -9.80665f;
+float GRAVITY = 9.80665f;
 
 // Utils for rendering
 unsigned int g_drawCallCount = 0;

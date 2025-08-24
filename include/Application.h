@@ -1,7 +1,8 @@
 #pragma once
 #include "core/defines.h"
 #include "core/InputManager.hpp"
-#include "Player/Player.h"
+#include "game/Player.h"
+#include "game/ecs/components/input.hpp"
 #include "graphics/Shader.h"
 #include "ui/UI.h"
 #include "imgui.h"
@@ -12,9 +13,19 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <memory>
+#include <cstdlib>
 #include "core/Timer.h"
 #include "core/logger.hpp"
 #include "chunk/ChunkManager.h"
+#include "game/ecs/ecs.hpp"
+#include "game/ecs/components/position.hpp"
+#include "game/ecs/components/velocity.hpp"
+#include "game/ecs/components/transform.hpp"
+#include "game/ecs/components/collider.hpp"
+#include "game/ecs/components/input.hpp"
+#include "game/ecs/components/player_mode.hpp"
+#include "game/ecs/components/player_state.hpp"
+
 
 class Application {
   public:
@@ -23,7 +34,6 @@ class Application {
     void Run(void);
 
   private:
-    GLFWwindow *window;
     std::string title = std::string(PROJECT_NAME) + std::string(" ") + std::string(PROJECT_VERSION);
     u16 width, height;
     float aspectRatio;
@@ -41,16 +51,18 @@ class Application {
 #endif
     i32 windowedWidth, windowedHeight;
     i32 windowedPosX, windowedPosY;
+    GLFWwindow *window;
 
     b8 firstMouse = true;
 
+    ECS<Position, Velocity, Transform, Collider, InputComponent, PlayerState, PlayerMode> ecs;
     std::unique_ptr<Shader> playerShader;
     std::unique_ptr<ChunkManager> chunkManager;
     std::unique_ptr<Player> player;
-    std::shared_ptr<InputManager> input;
+    InputManager input;
     std::unique_ptr<UI> ui;
 
-    void initWindow(void);
+    GLFWwindow* createWindow();
     void handleFullscreenToggle(GLFWwindow *window);
     static void framebuffer_size_callback(GLFWwindow *window, int width,
                                           int height);

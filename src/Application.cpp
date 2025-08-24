@@ -3,8 +3,11 @@
 #include <string>
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyOpenGL.hpp>
+#include "game/ecs/systems/input_system.hpp"
+#include "game/ecs/systems/player_state_system.hpp"
+#include "game/ecs/systems/physics_system.hpp"
 
-Application::Application(int width, int height) : width(width), height(height), backgroundColor(0.0f, 0.0f, 0.0f, 1.0f) {
+Application::Application(int width, int height) : width(width), height(height), backgroundColor(0.0f, 0.0f, 0.0f, 1.0f), window(createWindow()), input(window) {
 
 #if defined(DEBUG)
     std::cout << "----------------------------DEBUG MODE----------------------------\n";
@@ -28,27 +31,7 @@ Application::Application(int width, int height) : width(width), height(height), 
 
 
 
-
-
-
-
-
-
-
-
-
-
     // TODO:    FIX THE CAMERA CONTROLLER TO WORK WITH INTERPOLATION
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -77,20 +60,6 @@ Application::Application(int width, int height) : width(width), height(height), 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-    initWindow();
     // Set the Application pointer for callbacks.
     glfwSetWindowUserPointer(window, this);
 
@@ -178,14 +147,12 @@ Application::Application(int width, int height) : width(width), height(height), 
 
 
 
-
-    log::info("Initializing Input Manager...");
-    input = std::make_shared<InputManager>(window);
+    
     log::info("Initializing Shaders...");
     playerShader = std::make_unique<Shader>("Player", PLAYER_VERTEX_SHADER_DIRECTORY, PLAYER_FRAGMENT_SHADER_DIRECTORY);
     crossHairshader = std::make_unique<Shader>("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
     crossHairTexture = std::make_unique<Texture>(ICONS_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
-    player = std::make_unique<Player>(glm::vec3(0.0f, (float)(chunkSize.y) - 1.0f, 0.0f), input);
+    player = std::make_unique<Player>(ecs, glm::vec3(0.0f, (float)chunkSize.y, 0.0f), input);
     chunkManager = std::make_unique<ChunkManager>();
     ui = std::make_unique<UI>(width, height, new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
     ui->SetViewportSize(width, height);
@@ -197,17 +164,24 @@ Application::Application(int width, int height) : width(width), height(height), 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460");
     glLineWidth(LINE_WIDTH);
+
+
+
+
+
+    chunkManager->generateChunks(player->getPos(), player->render_distance);
+
 }
 Application::~Application() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    glfwDestroyWindow(window);
+    if (window) glfwDestroyWindow(window);
     glfwTerminate();
 }
-void Application::initWindow() {
+GLFWwindow* Application::createWindow() {
     if (!glfwInit()) {
-	    log::error("failed to initialize GLFW for window stuff");
+	    log::error("Failed to initialize GLFW for window stuff");
 	    std::exit(1);
     }
 
@@ -240,33 +214,34 @@ void Application::initWindow() {
     GLFWmonitor *monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode *mode = glfwGetVideoMode(monitor);
 
-    window = isFullscreen ? glfwCreateWindow(mode->width, mode->height, title.c_str(), monitor, nullptr)
+    GLFWwindow* win = isFullscreen ? glfwCreateWindow(mode->width, mode->height, title.c_str(), monitor, nullptr)
                             : glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
-    if (!window) {
+    if (!win) {
         glfwTerminate();
         log::error("Failed to create GLFW window");
+	std::exit(1);
     }
-    glfwMakeContextCurrent(window);
+    glfwMakeContextCurrent(win);
 
     // Set GLFW callbacks
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSetCursorPosCallback(window, cursor_callback);
-    glfwSetMouseButtonCallback(window, mouse_callback);
-    glfwSetScrollCallback(window, scroll_callback);
-    glfwSetKeyCallback(window, key_callback);
+    glfwSetFramebufferSizeCallback(win, framebuffer_size_callback);
+    glfwSetCursorPosCallback(win, cursor_callback);
+    glfwSetMouseButtonCallback(win, mouse_callback);
+    glfwSetScrollCallback(win, scroll_callback);
+    glfwSetKeyCallback(win, key_callback);
     if (glfwRawMouseMotionSupported()) {
-        glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        glfwSetInputMode(win, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
     } else {
         log::info("Raw Mouse Motion not supported!");
     }
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     GLuint err = glewInit();
     if (err != GLEW_OK) {
         const GLubyte *errorStr = glewGetErrorString(err);
         std::string errorMessage = errorStr ? std::string(reinterpret_cast<const char *>(errorStr)) : "Unknown GLEW error";
 	log::error("Failed to initialize GLEW: {}", errorMessage);
-        return;
+	std::exit(1);
     }
 
 
@@ -307,7 +282,7 @@ void Application::initWindow() {
         image.height = icon_height;
         image.pixels = icon_data;
 
-        glfwSetWindowIcon(window, 1, &image);
+        glfwSetWindowIcon(win, 1, &image);
         stbi_image_free(icon_data);
     } else {
 	log::error("Failed to load window icon: {}", std::string(stbi_failure_reason()));
@@ -350,6 +325,7 @@ void Application::initWindow() {
         glEnable(GL_MULTISAMPLE);
 
     aspectRatio = (float)width / (float)height;
+    return win;
 }
 float Application::getFPS() {
     nbFrames++;
@@ -360,19 +336,20 @@ float Application::getFPS() {
     //}
 }
 void Application::processInput() {
-    input->update();
-    if (input->isPressed(EXIT_KEY))
+    input.update();
+
+    if (input.isPressed(EXIT_KEY))
         glfwSetWindowShouldClose(window, true);
 
     handleFullscreenToggle(window);
 
     // --- Process Mouse Buttons ---
-    if (input->isMouseTrackingEnabled()) {
+    if (input.isMouseTrackingEnabled()) {
         player->processMouseInput(*chunkManager);
     }
     player->processKeyInput();
 
-    if (input->isPressed(GLFW_KEY_H)) {
+    if (input.isPressed(GLFW_KEY_H)) {
         chunkManager->getShader().reload();
         playerShader->reload();
     }
@@ -380,24 +357,24 @@ void Application::processInput() {
 
 #if defined(DEBUG)
     // Toggle debug AABB visualization
-    if (input->isPressed(GLFW_KEY_8)) {
+    if (input.isPressed(GLFW_KEY_8)) {
         debugRender = !debugRender;
     }
 #endif
 
 
     // Toggle mouse tracking through MENU_KEY
-    if (input->isPressed(MENU_KEY)) {
+    if (input.isPressed(MENU_KEY)) {
 #if defined(DEBUG)
-        Rml::Debugger::SetVisible(input->isMouseTrackingEnabled());
+        Rml::Debugger::SetVisible(input.isMouseTrackingEnabled());
 #endif
-        input->setMouseTrackingEnabled(!input->isMouseTrackingEnabled());
+        input.setMouseTrackingEnabled(!input.isMouseTrackingEnabled());
     }
 
 
     // Toggle wireframe mode
 #if defined(DEBUG)
-    if (input->isPressed(WIREFRAME_KEY)) {
+   if (input.isPressed(WIREFRAME_KEY)) {
         glPolygonMode(GL_FRONT_AND_BACK, WIREFRAME_MODE ? GL_LINE : GL_FILL);
         WIREFRAME_MODE = !WIREFRAME_MODE;
     }
@@ -406,7 +383,7 @@ void Application::processInput() {
 }
 
 void Application::handleFullscreenToggle(GLFWwindow *window) {
-    if (input->isPressed(FULLSCREEN_KEY)) {
+    if (input.isPressed(FULLSCREEN_KEY)) {
         if (isFullscreen) {
             glfwSetWindowMonitor(window, nullptr, windowedPosX, windowedPosY,
                                  windowedWidth, windowedHeight, 0);
@@ -431,8 +408,6 @@ void DrawBool(const char *label, bool value) {
 void Application::Run() {
     while (!glfwWindowShouldClose(window) && window) {
 
-
-        // --- Time Management ---
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
@@ -441,26 +416,31 @@ void Application::Run() {
 
         // --- Input & Event Processing ---
         glfwPollEvents();
-        if (!input->isMouseTrackingEnabled())
+        if (!input.isMouseTrackingEnabled())
             glLineWidth(LINE_WIDTH);
-        processInput();
 
-        // --- Clear Screen ---
+
+        processInput();
+	update_input(ecs.cm, input);
+        // --- Chunk Generation ---
+        chunkManager->generateChunks(player->getPos(), player->render_distance);
+
+	player_state_system(ecs.cm, *player, deltaTime);
+	update_physics(ecs.cm, *chunkManager, deltaTime);
+
+        // --- Player Update ---
+        playerShader->setMat4("projection", player->getProjectionMatrix());
+        playerShader->setMat4("view", player->getViewMatrix());
+        player->update(deltaTime, *chunkManager);
+
+
+	// --- Clear Screen ---
         glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b,
                      backgroundColor.a);
         glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT |
                                  GL_STENCIL_BUFFER_BIT
                            : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-
-        // --- Chunk Generation ---
-        chunkManager->generateChunks(player->getPos(), player->render_distance);
-
-
-        // --- Player Update ---
-        playerShader->setMat4("projection", player->getProjectionMatrix());
-        playerShader->setMat4("view", player->getViewMatrix());
-        player->update(deltaTime, *chunkManager);
 
 
         // --- Render World ---
@@ -577,9 +557,12 @@ void Application::Run() {
             ImGui::Text("Player position: %f, %f, %f", player->getPos().x, player->getPos().y, player->getPos().z);
             ImGui::Text("Player is in chunk: %i, %i, %i", chunkCoords.x, chunkCoords.y, chunkCoords.z);
             ImGui::Text("Player local position: %d, %d, %d", localCoords.x, localCoords.y, localCoords.z);
-            ImGui::Text("Player velocity: %f, %f, %f", player->velocity.x, player->velocity.y, player->velocity.z);
+            ImGui::Text("Player velocity: %f, %f, %f", player->getVelocity().x, player->getVelocity().y, player->getVelocity().z);
             ImGui::Text("Player MODE: %s", player->getMode());
-            ImGui::Text("Player STATE: %s", player->getState());
+            ImGui::Text("Player STATE: %s", player->getMovementState());
+	    glm::vec3 _min = player->getAABB().min;
+	    glm::vec3 _max = player->getAABB().max;
+	    ImGui::Text("Player AABB { %f, %f, %f }, { %f, %f, %f }", _min.x, _min.y, _min.z, _max.x, _max.y, _max.z);
             ImGui::Text("Selected block: ");
             ImGui::SameLine();
             ImGui::SetWindowFontScale(1.2f);
@@ -594,13 +577,13 @@ void Application::Run() {
             ImGui::PopStyleColor(1);
             ImGui::PopFont();
             ImGui::Indent();
-            DrawBool("is OnGround", player->isOnGround);
+            DrawBool("is OnGround", player->is_on_ground());
             DrawBool("is Damageable", player->isDamageable);
-            DrawBool("is Running", player->isRunning);
-            DrawBool("is Flying", player->isFlying);
-            DrawBool("is Swimming", player->isSwimming);
-            DrawBool("is Walking", player->isWalking);
-            DrawBool("is Crouched", player->isCrouched);
+            DrawBool("is Running", player->isRunning());
+            DrawBool("is Flying", player->isFlying());
+            DrawBool("is Swimming", player->isSwimming());
+            DrawBool("is Walking", player->isWalking());
+            DrawBool("is Crouched", player->isCrouching());
             DrawBool("is third-person", player->isCameraThirdPerson());
             DrawBool("Player can place blocks", player->canPlaceBlocks);
             DrawBool("Player can break blocks", player->canBreakBlocks);
@@ -617,7 +600,7 @@ void Application::Run() {
             DrawBool("is Camera interpolating", player->getCameraController().isInterpolationEnabled());
             ImGui::Text("Camera position: %f, %f, %f", player->getCameraController().getCurrentPosition().x, player->getCameraController().getCurrentPosition().y, player->getCameraController().getCurrentPosition().z);
             ImGui::Unindent();
-            if (renderUI && !input->isMouseTrackingEnabled()) {
+            if (renderUI && !input.isMouseTrackingEnabled()) {
                 if (ImGui::CollapsingHeader("Settings")) {
                     if (ImGui::TreeNode("Player")) {
                         ImGui::SliderFloat("Player walking speed ", &player->walking_speed, 0.0f, 100.0f);
@@ -717,12 +700,12 @@ void Application::cursor_callback(GLFWwindow *window, double xpos, double ypos) 
     if (!app)
         return;
 
-    std::pair<double, double> mouseDelta = app->input->getMouseDelta();
+    std::pair<double, double> mouseDelta = app->input.getMouseDelta();
 
-    if (app->input->isMouseTrackingEnabled()) {
+    if (app->input.isMouseTrackingEnabled()) {
         app->player->processMouseMovement(mouseDelta.first, mouseDelta.second, true);
     }
-    if (app->ui->context && app->input->isMouseTrackingEnabled())
+    if (app->ui->context && app->input.isMouseTrackingEnabled())
         app->ui->context->ProcessMouseMove(
             static_cast<int>(xpos), static_cast<int>(ypos),
             app->ui->GetKeyModifiers());
