@@ -1,10 +1,12 @@
-#include "chunk/Chunk.h"
+#include "chunk/chunk.hpp"
 #include <cstdlib>
 
-#include "core/Timer.h"
-#include "graphics/Shader.h"
-#include "core/defines.h"
+#include "core/timer.hpp"
+#include "graphics/shader.hpp"
+#include "core/defines.hpp"
+#if defined (TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
+#endif
 
 Chunk::Chunk(const glm::ivec3 &chunkPos)
     : position(chunkPos), SSBO(0), logSizeX(std::log2(chunkSize.x)), logSizeY(std::log2(chunkSize.y)) {

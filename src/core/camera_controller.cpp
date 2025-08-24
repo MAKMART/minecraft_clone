@@ -1,4 +1,4 @@
-#include "core/CameraController.hpp"
+#include "core/camera_controller.hpp"
 #include "core/logger.hpp"
 
 

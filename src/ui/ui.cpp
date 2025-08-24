@@ -1,11 +1,11 @@
-#include "ui/UI.h"
-#include "graphics/Shader.h"
+#include "ui/ui.hpp"
+#include "graphics/shader.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include <iostream>
 #include <cstring>
 #include <GLFW/glfw3.h>
 #include <stdexcept>
-#include "core/defines.h"
+#include "core/defines.hpp"
 #include "core/logger.hpp"
 
 using namespace Rml::Input;

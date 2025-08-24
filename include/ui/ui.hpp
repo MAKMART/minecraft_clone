@@ -9,10 +9,10 @@
 #include <unordered_map>
 #include <GL/glew.h> // or glad
 #include <RmlUi/Core/Input.h>
-#include "graphics/Shader.h"
-#include "ui/SystemInterfaceGLFW.h"
+#include "graphics/shader.hpp"
+#include "ui/system_interface_glfw.hpp"
 #include <filesystem>
-#include "graphics/Texture.h"
+#include "graphics/texture.hpp"
 
 class FileInterface : public Rml::FileInterface {
   public:

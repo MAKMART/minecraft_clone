@@ -1,8 +1,8 @@
 #pragma once
-#include "core/defines.h"
+#include "core/defines.hpp"
 #include "../component_manager.hpp"
 #include "../components/input.hpp"
-#include "core/InputManager.hpp"
+#include "core/input_manager.hpp"
 
 
 template<typename... Components>

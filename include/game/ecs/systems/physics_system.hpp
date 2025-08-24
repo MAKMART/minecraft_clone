@@ -4,9 +4,9 @@
 #include "../components/velocity.hpp"
 #include "../components/collider.hpp"
 #include "../components/player_mode.hpp"
-#include "chunk/ChunkManager.h"
+#include "chunk/chunk_manager.hpp"
 #include <glm/glm.hpp>
-#include "core/AABB.hpp"
+#include "core/aabb.hpp"
 
 bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManager& chunkManager);
 

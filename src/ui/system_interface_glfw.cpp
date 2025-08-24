@@ -1,4 +1,4 @@
-#include "ui/SystemInterfaceGLFW.h"
+#include "ui/system_interface_glfw.hpp"
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include "core/logger.hpp"

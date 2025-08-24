@@ -1,4 +1,4 @@
-#include "core/InputManager.hpp"
+#include "core/input_manager.hpp"
 
 InputManager::InputManager(GLFWwindow *window) : _window(window) {
     glfwGetCursorPos(_window, &_lastMouseX, &_lastMouseY);

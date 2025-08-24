@@ -1,10 +1,10 @@
 #pragma once
-#include "core/defines.h"
-#include "core/InputManager.hpp"
-#include "game/Player.h"
+#include "core/defines.hpp"
+#include "core/input_manager.hpp"
+#include "game/player.hpp"
 #include "game/ecs/components/input.hpp"
-#include "graphics/Shader.h"
-#include "ui/UI.h"
+#include "graphics/shader.hpp"
+#include "ui/ui.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -14,9 +14,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <memory>
 #include <cstdlib>
-#include "core/Timer.h"
+#include "core/timer.hpp"
 #include "core/logger.hpp"
-#include "chunk/ChunkManager.h"
+#include "chunk/chunk_manager.hpp"
 #include "game/ecs/ecs.hpp"
 #include "game/ecs/components/position.hpp"
 #include "game/ecs/components/velocity.hpp"

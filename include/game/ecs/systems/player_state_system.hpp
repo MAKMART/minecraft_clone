@@ -4,7 +4,7 @@
 #include "../components/input.hpp"
 #include "../components/velocity.hpp"
 #include "../components/player_mode.hpp"
-#include "game/player.h"
+#include "game/player.hpp"
 
 template<typename... Components>
 void player_state_system(ComponentManager<Components...>& cm, Player& player, float dt) {

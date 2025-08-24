@@ -1,10 +1,12 @@
-#include "chunk/ChunkManager.h"
+#include "chunk/chunk_manager.hpp"
 #include <cmath>
 #include <cstdint>
 #include <stdexcept>
-#include "chunk/Chunk.h"
-#include "core/Timer.h"
+#include "chunk/chunk.hpp"
+#include "core/timer.hpp"
+#if defined (TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
+#endif
 
 ChunkManager::ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed)
 	: Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST),

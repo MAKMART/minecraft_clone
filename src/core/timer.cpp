@@ -1,4 +1,4 @@
-#include "core/Timer.h"
+#include "core/timer.hpp"
 #include <chrono>
 #include <imgui.h>
 #include "core/logger.hpp"

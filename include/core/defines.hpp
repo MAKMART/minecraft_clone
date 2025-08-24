@@ -1,5 +1,5 @@
 #pragma once
-#include "graphics/DebugDrawer.h"
+#include "graphics/debug_drawer.hpp"
 #include "glm/ext/vector_int3.hpp"
 #include <cstdint>
 #include <filesystem>

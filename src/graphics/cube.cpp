@@ -1,6 +1,6 @@
-#include "graphics/Cube.h"
+#include "graphics/cube.hpp"
 #include <iostream>
-#include "core/defines.h"
+#include "core/defines.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_int2.hpp"
 #include "core/logger.hpp"

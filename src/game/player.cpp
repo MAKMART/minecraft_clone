@@ -1,7 +1,7 @@
-#include "game/Player.h"
-#include "core/defines.h"
-#include "core/CameraController.hpp"
-#include "graphics/Cube.h"
+#include "game/player.hpp"
+#include "core/defines.hpp"
+#include "core/camera_controller.hpp"
+#include "graphics/cube.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include <memory>
 #include <numbers>
@@ -11,8 +11,11 @@
 #include "glm/ext/quaternion_float.hpp"
 #include "glm/trigonometric.hpp"
 #include "core/logger.hpp"
-#include "core/Timer.h"
+#include "core/timer.hpp"
+#if defined (TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
+#endif
+
 
 Player::~Player() {
     glDeleteVertexArrays(1, &skinVAO);

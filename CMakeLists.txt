@@ -34,7 +34,7 @@ endif()
 file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
 # ==== Main Executable ====
-add_executable(${PROJECT_NAME} main.cpp ${PROJECT_SOURCES})
+add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME ${EXECUTABLE_OUTPUT_NAME}

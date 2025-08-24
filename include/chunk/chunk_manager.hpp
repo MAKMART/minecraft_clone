@@ -7,11 +7,11 @@
 #include <glm/glm.hpp>
 #include <vector>
 #include <tuple>
-#include "graphics/Shader.h"
-#include "graphics/Texture.h"
-#include "core/CameraController.hpp"
-#include "chunk/Chunk.h"
-#include "core/defines.h"
+#include "graphics/shader.hpp"
+#include "graphics/texture.hpp"
+#include "core/camera_controller.hpp"
+#include "chunk/chunk.hpp"
+#include "core/defines.hpp"
 #include <PerlinNoise.hpp>
 #include <optional>
 #include "glm/ext/vector_int3.hpp"

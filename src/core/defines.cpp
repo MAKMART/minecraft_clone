@@ -1,4 +1,4 @@
-#include "core/defines.h"
+#include "core/defines.hpp"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <iostream>

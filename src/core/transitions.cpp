@@ -1,4 +1,4 @@
-#include "core/Transitions.hpp"
+#include "core/transitions.hpp"
 #include <cstdint>
 #include <cmath>
 

@@ -1,9 +1,9 @@
 #pragma once
-#include "Camera.hpp"
+#include "camera.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include "Animation.hpp"
-#include "core/AABB.hpp"
+#include "animation.hpp"
+#include "core/aabb.hpp"
 
 
 enum class Camera_Movement {

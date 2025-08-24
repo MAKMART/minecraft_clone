@@ -1,7 +1,7 @@
 #pragma once
-#include "core/AABB.hpp"
+#include "core/aabb.hpp"
 #include <vector>
-#include "Shader.h"
+#include "shader.hpp"
 #include <memory>
 
 class DebugDrawer {

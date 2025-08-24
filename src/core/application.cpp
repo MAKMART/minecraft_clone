@@ -1,8 +1,10 @@
-#include "Application.h"
+#include "core/application.hpp"
 #include <stb_image.h>
 #include <string>
+#if defined (TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyOpenGL.hpp>
+#endif
 #include "game/ecs/systems/input_system.hpp"
 #include "game/ecs/systems/player_state_system.hpp"
 #include "game/ecs/systems/physics_system.hpp"

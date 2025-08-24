@@ -1,4 +1,4 @@
-#include "graphics/DebugDrawer.h"
+#include "graphics/debug_drawer.hpp"
 #include <GL/glew.h>
 #include "core/logger.hpp"
 

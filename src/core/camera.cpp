@@ -1,4 +1,4 @@
-#include "core/Camera.hpp"
+#include "core/camera.hpp"
 #include <glm/common.hpp>
 
 glm::mat4 Camera::computeViewMatrix(const glm::vec3& cameraPos, const glm::quat& cameraOrientation) const {

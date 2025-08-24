@@ -1,4 +1,4 @@
-#include "graphics/Texture.h"
+#include "graphics/texture.hpp"
 #include <stdexcept>
 #include <string>
 #define STB_IMAGE_IMPLEMENTATION
