@@ -23,7 +23,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build g++ clang \
                libgl1-mesa-dev xorg-dev \
-               libwayland-dev wayland-protocols extra-cmake-modules
+               libwayland-dev wayland-protocols extra-cmake-modules \
+               libxkbcommon-dev
 
       - name: Configure with CMake preset
         run: cmake --preset ${{ matrix.build-type }}
