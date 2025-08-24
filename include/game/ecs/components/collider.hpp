@@ -1,6 +1,6 @@
 #pragma once
 #include <glm/glm.hpp>
-#include "core/AABB.hpp"
+#include "core/aabb.hpp"
 
 struct Collider {
 	glm::vec3 halfExtents;
