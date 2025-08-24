@@ -128,7 +128,9 @@ bool ChunkManager::neighborsAreGenerated(Chunk* chunk) {
 }
 void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int renderDistance) {
 
+#if defined (TRACY_ENABLE)
 	ZoneScoped;
+#endif
 
 	Timer chunksTimer("chunk_generation");
 	if (renderDistance <= 0) return;
@@ -322,7 +324,9 @@ std::shared_ptr<Chunk> ChunkManager::getOrCreateChunk(glm::vec3 worldPos) {
 }
 
 Chunk* ChunkManager::getChunk(glm::vec3 worldPos) const {
+#if defined (TRACY_ENABLE)
 	ZoneScoped;
+#endif
 	glm::ivec3 localPos = Chunk::worldToChunk(worldPos);
 	auto it = chunks.find(localPos);
 	if (it != chunks.end()) {
@@ -335,7 +339,9 @@ Chunk* ChunkManager::getChunk(glm::vec3 worldPos) const {
 	}
 }
 void ChunkManager::generateChunks(glm::vec3 playerPos, unsigned int renderDistance) {
+#if defined (TRACY_ENABLE)
 	ZoneScoped;
+#endif
 	glm::ivec3 playerChunk{Chunk::worldToChunk(playerPos)};
 
 	if (playerChunk.x != last_player_chunk_pos.x || playerChunk.z != last_player_chunk_pos.z) {
@@ -350,7 +356,9 @@ void ChunkManager::generateChunks(glm::vec3 playerPos, unsigned int renderDistan
 
 }
 void ChunkManager::renderChunks(const CameraController &cam_ctrl, float time) {
+#if defined (TRACY_ENABLE)
 	ZoneScoped;
+#endif
 	shader.use();
 	shader.setMat4("projection", cam_ctrl.getProjectionMatrix());
 	shader.setMat4("view", cam_ctrl.getViewMatrix());

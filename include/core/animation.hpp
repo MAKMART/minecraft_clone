@@ -2,7 +2,7 @@
  *  It can be used as a drop in replacement thanks to cast and assign operators.
  */
 #include <chrono>
-#include "Transitions.hpp"
+#include "transitions.hpp"
 #include <glm/gtc/quaternion.hpp>
 #include <new>
 using namespace Interpolation;

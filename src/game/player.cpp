@@ -65,7 +65,9 @@ bool Player::isInsidePlayerBoundingBox(const glm::vec3 &checkPos) const {
     return collider->aabb.intersects({checkPos, checkPos + glm::vec3(1.0f)});
 }
 void Player::render(const Shader &shader) {
+#if defined (TRACY_ENABLE)
 	ZoneScoped;
+#endif
     if (!skinTexture) {
         log::system_error("Player", "skinTexture is null!");
         return;
@@ -143,7 +145,9 @@ void Player::render(const Shader &shader) {
     skinTexture->Unbind(1);
 }
 void Player::update(float deltaTime, ChunkManager &chunkManager) {
+#if defined (TRACY_ENABLE)
 	ZoneScoped;
+#endif
     animationTime += deltaTime;
     float speed = state->current == PlayerMovementState::Running ? 6.0f : 4.0f;
     float amplitude = state->current == PlayerMovementState::Running ? 0.7f : 0.5f;

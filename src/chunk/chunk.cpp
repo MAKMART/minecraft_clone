@@ -55,7 +55,9 @@ void Chunk::generateTreeAt(int x, int y, int z) {
 }
 
 void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ) {
+#if defined (TRACY_ENABLE)
 	ZoneScoped;
+#endif
     Timer generation_timer("Chunk::generate");
 
     constexpr int dirtDepth = 3;
@@ -105,7 +107,9 @@ void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int nois
 }
 void Chunk::genWaterPlane(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ) {
 
+#if defined (TRACY_ENABLE)
 	ZoneScoped;
+#endif
 
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
@@ -126,7 +130,9 @@ void Chunk::genWaterPlane(std::span<const float> fullNoise, int regionWidth, int
     }
 }
 void Chunk::genTrees(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ) {
+#if defined (TRACY_ENABLE)
 	ZoneScoped;
+#endif
     Timer tree_timer("trees_pass");
     for (int z = 0; z < chunkSize.z; ++z) {
         for (int x = 0; x < chunkSize.x; ++x) {
@@ -167,7 +173,9 @@ void Chunk::uploadData() {
 }
 
 void Chunk::updateMesh() {
+#if defined (TRACY_ENABLE)
 	ZoneScoped;
+#endif
     faces.clear();
     for (int z = 0; z < chunkSize.z; ++z) {
 		for (int x = 0; x < chunkSize.x; ++x) {
@@ -191,7 +199,9 @@ bool Chunk::isFaceVisible(const Block &block, int x, int y, int z) {
     return Block::isTransparent(getBlockAt(x, y, z).type);
 }
 void Chunk::generateBlockFace(const Block &block, int x, int y, int z) {
+#if defined (TRACY_ENABLE)
 	ZoneScoped;
+#endif
 
 	auto pushFace = [this](int x, int y, int z, int u, int v, int face, int block_type) {
 		this->faces.emplace_back(Face(x, y, z, u, v, face, block_type));
