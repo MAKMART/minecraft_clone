@@ -3,6 +3,7 @@
 #endif
 #include "core/application.hpp"
 #include <cstdlib>
+#if defined (TRACY_ENABLE)
 #include <new>
 void* operator new(std::size_t size) {
 	void* ptr = malloc(size);
@@ -13,6 +14,7 @@ void operator delete(void* ptr) noexcept {
 	TracyFree(ptr);
 	free(ptr);
 }
+#endif
 int main() {
 	Application app(1920, 1080);
 	app.Run();

@@ -250,7 +250,9 @@ GLFWwindow* Application::createWindow() {
     // CONTEX CREATION TERMINATED
 
 
+#if defined (TRACY_ENABLE)
     TracyGpuContext;
+#endif
 
     // --- DEBUG SETUP ---
 #if defined(DEBUG)
