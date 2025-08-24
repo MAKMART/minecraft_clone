@@ -1,4 +1,6 @@
+#if defined (TRACY_ENABLE)
 #include "tracy/Tracy.hpp"
+#endif
 #include <Application.h>
 #include <cstdlib>
 #include <new>
