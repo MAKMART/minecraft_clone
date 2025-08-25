@@ -57,7 +57,7 @@ jobs:
                   -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
                   -property installationPath
           & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
+          cmake --preset ${{ matrix.build-type }} -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=${{ matrix.tracy }}
 
 
       - name: Configure CMake (Linux)
@@ -142,7 +142,7 @@ jobs:
                   -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
                   -property installationPath
           & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
+          cmake --preset ${{ matrix.build-type }} -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=${{ matrix.tracy }}
 
 # Configure CMake (Linux)
       - name: Configure CMake (Linux)
