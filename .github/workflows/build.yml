@@ -51,7 +51,7 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake -G Ninja -B build -S . -DTRACY_ENABLE=${{ matrix.tracy }}
+          cmake --preset ${{ matrix.build-type }} -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=${{ matrix.tracy }}
 
       - name: Configure CMake (Linux)
         if: runner.os == 'Linux'
@@ -64,7 +64,7 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
-          ninja -C build
+          cmake --build --preset ${{ matrix.build-type }}
 
 # Build step for Linux
       - name: Build (Linux)
@@ -112,7 +112,7 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake -G Ninja -B build -S . -DTRACY_ENABLE=${{ matrix.tracy }}
+          cmake --preset ${{ matrix.build-type }} -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=${{ matrix.tracy }}
 
 # Configure CMake (Linux)
       - name: Configure CMake (Linux)
@@ -126,7 +126,7 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
-          ninja -C build
+          cmake --build --preset ${{ matrix.build-type }}
 
 # Build step for Linux
       - name: Build (Linux)
