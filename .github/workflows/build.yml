@@ -55,27 +55,30 @@ jobs:
           MATRIX_BUILD_TYPE: ${{ matrix['build-type'] }}
           MATRIX_TRACY: ${{ matrix.tracy }}
         run: |
-          # Get VS install directory (first line only, trim spaces)
-            $InstallDir = (& "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-              -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()[0]
 
-            Write-Host "VS Install Dir: '$InstallDir'"
+                # Get VS install directory (first line)
+          $InstallDir = (& "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
+              -latest -products * `
+              -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+              -property installationPath)[0].Trim()
 
-            # Make sure it exists
-            if (-not (Test-Path "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat")) {
+          Write-Host "VS Install Dir: '$InstallDir'"
+
+          if (-not (Test-Path "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat")) {
               throw "vcvarsall.bat not found in $InstallDir"
-            }
+          }
 
-            # Initialize MSVC environment
-            & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
+          # Initialize MSVC environment
+          & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
 
-            # Run CMake
-            cmake --preset $env:MATRIX_BUILD_TYPE `
+          # Run CMake
+          cmake --preset $env:MATRIX_BUILD_TYPE `
                 -DCMAKE_C_COMPILER=cl.exe `
                 -DCMAKE_CXX_COMPILER=cl.exe `
                 -DTRACY_ENABLE=$env:MATRIX_TRACY
 
 
+   
       - name: Configure CMake (Linux)
         if: runner.os == 'Linux'
         run: cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
@@ -156,25 +159,29 @@ jobs:
           MATRIX_BUILD_TYPE: ${{ matrix['build-type'] }}
           MATRIX_TRACY: ${{ matrix.tracy }}
         run: |
-          # Get VS install directory (first line only, trim spaces)
-            $InstallDir = (& "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-                -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()[0]
 
-            Write-Host "VS Install Dir: '$InstallDir'"
+                # Get VS install directory (first line)
+          $InstallDir = (& "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
+              -latest -products * `
+              -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+              -property installationPath)[0].Trim()
 
-            # Make sure it exists
-            if (-not (Test-Path "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat")) {
-                throw "vcvarsall.bat not found in $InstallDir"
-            }
+          Write-Host "VS Install Dir: '$InstallDir'"
 
-            # Initialize MSVC environment
-            & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
+          if (-not (Test-Path "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat")) {
+              throw "vcvarsall.bat not found in $InstallDir"
+          }
 
-            # Run CMake
-            cmake --preset $env:MATRIX_BUILD_TYPE `
-                  -DCMAKE_C_COMPILER=cl.exe `
-                  -DCMAKE_CXX_COMPILER=cl.exe `
-                  -DTRACY_ENABLE=$env:MATRIX_TRACY
+          # Initialize MSVC environment
+          & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
+
+          # Run CMake
+          cmake --preset $env:MATRIX_BUILD_TYPE `
+                -DCMAKE_C_COMPILER=cl.exe `
+                -DCMAKE_CXX_COMPILER=cl.exe `
+                -DTRACY_ENABLE=$env:MATRIX_TRACY
+
+
 
 # Configure CMake (Linux)
       - name: Configure CMake (Linux)
