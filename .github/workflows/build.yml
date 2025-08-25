@@ -81,7 +81,7 @@ jobs:
 # Configure CMake (Linux)
       - name: Configure CMake (Linux)
         if: runner.os == 'Linux'
-        run: cmake --preset $env:MATRIX_BUILD_TYPE -DTRACY_ENABLE=${{ matrix.tracy }}
+        run: cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
 
 # Build step for Linux
       - name: Build (Linux)
