@@ -15,7 +15,7 @@
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
 				"ENABLE_TRACY": "OFF",
-				"ENABLE_UNITY_BUILD": "OFF"
+				"ENABLE_UNITY_BUILD": "OFF",
 				"CMAKE_C_COMPILER_LAUNCHER": "sccache",
 				"CMAKE_CXX_COMPILER_LAUNCHER": "sccache"
 			}
@@ -30,7 +30,7 @@
 				"CMAKE_BUILD_TYPE": "Release",
 				"ENABLE_TRACY": "OFF",
 				"ENABLE_UNITY_BUILD": "ON",
-				"CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
+				"CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
 				"CMAKE_C_COMPILER_LAUNCHER": "sccache",
 				"CMAKE_CXX_COMPILER_LAUNCHER": "sccache"
 			}
