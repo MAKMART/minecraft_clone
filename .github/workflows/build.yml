@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ubuntu-latest
+        os: [ubuntu-latest]
         build-type: [release]  # Only Release for fast CI
         tracy: [ON]            # Only test TRACY ON in fast CI
     steps:
@@ -56,7 +56,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ubuntu-latest
+        os: [ubuntu-latest]
         build-type: [debug, release]
         tracy: [OFF, ON]
     steps:
