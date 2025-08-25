@@ -46,21 +46,31 @@ jobs:
         shell: powershell
 
       # --- Configure CMake ---
-      - name: Configure CMake
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
         run: |
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            cmd.exe /C "call \"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat\" x64 && cmake -G Ninja -B build -S . -DTRACY_ENABLE=${{ matrix.tracy }}"
-          else
-            cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
-          fi
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+          cmake -G Ninja -B build -S . -DTRACY_ENABLE=${{ matrix.tracy }}
 
-      # --- Build ---
-      - name: Build
+      - name: Configure CMake (Linux)
+        if: runner.os == 'Linux'
+        run: cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
+
+    
+# Build step for Windows
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
         run: |
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            cmd.exe /C "ninja -C build"
-          else
-            cmake --build --preset ${{ matrix.build-type }}
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+          ninja -C build
+
+# Build step for Linux
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: cmake --build --preset ${{ matrix.build-type }}
+
 
   full-matrix:
     if: github.event_name == 'schedule'
@@ -96,16 +106,30 @@ jobs:
           choco install ninja --yes
         shell: powershell
 
-      - name: Configure CMake
+# Configure CMake (Windows)
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
         run: |
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            cmd.exe /C "call \"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat\" x64 && cmake -G Ninja -B build -S . -DTRACY_ENABLE=${{ matrix.tracy }}"
-          else
-            cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+          cmake -G Ninja -B build -S . -DTRACY_ENABLE=${{ matrix.tracy }}
 
-      - name: Build
+# Configure CMake (Linux)
+      - name: Configure CMake (Linux)
+        if: runner.os == 'Linux'
+        run: cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
+
+
+# Build step for Windows
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
         run: |
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            cmd.exe /C "ninja -C build"
-          else
-            cmake --build --preset ${{ matrix.build-type }}
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+          ninja -C build
+
+# Build step for Linux
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: cmake --build --preset ${{ matrix.build-type }}
+
