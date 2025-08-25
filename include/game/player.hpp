@@ -35,11 +35,7 @@ class Player {
 			  ecs.addComponent(self, Velocity{});
 			  velocity = ecs.template getComponent<Velocity>(self);
 
-
-			  glm::vec3 min = position->value - glm::vec3(ExtentX, 0.0f, ExtentY);
-			  glm::vec3 max = position->value + glm::vec3(ExtentX, playerHeight, ExtentY);
-
-			  ecs.addComponent(self, Collider/*{min, max}*/{glm::vec3(ExtentX, playerHeight, ExtentY)});
+			  ecs.addComponent(self, Collider{glm::vec3(ExtentX, playerHeight / 2.0f, ExtentY)});
 			  collider = ecs.template getComponent<Collider>(self);
 
 			  ecs.addComponent(self, InputComponent{});
@@ -66,7 +62,10 @@ class Player {
 			  glBindVertexArray(skinVAO);
 		  }
 
-    ~Player();
+    ~Player() {
+	    glDeleteVertexArrays(1, &skinVAO);
+    }
+
 
     enum ACTION { BREAK_BLOCK, PLACE_BLOCK };
 
@@ -268,20 +267,15 @@ class Player {
     InputComponent* input_comp;
     PlayerState* state;
     PlayerMode* mode;
+    CameraController camCtrl;
 
 
     float ExtentX = 0.4f;
     float ExtentY = 0.4f;
-    AABB aabb;
 
 
     InputManager& input;
 
 
-
-    std::optional<std::pair<glm::ivec3, glm::ivec3>> raycastVoxelWithNormal(ChunkManager &chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance);
-    std::optional<glm::ivec3> raycastVoxel(ChunkManager &chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance);
-
-    CameraController camCtrl;
     void setupBodyParts();
 };

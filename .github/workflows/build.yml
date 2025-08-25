@@ -5,20 +5,30 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule: # nightly full matrix
+    - cron: '0 2 * * *'  # 2 AM UTC
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
+  fast-build:
+    if: github.event_name != 'schedule' # Only run on push/PR
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build-type: [debug, release]
-
+        os: [ubuntu-latest, windows-latest]
+        build-type: [release]      # Only test Release for speed
+        tracy: [ON]                # Only ON for CI
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Cache CMake build
+        uses: actions/cache@v3
+        with:
+          path: build
+          key: ${{ runner.os }}-cmake-${{ matrix.build-type }}-${{ matrix.tracy }}
+
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build g++ clang \
@@ -26,8 +36,55 @@ jobs:
                libwayland-dev wayland-protocols extra-cmake-modules \
                libxkbcommon-dev
 
-      - name: Configure with CMake preset
-        run: cmake --preset ${{ matrix.build-type }}
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
+          choco install visualstudio2019buildtools --yes
+          choco install ninja --yes
 
-      - name: Build with CMake preset
+      - name: Configure CMake
+        run: cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.build-type }}
+
+  full-matrix:
+    if: github.event_name == 'schedule' # Only run nightly
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        build-type: [debug, release]
+        tracy: [OFF, ON]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache CMake build
+        uses: actions/cache@v3
+        with:
+          path: build
+          key: ${{ runner.os }}-cmake-${{ matrix.build-type }}-${{ matrix.tracy }}
+
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ clang \
+               libgl1-mesa-dev xorg-dev \
+               libwayland-dev wayland-protocols extra-cmake-modules \
+               libxkbcommon-dev
+
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
+          choco install visualstudio2019buildtools --yes
+          choco install ninja --yes
+
+      - name: Configure CMake
+        run: cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
+
+      - name: Build
         run: cmake --build --preset ${{ matrix.build-type }}

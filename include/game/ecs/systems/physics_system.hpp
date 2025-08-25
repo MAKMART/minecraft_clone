@@ -6,6 +6,7 @@
 #include "../components/player_mode.hpp"
 #include "chunk/chunk_manager.hpp"
 #include <glm/glm.hpp>
+#include "core/defines.hpp"
 #include "core/aabb.hpp"
 
 bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManager& chunkManager);
@@ -23,7 +24,7 @@ void update_physics(ComponentManager<Components...>& cm, ChunkManager& chunkMana
 
         // Apply gravity if applicable
         if (!playerMode || playerMode->mode == Type::SURVIVAL) {
-            vel->value.y -= GRAVITY * dt;
+            vel->value.y -= GRAVITY;
         }
 
         // Skip early-out only for completely stationary entities
