@@ -43,6 +43,8 @@ jobs:
         run: |
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
           choco install ninja --yes
+          choco install sccache --yes
+          setx SCCACHE_DIR "%USERPROFILE%\.cache\sccache"
         shell: powershell
 
       # --- Configure CMake ---
@@ -65,12 +67,25 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --build --preset ${{ matrix.build-type }}
+          cmake --build --preset ${{ matrix.build-type }} -- -j %NUMBER_OF_PROCESSORS%
 
 # Build step for Linux
       - name: Build (Linux)
         if: runner.os == 'Linux'
         run: cmake --build --preset ${{ matrix.build-type }}
+
+
+      - name: Show sccache stats (Windows)
+        if: matrix.os == 'windows-latest'
+        run: sccache --show-stats
+        shell: cmd
+
+
+      - name: Show sccache stats (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sccache --show-stats
+
+
 
 
   full-matrix:
@@ -105,6 +120,8 @@ jobs:
         run: |
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
           choco install ninja --yes
+          choco install sccache --yes
+          setx SCCACHE_DIR "%USERPROFILE%\.cache\sccache"
         shell: powershell
 
 # Configure CMake (Windows)
@@ -128,10 +145,20 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --build --preset ${{ matrix.build-type }}
+          cmake --build --preset ${{ matrix.build-type }} -- -j %NUMBER_OF_PROCESSORS%
 
 # Build step for Linux
       - name: Build (Linux)
         if: runner.os == 'Linux'
         run: cmake --build --preset ${{ matrix.build-type }}
 
+
+      - name: Show sccache stats (Windows)
+        if: matrix.os == 'windows-latest'
+        run: sccache --show-stats
+        shell: cmd
+
+
+      - name: Show sccache stats (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sccache --show-stats
