@@ -30,7 +30,7 @@ To build this project, you’ll need:
 * [Ninja](https://github.com/ninja-build/ninja) ⚡
 * [A C++ compiler](https://isocpp.org/get-started) 🖥️
 
-Make sure both are installed and added to your system's `PATH` if you're on Windows.
+Make sure all three are installed and added to your system's `PATH` if you're on Windows.
 
 ## Building the Project from Source 🛠️
 
@@ -50,7 +50,7 @@ Open a terminal in your desired folder and run:
 git clone https://github.com/MAKMART/minecraft_clone.git
 cd minecraft_clone
 ```
-
+> ⚠️ Warning: You need to have [git](https://git-scm.com/downloads) installed and added to your `PATH` if you're on Windows.
 ---
 
 ### 2. Configure the Project ⚙️
