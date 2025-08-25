@@ -56,7 +56,13 @@ jobs:
           MATRIX_TRACY: ${{ matrix.tracy }}
         run: |
           $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)[0]
+                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+                  
+                  # Take the first line (in case multiple installs)
+                  $InstallDir = $InstallDir[0]
+
+          Write-Host "VS Install Dir: $InstallDir"
+
           & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
           cmake --preset $env:MATRIX_BUILD_TYPE -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=$env:MATRIX_TRACY
 
@@ -142,9 +148,14 @@ jobs:
           MATRIX_TRACY: ${{ matrix.tracy }}
         run: |
           $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)[0]
-          & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --preset $env:MATRIX_BUILD_TYPE -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=$env:MATRIX_TRACY
+                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+                  
+                  $InstallDir = $InstallDir[0]
+
+                  Write-Host "VS Install Dir: $InstallDir"
+
+                  & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
+                  cmake --preset $env:MATRIX_BUILD_TYPE -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=$env:MATRIX_TRACY
 
 # Configure CMake (Linux)
       - name: Configure CMake (Linux)
