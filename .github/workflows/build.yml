@@ -51,13 +51,14 @@ jobs:
       - name: Configure CMake (Windows)
         if: runner.os == 'Windows'
         shell: powershell
+        env:
+          MATRIX_BUILD_TYPE: ${{ matrix['build-type'] }}
+          MATRIX_TRACY: ${{ matrix.tracy }}
         run: |
           $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-                  -latest -products * `
-                  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-                  -property installationPath
+                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --preset ${{ matrix.build-type }} -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=${{ matrix.tracy }}
+        cmake --preset $env:MATRIX_BUILD_TYPE -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=$env:MATRIX_TRACY
 
 
       - name: Configure CMake (Linux)
@@ -136,13 +137,14 @@ jobs:
       - name: Configure CMake (Windows)
         if: runner.os == 'Windows'
         shell: powershell
+        env:
+          MATRIX_BUILD_TYPE: ${{ matrix['build-type'] }}
+          MATRIX_TRACY: ${{ matrix.tracy }}
         run: |
           $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-                  -latest -products * `
-                  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-                  -property installationPath
+                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --preset ${{ matrix.build-type }} -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=${{ matrix.tracy }}
+        cmake --preset $env:MATRIX_BUILD_TYPE -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=$env:MATRIX_TRACY
 
 # Configure CMake (Linux)
       - name: Configure CMake (Linux)
