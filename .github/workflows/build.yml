@@ -58,7 +58,7 @@ jobs:
           $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
                   -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-        cmake --preset $env:MATRIX_BUILD_TYPE -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=$env:MATRIX_TRACY
+          cmake --preset $env:MATRIX_BUILD_TYPE -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=$env:MATRIX_TRACY
 
 
       - name: Configure CMake (Linux)
@@ -144,7 +144,7 @@ jobs:
           $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
                   -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-        cmake --preset $env:MATRIX_BUILD_TYPE -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=$env:MATRIX_TRACY
+          cmake --preset $env:MATRIX_BUILD_TYPE -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=$env:MATRIX_TRACY
 
 # Configure CMake (Linux)
       - name: Configure CMake (Linux)
