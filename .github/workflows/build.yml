@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: ubuntu-latest
         build-type: [release]  # Only Release for fast CI
         tracy: [ON]            # Only test TRACY ON in fast CI
     steps:
@@ -36,83 +36,19 @@ jobs:
                libgl1-mesa-dev xorg-dev \
                libwayland-dev wayland-protocols extra-cmake-modules \
                libxkbcommon-dev sccache
-
-      # --- Windows dependencies ---
-      - name: Install dependencies (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
-          choco install ninja --yes
-          choco install sccache --yes
-          setx SCCACHE_DIR "%USERPROFILE%\.cache\sccache"
-        shell: powershell
-
-      # --- Configure CMake ---
-      - name: Configure CMake (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell
-        env:
-          MATRIX_BUILD_TYPE: ${{ matrix['build-type'] }}
-          MATRIX_TRACY: ${{ matrix.tracy }}
-        run: |
-
-                # Get VS install directory (first line)
-          $InstallDir = (& "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-              -latest -products * `
-              -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-              -property installationPath)[0].Trim()
-
-          Write-Host "VS Install Dir: '$InstallDir'"
-
-          if (-not (Test-Path "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat")) {
-              throw "vcvarsall.bat not found in $InstallDir"
-          }
-
-          # Initialize MSVC environment
-          & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-
-          # Run CMake
-          cmake --preset $env:MATRIX_BUILD_TYPE `
-                -DCMAKE_C_COMPILER=cl.exe `
-                -DCMAKE_CXX_COMPILER=cl.exe `
-                -DTRACY_ENABLE=$env:MATRIX_TRACY
-
-
    
       - name: Configure CMake (Linux)
         if: runner.os == 'Linux'
         run: cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
 
-    
-# Build step for Windows
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-                  -latest -products * `
-                  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-                  -property installationPath
-          & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --build --preset $env:MATRIX_BUILD_TYPE -- -j $env:NUMBER_OF_PROCESSORS
-        
 # Build step for Linux
       - name: Build (Linux)
         if: runner.os == 'Linux'
         run: cmake --build --preset ${{ matrix.build-type }}
 
-
-      - name: Show sccache stats (Windows)
-        if: matrix.os == 'windows-latest'
-        run: sccache --show-stats
-        shell: powershell
-
-
       - name: Show sccache stats (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: sccache --show-stats
-
-
 
 
   full-matrix:
@@ -120,7 +56,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: ubuntu-latest
         build-type: [debug, release]
         tracy: [OFF, ON]
     steps:
@@ -142,74 +78,15 @@ jobs:
                libwayland-dev wayland-protocols extra-cmake-modules \
                libxkbcommon-dev sccache
 
-      - name: Install dependencies (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
-          choco install ninja --yes
-          choco install sccache --yes
-          setx SCCACHE_DIR "%USERPROFILE%\.cache\sccache"
-        shell: powershell
-
-# Configure CMake (Windows)
-      - name: Configure CMake (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell
-        env:
-          MATRIX_BUILD_TYPE: ${{ matrix['build-type'] }}
-          MATRIX_TRACY: ${{ matrix.tracy }}
-        run: |
-
-                # Get VS install directory (first line)
-          $InstallDir = (& "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-              -latest -products * `
-              -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-              -property installationPath)[0].Trim()
-
-          Write-Host "VS Install Dir: '$InstallDir'"
-
-          if (-not (Test-Path "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat")) {
-              throw "vcvarsall.bat not found in $InstallDir"
-          }
-
-          # Initialize MSVC environment
-          & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-
-          # Run CMake
-          cmake --preset $env:MATRIX_BUILD_TYPE `
-                -DCMAKE_C_COMPILER=cl.exe `
-                -DCMAKE_CXX_COMPILER=cl.exe `
-                -DTRACY_ENABLE=$env:MATRIX_TRACY
-
-
-
 # Configure CMake (Linux)
       - name: Configure CMake (Linux)
         if: runner.os == 'Linux'
         run: cmake --preset $env:MATRIX_BUILD_TYPE -DTRACY_ENABLE=${{ matrix.tracy }}
 
-
-# Build step for Windows
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --build --preset $env:MATRIX_BUILD_TYPE -- -j $env:NUMBER_OF_PROCESSORS
-
 # Build step for Linux
       - name: Build (Linux)
         if: runner.os == 'Linux'
         run: cmake --build --preset ${{ matrix.build-type }}
-
-
-      - name: Show sccache stats (Windows)
-        if: matrix.os == 'windows-latest'
-        run: sccache --show-stats
-        shell: powershell
-
 
       - name: Show sccache stats (Linux)
         if: matrix.os == 'ubuntu-latest'
