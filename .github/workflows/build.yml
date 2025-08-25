@@ -56,7 +56,7 @@ jobs:
           MATRIX_TRACY: ${{ matrix.tracy }}
         run: |
           $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)[0]
           & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
           cmake --preset $env:MATRIX_BUILD_TYPE -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=$env:MATRIX_TRACY
 
@@ -76,7 +76,7 @@ jobs:
                   -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
                   -property installationPath
           & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --build --preset ${{ matrix.build-type }} -- -j $env:NUMBER_OF_PROCESSORS
+          cmake --build --preset $env:MATRIX_BUILD_TYPE -- -j $env:NUMBER_OF_PROCESSORS
         
 # Build step for Linux
       - name: Build (Linux)
@@ -142,14 +142,14 @@ jobs:
           MATRIX_TRACY: ${{ matrix.tracy }}
         run: |
           $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)[0]
           & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
           cmake --preset $env:MATRIX_BUILD_TYPE -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -DTRACY_ENABLE=$env:MATRIX_TRACY
 
 # Configure CMake (Linux)
       - name: Configure CMake (Linux)
         if: runner.os == 'Linux'
-        run: cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
+        run: cmake --preset $env:MATRIX_BUILD_TYPE -DTRACY_ENABLE=${{ matrix.tracy }}
 
 
 # Build step for Windows
@@ -158,11 +158,9 @@ jobs:
         shell: powershell
         run: |
           $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-                  -latest -products * `
-                  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-                  -property installationPath
+                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --build --preset ${{ matrix.build-type }} -- -j $env:NUMBER_OF_PROCESSORS
+          cmake --build --preset $env:MATRIX_BUILD_TYPE -- -j $env:NUMBER_OF_PROCESSORS
 
 # Build step for Linux
       - name: Build (Linux)
