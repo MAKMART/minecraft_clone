@@ -10,13 +10,13 @@ on:
 
 jobs:
   fast-build:
-    if: github.event_name != 'schedule' # Only run on push/PR
+    if: github.event_name != 'schedule'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        build-type: [release]      # Only test Release for speed
-        tracy: [ON]                # Only ON for CI
+        build-type: [release]  # Only Release for fast CI
+        tracy: [ON]            # Only test TRACY ON in fast CI
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,8 +25,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: build
-          key: ${{ runner.os }}-cmake-${{ matrix.build-type }}-${{ matrix.tracy }}
+          key: ${{ runner.os }}-cmake-${{ matrix.build-type }}-${{ matrix.tracy }}-v1
 
+      # --- Linux dependencies ---
       - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -36,21 +37,33 @@ jobs:
                libwayland-dev wayland-protocols extra-cmake-modules \
                libxkbcommon-dev
 
+      # --- Windows dependencies ---
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
-          choco install visualstudio2019buildtools --yes
           choco install ninja --yes
+        shell: powershell
 
+      # --- Configure CMake ---
       - name: Configure CMake
-        run: cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            cmd.exe /C "call \"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat\" x64 && cmake -G Ninja -B build -S . -DTRACY_ENABLE=${{ matrix.tracy }}"
+          else
+            cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
+          fi
 
+      # --- Build ---
       - name: Build
-        run: cmake --build --preset ${{ matrix.build-type }}
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            cmd.exe /C "ninja -C build"
+          else
+            cmake --build --preset ${{ matrix.build-type }}
 
   full-matrix:
-    if: github.event_name == 'schedule' # Only run nightly
+    if: github.event_name == 'schedule'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -65,7 +78,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: build
-          key: ${{ runner.os }}-cmake-${{ matrix.build-type }}-${{ matrix.tracy }}
+          key: ${{ runner.os }}-cmake-${{ matrix.build-type }}-${{ matrix.tracy }}-v1
 
       - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -80,11 +93,19 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
-          choco install visualstudio2019buildtools --yes
           choco install ninja --yes
+        shell: powershell
 
       - name: Configure CMake
-        run: cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            cmd.exe /C "call \"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat\" x64 && cmake -G Ninja -B build -S . -DTRACY_ENABLE=${{ matrix.tracy }}"
+          else
+            cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
 
       - name: Build
-        run: cmake --build --preset ${{ matrix.build-type }}
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            cmd.exe /C "ninja -C build"
+          else
+            cmake --build --preset ${{ matrix.build-type }}
