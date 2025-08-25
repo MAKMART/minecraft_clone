@@ -50,11 +50,15 @@ jobs:
       # --- Configure CMake ---
       - name: Configure CMake (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
+        shell: powershell
         run: |
-          for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set InstallDir=%%i
-          call "%InstallDir%\VC\Auxiliary\Build\vcvarsall.bat" x64
+          $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
+                  -latest -products * `
+                  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+                  -property installationPath
+          & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
           cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
+
 
       - name: Configure CMake (Linux)
         if: runner.os == 'Linux'
@@ -64,11 +68,15 @@ jobs:
 # Build step for Windows
       - name: Build (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
+        shell: powershell
         run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --build --preset ${{ matrix.build-type }} -- -j %NUMBER_OF_PROCESSORS%
-
+          $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
+                  -latest -products * `
+                  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+                  -property installationPath
+          & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
+          cmake --build --preset ${{ matrix.build-type }} -- -j $env:NUMBER_OF_PROCESSORS
+        
 # Build step for Linux
       - name: Build (Linux)
         if: runner.os == 'Linux'
@@ -78,7 +86,7 @@ jobs:
       - name: Show sccache stats (Windows)
         if: matrix.os == 'windows-latest'
         run: sccache --show-stats
-        shell: cmd
+        shell: powershell
 
 
       - name: Show sccache stats (Linux)
@@ -127,10 +135,13 @@ jobs:
 # Configure CMake (Windows)
       - name: Configure CMake (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
+        shell: powershell
         run: |
-          for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set InstallDir=%%i
-          call "%InstallDir%\VC\Auxiliary\Build\vcvarsall.bat" x64
+          $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
+                  -latest -products * `
+                  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+                  -property installationPath
+          & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
           cmake --preset ${{ matrix.build-type }} -DTRACY_ENABLE=${{ matrix.tracy }}
 
 # Configure CMake (Linux)
@@ -142,10 +153,14 @@ jobs:
 # Build step for Windows
       - name: Build (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
+        shell: powershell
         run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
-          cmake --build --preset ${{ matrix.build-type }} -- -j %NUMBER_OF_PROCESSORS%
+          $InstallDir = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
+                  -latest -products * `
+                  -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+                  -property installationPath
+          & "$InstallDir\VC\Auxiliary\Build\vcvarsall.bat" x64
+          cmake --build --preset ${{ matrix.build-type }} -- -j $env:NUMBER_OF_PROCESSORS
 
 # Build step for Linux
       - name: Build (Linux)
@@ -156,7 +171,7 @@ jobs:
       - name: Show sccache stats (Windows)
         if: matrix.os == 'windows-latest'
         run: sccache --show-stats
-        shell: cmd
+        shell: powershell
 
 
       - name: Show sccache stats (Linux)
