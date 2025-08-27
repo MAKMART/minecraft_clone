@@ -1,10 +1,17 @@
 # ==== Build Options ====
 option(ENABLE_TRACY "Enable Tracy profiler (Debug only)" ON)
-option(ENABLE_DOCS "Enable building documentation with Doxygen" OFF)
+set(ENABLE_DOCS "Enable building documentation with Doxygen" OFF)
 option(ENABLE_UNITY_BUILD "Enable unity build" ON)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build everything statically" FORCE)
-string(APPEND CMAKE_EXE_LINKER_FLAGS " -static-libgcc -static-libstdc++")
+if(MSVC)
+    # MSVC usually handles runtime linking automatically
+else()
+    string(APPEND CMAKE_EXE_LINKER_FLAGS " -static-libgcc -static-libstdc++")
+endif()
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
+set(CMAKE_POLICY_WARNING_CMPNNNN OFF) # for specific CMP warnings
+set(CMAKE_MESSAGE_LOG_LEVEL STATUS)
 
 
 # ==== C++ Standard ====
@@ -23,7 +30,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # ==== IPO for release ====
-if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+if(CMAKE_BUILD_TYPE MATCHES "Release|RelWithDebInfo")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
 
@@ -39,3 +46,57 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/debug)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/release)
+
+
+
+
+
+# ==== GLEW ====
+set(GLEW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLEW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLEW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(glew-cmake_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(glew-cmake_BUILD_STATIC ON CACHE BOOL "" FORCE)
+set(ONLY_LIBS ON CACHE BOOL "" FORCE)
+
+
+
+
+# ==== GLFW ====
+set(GLFW_BUILD_WAYLAND ON CACHE BOOL "" FORCE)
+set(GLFW_BUILD_X11 OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+
+
+
+
+# ==== FreeType ====
+set(FT_DISABLE_ZLIB ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
+
+
+
+
+
+
+# ==== RmlUi ====
+set(RMLUI_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+set(RMLUI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(RMLUI_BUILD_LIBRMLDEBUGGER ON CACHE BOOL "" FORCE)
+set(RMLUI_FONT_ENGINE "freetype" CACHE STRING "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(RMLUI_SHELL OFF CACHE BOOL "" FORCE)
+
+
+
+
+
+# ==== Tracy (optional) ====
+if(ENABLE_TRACY)
+    set(TRACY_SKIP_GIT_UPDATE ON CACHE BOOL "" FORCE)
+    set(TRACY_ENABLE_VERBOSE OFF)
+endif()

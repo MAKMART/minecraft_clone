@@ -8,6 +8,7 @@ enum class PlayerMovementState {
     Jumping,
     Swimming,
     Flying,
+    Falling,
 };
 
 struct PlayerState {

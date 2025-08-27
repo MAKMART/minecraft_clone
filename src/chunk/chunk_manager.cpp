@@ -31,7 +31,7 @@ ChunkManager::ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed)
 			std::mt19937 engine((std::random_device())());
 			std::uniform_int_distribution<int> distribution(1, 999999);
 			siv::PerlinNoise::seed_type random_seed = distribution(engine);
-			perlin = siv::PerlinNoise(random_seed);
+			perlin = siv::PerlinNoise(/*random_seed*/116896);
 			log::system_info("ChunkManager", "initialized with random seed: {}", random_seed);
 		}
 
@@ -144,7 +144,6 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 	static glm::ivec2 lastRegionSize = {-1, -1};
 	static glm::ivec3 lastNoiseOrigin = {-999999, 0, -999999};
 
-	//static glm::ivec2 lastChunkOrigin = {-99999, -99999};
 
 	const glm::ivec3 noiseOrigin = {
 		(playerChunkPos.x - renderDistance) * chunkSize.x,

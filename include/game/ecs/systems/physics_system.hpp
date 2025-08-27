@@ -4,15 +4,23 @@
 #include "../components/velocity.hpp"
 #include "../components/collider.hpp"
 #include "../components/player_mode.hpp"
+#include "../components/player_state.hpp"
 #include "chunk/chunk_manager.hpp"
 #include <glm/glm.hpp>
 #include "core/defines.hpp"
 #include "core/aabb.hpp"
+#if defined (TRACY_ENABLE)
+#include <tracy/Tracy.hpp>
+#endif
 
 bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManager& chunkManager);
 
 template<typename... Components>
 void update_physics(ComponentManager<Components...>& cm, ChunkManager& chunkManager, float dt) {
+#if defined (TRACY_ENABLE)
+	ZoneScoped;
+#endif
+
     cm.template for_each_component<Collider>([&](Entity e, Collider& col) {
         auto* pos = cm.template get_component<Position>(e);
         auto* vel = cm.template get_optional_component<Velocity>(e);
@@ -20,11 +28,12 @@ void update_physics(ComponentManager<Components...>& cm, ChunkManager& chunkMana
 
         // Special-case: player mode behavior
         auto* playerMode = cm.template get_optional_component<PlayerMode>(e);
+	auto* playerState = cm.template get_optional_component<PlayerState>(e);
         if (playerMode && playerMode->mode == Type::SPECTATOR) return;
 
         // Apply gravity if applicable
-        if (!playerMode || playerMode->mode == Type::SURVIVAL) {
-            vel->value.y -= GRAVITY;
+        if (!playerMode || !playerState || playerState->current != PlayerMovementState::Flying) {
+            vel->value.y -= GRAVITY * dt;	// Intgrate gravitational acceleration
         }
 
         // Skip early-out only for completely stationary entities
@@ -42,15 +51,23 @@ void update_physics(ComponentManager<Components...>& cm, ChunkManager& chunkMana
         // --- Axis-by-axis collision resolution ---
 
         // Y-axis
-        glm::vec3 testPos = {oldPos.x, newPos.y, oldPos.z};
-        if (!isCollidingAt(testPos, col, chunkManager)) {
-            pos->value.y = testPos.y;
-        } else {
-            pos->value.y = oldPos.y;
-            if (vel->value.y < 0) vel->value.y = 0; // stop falling
-            col.is_on_ground = true;
-        }
+	glm::vec3 testPos = {oldPos.x, newPos.y, oldPos.z};
+	if (!isCollidingAt(testPos, col, chunkManager)) {
+		pos->value.y = testPos.y;
+	} else {
+		pos->value.y = oldPos.y;
 
+		if (vel->value.y < 0) {
+			// Falling → hit the ground
+			vel->value.y = 0;
+			col.is_on_ground = true;
+		} else if (vel->value.y > 0) {
+			// Jumping → hit ceiling, just stop upward motion
+			vel->value.y = 0;
+			// do NOT set is_on_ground
+		}
+	}
+        
         // X-axis
         testPos = {newPos.x, pos->value.y, oldPos.z};
         if (!isCollidingAt(testPos, col, chunkManager)) {

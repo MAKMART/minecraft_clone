@@ -3,10 +3,16 @@
 #include "../component_manager.hpp"
 #include "../components/input.hpp"
 #include "core/input_manager.hpp"
+#if defined (TRACY_ENABLE)
+#include <tracy/Tracy.hpp>
+#endif
 
 
 template<typename... Components>
 void update_input(ComponentManager<Components...>& cm, const InputManager& input) {
+#if defined (TRACY_ENABLE)
+	ZoneScoped;
+#endif
 	cm.template for_each_component<InputComponent>([&](Entity e, InputComponent& ic) {
 
 
@@ -21,7 +27,7 @@ void update_input(ComponentManager<Components...>& cm, const InputManager& input
 			ic.crouch   = input.isHeld(CROUCH_KEY);
 
 			auto [dx, dy] = input.getMouseDelta();
-			ic.mouseDelta = (glm::length(glm::vec2(dx, dy)) > 0.001f)
+			ic.mouseDelta = (glm::length(glm::vec2(dx, dy)) > 0.01f)
 			? glm::vec2(dx, dy)
 			: glm::vec2(0.0f);
 

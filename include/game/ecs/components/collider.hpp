@@ -9,8 +9,6 @@ struct Collider {
 	bool is_on_ground;
 
 	AABB getBoundingBoxAt(const glm::vec3& pos) const {
-		//glm::vec3 center = pos + aabb.center();
-		//return AABB::fromCenterExtent(center, aabb.extent());
 		return AABB::fromCenterExtent(pos, halfExtents);
 	}
 

@@ -1,12 +1,6 @@
 include(FetchContent)
 
 # ==== GLEW ====
-set(GLEW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(GLEW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLEW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(glew-cmake_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-set(glew-cmake_BUILD_STATIC ON CACHE BOOL "" FORCE)
-set(ONLY_LIBS ON CACHE BOOL "" FORCE)
 FetchContent_Declare(
     glew
     GIT_REPOSITORY https://github.com/Perlmint/glew-cmake.git
@@ -18,9 +12,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glew)
 
 # ==== GLFW ====
-set(GLFW_BUILD_WAYLAND ON CACHE BOOL "" FORCE)
-set(GLFW_BUILD_X11 OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     glfw
     GIT_REPOSITORY https://github.com/glfw/glfw.git
@@ -70,11 +61,6 @@ FetchContent_Declare(
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
-set(FT_DISABLE_ZLIB ON CACHE BOOL "" FORCE)
-set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
-set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
-set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
-set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(freetype)
 add_library(Freetype::Freetype ALIAS freetype)
 
@@ -86,12 +72,6 @@ FetchContent_Declare(
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
-set(RMLUI_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(RMLUI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(RMLUI_BUILD_LIBRMLDEBUGGER ON CACHE BOOL "" FORCE)
-set(RMLUI_FONT_ENGINE "freetype" CACHE STRING "" FORCE)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(RMLUI_SHELL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(RmlUi)
 
 # ==== Tracy (optional) ====
@@ -103,6 +83,5 @@ if(ENABLE_TRACY)
 	GIT_SHALLOW    TRUE
         GIT_PROGRESS   TRUE
     )
-    set(TRACY_SKIP_GIT_UPDATE ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(tracy)
 endif()

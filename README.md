@@ -92,4 +92,4 @@ cmake --build --preset release
 ## Troubleshooting 🛡️
 
 If you run into any build issues or have questions, feel free to email me:
-✉️ [martinmarco813@gmail.com](mailto:martinmarco813@gmail.com
+✉️ [martinmarco813@gmail.com](mailto:martinmarco813@gmail.com)

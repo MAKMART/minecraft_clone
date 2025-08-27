@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.30...4.0.1)
+set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1)
 
-
-if(POLICY CMP0126)
-    cmake_policy(SET CMP0126 NEW)
-endif()
 
 project("game" VERSION 0.2.0 LANGUAGES CXX)
 
@@ -12,17 +9,12 @@ project("game" VERSION 0.2.0 LANGUAGES CXX)
 include(cmake/options.cmake)
 include(cmake/dependencies.cmake)
 
-if(ENABLE_TRACY AND CMAKE_BUILD_TYPE STREQUAL "Debug")
-    message(STATUS "✅ Tracy is ENABLED")
-else()
-    message(STATUS "🚫 Tracy is DISABLED")
-endif()
-
-if(ENABLE_UNITY_BUILD)
-    message(STATUS "✅ Unity build is ENABLED")
-else()
-    message(STATUS "🚫 Unity build is DISABLED")
-endif()
+message(STATUS "Build Type       : ${CMAKE_BUILD_TYPE}")
+message(STATUS "C++ Standard     : C++${CMAKE_CXX_STANDARD}")
+message(STATUS "Unity Build      : ${ENABLE_UNITY_BUILD}")
+message(STATUS "Tracy Profiler   : ${ENABLE_TRACY}")
+message(STATUS "Documentation    : ${ENABLE_DOCS}")
+message(STATUS "Executable Name  : ${EXECUTABLE_OUTPUT_NAME}")
 
 find_package(OpenGL REQUIRED)
 

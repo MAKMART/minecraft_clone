@@ -50,7 +50,8 @@ Application::Application(int width, int height) : width(width), height(height), 
 		    {"\nTexture", SIZE_OF(Texture)},
 		    {"\nPlayer", SIZE_OF(Player)},
 		    {"\nUI", SIZE_OF(UI)},
-		    {"\nApplication", SIZE_OF(Application)}
+		    {"\nApplication", SIZE_OF(Application)},
+		    {"\nEntity", SIZE_OF(Entity)}
 		    }
 		   );
 
@@ -172,6 +173,7 @@ Application::Application(int width, int height) : width(width), height(height), 
 
 
     chunkManager->generateChunks(player->getPos(), player->render_distance);
+
 
 }
 Application::~Application() {
@@ -429,8 +431,8 @@ void Application::Run() {
         // --- Chunk Generation ---
         chunkManager->generateChunks(player->getPos(), player->render_distance);
 
-	player_state_system(ecs.cm, *player, deltaTime);
 	update_physics(ecs.cm, *chunkManager, deltaTime);
+	update_player_state(ecs.cm, *player, deltaTime);
 
         // --- Player Update ---
         playerShader->setMat4("projection", player->getProjectionMatrix());
@@ -564,9 +566,9 @@ void Application::Run() {
             ImGui::Text("Player velocity: %f, %f, %f", player->getVelocity().x, player->getVelocity().y, player->getVelocity().z);
             ImGui::Text("Player MODE: %s", player->getMode());
             ImGui::Text("Player STATE: %s", player->getMovementState());
-	    glm::vec3 _min = player->getAABB().min;
-	    glm::vec3 _max = player->getAABB().max;
-	    ImGui::Text("Player AABB { %f, %f, %f }, { %f, %f, %f }", _min.x, _min.y, _min.z, _max.x, _max.y, _max.z);
+	    //glm::vec3 _min = player->getAABB().min;
+	    //glm::vec3 _max = player->getAABB().max;
+	    //ImGui::Text("Player AABB { %f, %f, %f }, { %f, %f, %f }", _min.x, _min.y, _min.z, _max.x, _max.y, _max.z);
             ImGui::Text("Selected block: ");
             ImGui::SameLine();
             ImGui::SetWindowFontScale(1.2f);

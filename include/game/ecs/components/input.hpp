@@ -2,7 +2,7 @@
 #include <glm/glm.hpp>
 
 struct InputComponent {
-    // High-level controls (not raw keycodes)
+	// All possible movement directions that can be controlled by an input device
     bool forward  = false;
     bool backward = false;
     bool left     = false;

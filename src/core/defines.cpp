@@ -7,23 +7,6 @@
 #include <string>
 #include <sstream>
 
-class OpenGLError : public std::runtime_error {
-  public:
-    explicit OpenGLError(GLenum errorCode)
-        : std::runtime_error(buildMessage(errorCode)), errorCode(errorCode) {}
-
-    GLenum code() const { return errorCode; }
-
-  private:
-    GLenum errorCode;
-
-    static std::string buildMessage(GLenum errorCode) {
-        std::ostringstream oss;
-        oss << "OpenGL Error: 0x" << std::hex << errorCode;
-        return oss.str();
-    }
-};
-
 // Controls
 uint_fast16_t FORWARD_KEY = GLFW_KEY_W;
 uint_fast16_t BACKWARD_KEY = GLFW_KEY_S;

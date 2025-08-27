@@ -130,6 +130,7 @@ void CameraController::update(float deltaTime) {
         currentOrientation = interpolateOrientation.getValue();
         viewDirty = true;
     }
+    updateFrustumPlanes();
 
 }
 void CameraController::syncYawPitchFromOrientation() {

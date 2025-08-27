@@ -52,7 +52,7 @@ class Player {
 			  eyeHeight = playerHeight * 0.9f;
 			  scaleFactor = 0.076f;
 			  lastScaleFactor = scaleFactor;
-			  camCtrl = CameraController(position->value + glm::vec3(0, eyeHeight, 0), glm::quat(1,0,0,0));
+			  camCtrl = CameraController(position->value + glm::vec3(0, eyeHeight, 0) / 2.0f, glm::quat(1,0,0,0));
 
 
 
@@ -132,6 +132,10 @@ class Player {
 	    return state->current == PlayerMovementState::Swimming;
     }
 
+    bool isFalling() const {
+	    return state->current == PlayerMovementState::Falling;
+    }
+
     void processMouseMovement(float xoffset, float yoffset, bool constrainPitch);
     void processMouseInput(ChunkManager &chunkManager);
     void processKeyInput();
@@ -193,6 +197,9 @@ class Player {
 		    case PlayerMovementState::Swimming:
 			    return "SWIMMING";
 			    break;
+		    case PlayerMovementState::Falling:
+			    return "FALLING";
+			    break;
 		    default:
 			    return "UNHANDLED";
 	    }
@@ -205,9 +212,9 @@ class Player {
 
     void updateCamPos() {
         if (camCtrl.isThirdPersonMode())
-            camCtrl.setOrbitTarget(position->value + glm::vec3(0, eyeHeight, 0));
+            camCtrl.setOrbitTarget(position->value + glm::vec3(0, eyeHeight, 0) / 2.0f);
         else
-            camCtrl.setPosition(position->value + glm::vec3(0, eyeHeight, 0));
+            camCtrl.setPosition(position->value + glm::vec3(0, eyeHeight, 0) / 2.0f);
     }
     // --- Player Settings ---
     float animationTime = 0.0f;
@@ -231,8 +238,8 @@ class Player {
     // --- Player Flags ---
     bool isDamageable = false;
 
-    bool canPlaceBlocks = false;
-    bool canBreakBlocks = false;
+    bool canPlaceBlocks = true;
+    bool canBreakBlocks = true;
     bool renderSkin = false;
     bool canFly = true;
     bool canWalk = true;

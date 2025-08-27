@@ -12,7 +12,8 @@ div.fancy-box {
     font-family: "Hack";
     background-color: #ff5f5f;	/*E&000*/
     padding: 20px;
-    width: 300px;
+    width: 500px;
+    height: 80px;
     color: black;
     text-align: center;
     vertical-align: bottom;
