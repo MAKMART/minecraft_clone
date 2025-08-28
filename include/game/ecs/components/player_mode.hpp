@@ -1,9 +1,13 @@
 #pragma once
 
-enum Type { SURVIVAL, CREATIVE, SPECTATOR };
+enum Type { SURVIVAL,
+	    CREATIVE,
+	    SPECTATOR };
 
 struct PlayerMode {
-	PlayerMode(Type starting_mode) : mode(starting_mode) {}
+	PlayerMode(Type starting_mode) : mode(starting_mode)
+	{
+	}
 	PlayerMode() = default;
-	Type mode = SURVIVAL;
+	Type mode    = SURVIVAL;
 };

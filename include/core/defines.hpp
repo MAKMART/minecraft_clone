@@ -10,8 +10,8 @@
 #ifndef GL_TYPES_DEFINED
 #define GL_TYPES_DEFINED
 typedef unsigned int GLenum;
-typedef int GLint;
-typedef int GLsizei;
+typedef int          GLint;
+typedef int          GLsizei;
 #endif
 
 // ANSI escape codes for color
@@ -38,8 +38,8 @@ extern uint_fast16_t SURVIVAL_MODE_KEY;
 extern uint_fast16_t CREATIVE_MODE_KEY;
 extern uint_fast16_t SPECTATOR_MODE_KEY;
 extern uint_fast16_t CAMERA_SWITCH_KEY;
-extern uint_fast8_t ATTACK_BUTTON;
-extern uint_fast8_t DEFENSE_BUTTON;
+extern uint_fast8_t  ATTACK_BUTTON;
+extern uint_fast8_t  DEFENSE_BUTTON;
 
 // Paths
 extern std::filesystem::path WORKING_DIRECTORY;
@@ -72,77 +72,74 @@ extern std::filesystem::path MAIN_FONT_DIRECTORY;
 extern std::filesystem::path MAIN_DOC_DIRECTORY;
 
 // World Attributes
-extern float GRAVITY;
+extern float     GRAVITY;
 const glm::ivec3 chunkSize{16, 32, 16};
 
 // Utils for rendering
 extern unsigned int g_drawCallCount;
-extern void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count);
-extern void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void *indices);
-extern void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount);
-extern float LINE_WIDTH;
-extern bool WIREFRAME_MODE;
-extern bool DEPTH_TEST;
-extern uint8_t DEPTH_BITS;
-extern uint8_t STENCIL_BITS;
-extern bool BLENDING;
-extern bool V_SYNC;
-extern bool FACE_CULLING;
-extern bool MSAA;
-extern uint8_t MSAA_STRENGHT;
+extern void         DrawArraysWrapper(GLenum mode, GLint first, GLsizei count);
+extern void         DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void* indices);
+extern void         DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount);
+extern float        LINE_WIDTH;
+extern bool         WIREFRAME_MODE;
+extern bool         DEPTH_TEST;
+extern uint8_t      DEPTH_BITS;
+extern uint8_t      STENCIL_BITS;
+extern bool         BLENDING;
+extern bool         V_SYNC;
+extern bool         FACE_CULLING;
+extern bool         MSAA;
+extern uint8_t      MSAA_STRENGHT;
 
+inline std::string pretty_size(std::size_t bytes)
+{
+	constexpr const char* IEC_UNITS[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
 
+	double      value      = static_cast<double>(bytes);
+	std::size_t unit_index = 0;
 
-inline std::string pretty_size(std::size_t bytes) {
-    constexpr const char* IEC_UNITS[] = { "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB" };
+	while (value >= 1024.0 && unit_index < (sizeof(IEC_UNITS) / sizeof(*IEC_UNITS)) - 1) {
+		value /= 1024.0;
+		++unit_index;
+	}
 
-    double value = static_cast<double>(bytes);
-    std::size_t unit_index = 0;
+	char buf[64];
+	if (value - static_cast<long long>(value) < 0.005)
+		std::snprintf(buf, sizeof(buf), "%lld %s", static_cast<long long>(value), IEC_UNITS[unit_index]);
+	else
+		std::snprintf(buf, sizeof(buf), "%.2f %s", value, IEC_UNITS[unit_index]);
 
-    while (value >= 1024.0 && unit_index < (sizeof(IEC_UNITS) / sizeof(*IEC_UNITS)) - 1) {
-        value /= 1024.0;
-        ++unit_index;
-    }
-
-    char buf[64];
-    if (value - static_cast<long long>(value) < 0.005)
-        std::snprintf(buf, sizeof(buf), "%lld %s", static_cast<long long>(value), IEC_UNITS[unit_index]);
-    else
-        std::snprintf(buf, sizeof(buf), "%.2f %s", value, IEC_UNITS[unit_index]);
-
-    return std::string(buf);
+	return std::string(buf);
 }
 
 #define SIZE_OF(x) pretty_size(sizeof(x))
 
-
-
 #if defined(DEBUG)
-inline DebugDrawer& getDebugDrawer() {
-    static DebugDrawer instance;
-    return instance;
+inline DebugDrawer& getDebugDrawer()
+{
+	static DebugDrawer instance;
+	return instance;
 }
 #endif
 
-
 // Unsigned int types
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
+typedef unsigned char      u8;
+typedef unsigned short     u16;
+typedef unsigned int       u32;
 typedef unsigned long long u64;
 
 // Signed int types
-typedef signed char i8;
-typedef signed short i16;
-typedef signed int i32;
+typedef signed char      i8;
+typedef signed short     i16;
+typedef signed int       i32;
 typedef signed long long i64;
 
 // Floating point types
-typedef float f32;
+typedef float  f32;
 typedef double f64;
 
 // Boolean types
-typedef int b32;
+typedef int  b32;
 typedef bool b8;
 
 // Properly define static assertions

@@ -23,38 +23,37 @@ constexpr size_t MaxTimingSamples = 100;
 constexpr size_t MaxHistoryFrames = 500;
 
 struct TimingSeries {
-    std::deque<float> values;
+	std::deque<float> values;
 };
 
 struct TimingHistory {
-    std::mutex mutex;
-    std::unordered_map<std::string, TimingSeries> timings;
+	std::mutex                                    mutex;
+	std::unordered_map<std::string, TimingSeries> timings;
 };
 
 extern TimingHistory g_TimingHistory;
 
-
 struct ImGuiTimerData {
-    std::mutex mutex;
-    std::unordered_map<std::string, TimingHistory> timings;
+	std::mutex                                     mutex;
+	std::unordered_map<std::string, TimingHistory> timings;
 };
-
 
 extern ImGuiTimerData g_TimerData;
 
 // Constants
-extern const int frametime_max; // Store last 100 frame times
-extern std::vector<float> frametimes; // Declare without initialization here
-extern int frameIndex;
+extern const int          frametime_max; // Store last 100 frame times
+extern std::vector<float> frametimes;    // Declare without initialization here
+extern int                frameIndex;
 
+class Timer
+{
+      public:
+	Timer(const std::string& name);
+	~Timer();
 
-class Timer {
-public:
-    Timer(const std::string& name);
-    ~Timer();
-private:
-    std::string name;
-    std::chrono::high_resolution_clock::time_point start;
+      private:
+	std::string                                    name;
+	std::chrono::high_resolution_clock::time_point start;
 };
 
 // Call this every frame

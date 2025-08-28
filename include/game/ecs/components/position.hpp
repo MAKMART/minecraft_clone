@@ -4,6 +4,10 @@
 struct Position {
 	glm::vec3 value{0.0f};
 	Position() = default;
-	Position(float x, float y, float z) : value(x, y, z) {}
-	Position(const glm::vec3& pos) : value(pos) {}
+	Position(float x, float y, float z) : value(x, y, z)
+	{
+	}
+	Position(const glm::vec3& pos) : value(pos)
+	{
+	}
 };

@@ -25,72 +25,64 @@
 #include "game/ecs/components/input.hpp"
 #include "game/ecs/components/player_mode.hpp"
 #include "game/ecs/components/player_state.hpp"
+#include "game/ecs/components/camera.hpp"
+#include "game/ecs/components/camera_controller.hpp"
+#include "game/ecs/components/mouse_input.hpp"
+#include "game/ecs/components/active_camera.hpp"
 
+class Application
+{
+      public:
+	Application(int width, int height);
+	~Application(void);
+	void Run(void);
 
-class Application {
-  public:
-    Application(int width, int height);
-    ~Application(void);
-    void Run(void);
+      private:
+	std::string title = std::string(PROJECT_NAME) + std::string(" ") + std::string(PROJECT_VERSION);
+	u16         width, height;
+	float       aspectRatio;
+	glm::vec4   backgroundColor;
 
-  private:
-    std::string title = std::string(PROJECT_NAME) + std::string(" ") + std::string(PROJECT_VERSION);
-    u16 width, height;
-    float aspectRatio;
-    glm::vec4 backgroundColor;
+	u8  nbFrames  = 0;
+	f32 deltaTime = 0.0f;
+	f32 lastFrame = 0.0f;
 
-    u8 nbFrames = 0;
-    f32 deltaTime = 0.0f;
-    f32 lastFrame = 0.0f;
-
-    b8 isFullscreen = false;
-    b8 renderUI = true;
-    b8 renderTerrain = true;
+	b8 isFullscreen  = false;
+	b8 renderUI      = true;
+	b8 renderTerrain = true;
 #if defined(DEBUG)
-    b8 debugRender = false;
+	b8 debugRender = false;
 #endif
-    i32 windowedWidth, windowedHeight;
-    i32 windowedPosX, windowedPosY;
-    GLFWwindow *window;
+	i32         windowedWidth, windowedHeight;
+	i32         windowedPosX, windowedPosY;
+	GLFWwindow* window;
 
-    b8 firstMouse = true;
+	b8 firstMouse = true;
 
-    ECS<Position, Velocity, Transform, Collider, InputComponent, PlayerState, PlayerMode> ecs;
-    std::unique_ptr<Shader> playerShader;
-    std::unique_ptr<ChunkManager> chunkManager;
-    std::unique_ptr<Player> player;
-    InputManager input;
-    std::unique_ptr<UI> ui;
+	ECS<Position, Velocity, Transform, Collider, InputComponent, PlayerState, PlayerMode, Camera, CameraController, MouseInput, ActiveCamera> ecs;
+	std::unique_ptr<Shader>                                                               playerShader;
+	std::unique_ptr<ChunkManager>                                                         chunkManager;
+	std::unique_ptr<Player>                                                               player;
+	InputManager                                                                          input;
+	std::unique_ptr<UI>                                                                   ui;
 
-    GLFWwindow* createWindow();
-    void handleFullscreenToggle(GLFWwindow *window);
-    static void framebuffer_size_callback(GLFWwindow *window, int width,
-                                          int height);
-    static void cursor_callback(GLFWwindow *window, double xpos, double ypos);
-    static void mouse_callback(GLFWwindow *window, int button, int action,
-                               int mods);
-    static void scroll_callback(GLFWwindow *window, double xoffset,
-                                double yoffset);
-    static void key_callback(GLFWwindow *window, int key, int scancode,
-                             int action, int mods);
-    void processInput();
-    float getFPS();
+	GLFWwindow* createWindow();
+	void        processInput();
+	float       getFPS();
+	static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
-    // -- Crosshair ---
-    std::unique_ptr<Shader> crossHairshader;
-    std::unique_ptr<Texture> crossHairTexture;
-    // Use std::vector for dynamic size safety
-    std::vector<float> Crosshairvertices;
-    static constexpr unsigned int CrosshairIndices[6] = {
-        0, 1, 2, // First triangle
-        2, 3, 0  // Second triangle
-    };
-    float crosshairSize;
+	// -- Crosshair ---
+	std::unique_ptr<Shader>  crossHairshader;
+	std::unique_ptr<Texture> crossHairTexture;
+	// Use std::vector for dynamic size safety
+	std::vector<float>            Crosshairvertices;
+	static constexpr unsigned int CrosshairIndices[6] = {
+	    0, 1, 2, // First triangle
+	    2, 3, 0  // Second triangle
+	};
+	float crosshairSize;
 
-    unsigned int crosshairVAO, crosshairVBO, crosshairEBO;
+	unsigned int crosshairVAO, crosshairVBO, crosshairEBO;
 
-    
-    static void MessageCallback(GLenum source, GLenum type, GLuint id,
-                                GLenum severity, GLsizei length,
-                                const GLchar *message, const void *userParam);
+	static void MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 };
