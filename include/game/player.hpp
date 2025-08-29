@@ -20,41 +20,41 @@
 #include "game/ecs/components/camera_controller.hpp"
 #include "game/ecs/components/mouse_input.hpp"
 
+
 class Player
 {
       public:
-	template <typename... Components>
-	Player(ECS<Components...>& ecs, glm::vec3 spawnPos, InputManager& _input)
-	    : playerHeight(1.8f), input(_input), prevPlayerHeight(playerHeight), skinTexture(std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST))
+	Player(ECS& ecs, glm::vec3 spawnPos, InputManager& _input)
+	    : ecs(ecs), playerHeight(1.8f), input(_input), prevPlayerHeight(playerHeight), skinTexture(std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST))
 	{
 		log::info("Initializing Player...");
-		self = ecs.createEntity();
+		self = ecs.create_entity();
 
 		// Create the player entity
-		ecs.addComponent(self, Transform{spawnPos});
-		transform = ecs.template getComponent<Transform>(self);
+		ecs.add_component(self, Transform{spawnPos});
+		transform = ecs.get_component<Transform>(self);
 
-		ecs.addComponent(self, Velocity{});
-		velocity = ecs.template getComponent<Velocity>(self);
+		ecs.add_component(self, Velocity{});
+		velocity = ecs.get_component<Velocity>(self);
 
-		ecs.addComponent(self, Collider{glm::vec3(ExtentX, playerHeight / 2.0f, ExtentY)});
-		collider = ecs.template getComponent<Collider>(self);
+		ecs.add_component(self, Collider{glm::vec3(ExtentX, playerHeight / 2.0f, ExtentY)});
+		collider = ecs.get_component<Collider>(self);
 
-		ecs.addComponent(self, InputComponent{});
-		input_comp = ecs.template getComponent<InputComponent>(self);
+		ecs.add_component(self, InputComponent{});
+		input_comp = ecs.get_component<InputComponent>(self);
 
-		ecs.addComponent(self, PlayerState{});
-		state = ecs.template getComponent<PlayerState>(self);
+		ecs.add_component(self, PlayerState{});
+		state = ecs.get_component<PlayerState>(self);
 
-		ecs.addComponent(self, PlayerMode{});
-		mode = ecs.template getComponent<PlayerMode>(self);
+		ecs.add_component(self, PlayerMode{});
+		mode = ecs.get_component<PlayerMode>(self);
 
 		// Create the camera entity
-		camera = ecs.createEntity();
-		ecs.addComponent(camera, Transform{spawnPos + glm::vec3(0.0f, eyeHeight, 0.0f)});
-		ecs.addComponent(camera, Camera{});
-		ecs.addComponent(camera, CameraController(self));
-		ecs.addComponent(camera, MouseInput{});
+		camera = ecs.create_entity();
+		ecs.add_component(camera, Transform{spawnPos + glm::vec3(0.0f, eyeHeight, 0.0f)});
+		ecs.add_component(camera, Camera{});
+		ecs.add_component(camera, CameraController(self));
+		ecs.add_component(camera, MouseInput{});
 
 		// Other init stuff
 		eyeHeight       = playerHeight * 0.9f;
@@ -94,8 +94,8 @@ class Player
 		return armOffset;
 	};
 
-	void update(float deltaTime, ChunkManager& chunkManager, bool is_third_person);
-	void render(const Shader& shader, const Camera& cam, const CameraController& ctrl);
+	void update(float deltaTime, ChunkManager& chunkManager);
+	void render(const Shader& shader);
 	void loadSkin(const std::string& path);
 	void loadSkin(const std::filesystem::path& path);
 
@@ -144,9 +144,9 @@ class Player
 		return state->current == PlayerMovementState::Falling;
 	}
 
-	void processMouseInput(ChunkManager& chunkManager, const Camera& cam, const Transform& trans);
+	void processMouseInput(ChunkManager& chunkManager);
 	void processKeyInput();
-	void processMouseScroll(float yoffset, bool is_third_person);
+	void processMouseScroll(float yoffset);
 
 	void setPos(glm::vec3 newPos);
 
@@ -161,8 +161,8 @@ class Player
 	}
 
 	bool isInsidePlayerBoundingBox(const glm::vec3& checkPos) const;
-	void breakBlock(ChunkManager& chunkManager, const Camera& cam, const Transform& trans);
-	void placeBlock(ChunkManager& chunkManager, const Camera& cam, const Transform& trans);
+	void breakBlock(ChunkManager& chunkManager);
+	void placeBlock(ChunkManager& chunkManager);
 
 	const char* getMode() const
 	{
@@ -247,6 +247,7 @@ class Player
 	bool hasInfiniteBlocks = false;
 
       private:
+	ECS& ecs;
 	Entity self;
 	Entity camera;
 	// -- Player Model ---

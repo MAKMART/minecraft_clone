@@ -1,20 +1,19 @@
 #pragma once
 #include "core/defines.hpp"
-#include "../component_manager.hpp"
-#include "../components/input.hpp"
+#include "game/ecs/ecs.hpp"
+#include "game/ecs/components/input.hpp"
+#include "game/ecs/components/mouse_input.hpp"
 #include "core/input_manager.hpp"
-#include "../components/mouse_input.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
 
-template <typename... Components>
-void update_input(ComponentManager<Components...>& cm, const InputManager& input)
+void update_input(ECS& ecs, const InputManager& input)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-	cm.template for_each_component<InputComponent>([&](Entity e, InputComponent& ic) {
+	ecs.for_each_component<InputComponent>([&](Entity e, InputComponent& ic) {
 		// Reset state
 		ic.forward  = input.isHeld(FORWARD_KEY);
 		ic.backward = input.isHeld(BACKWARD_KEY);
@@ -29,7 +28,7 @@ void update_input(ComponentManager<Components...>& cm, const InputManager& input
 		ic.is_primary_pressed   = input.isMousePressed(ATTACK_BUTTON);
 		ic.is_secondary_pressed = input.isMousePressed(DEFENSE_BUTTON);
 		ic.is_ternary_pressed   = input.isMousePressed(GLFW_MOUSE_BUTTON_3);
-		if (auto* mi = cm.template get_optional_component<MouseInput>(e)) {
+		if (auto* mi = ecs.get_component<MouseInput>(e)) {
 			mi->delta = (glm::length(delta) > 0.01f) ? delta : glm::vec2(0.0f);
 			mi->scroll = input.getScroll();
 		}

@@ -21,6 +21,12 @@ class EntityManager
 	{
 		free_ids.push(e.id);
 	}
+	void clear()
+	{
+		next_id = 0;
+		std::queue<std::uint32_t> empty;
+		std::swap(free_ids, empty); // clears the queue efficiently
+	}
 
       private:
 	std::uint32_t             next_id = 0;

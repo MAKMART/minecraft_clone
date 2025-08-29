@@ -322,13 +322,10 @@ void Application::processInput()
 
 	// 1. Player
 	if (input.isMouseTrackingEnabled()) {
-		auto delta = input.getMouseDelta();
-		//player->processMouseMovement(delta.x, delta.y, true);
-		player->processMouseInput(*chunkManager, *ecs.getComponent<Camera>(player->getCamera()), *ecs.getComponent<Transform>(player->getCamera()));
-
+		player->processMouseInput(*chunkManager);
 		float scrollY = input.getScrollY();
 		if (scrollY != 0.0f)
-			player->processMouseScroll(scrollY, ecs.getComponent<CameraController>(player->getCamera())->third_person);
+			player->processMouseScroll(scrollY);
 	}
 
 	player->processKeyInput();
@@ -407,27 +404,27 @@ void Application::Run()
 
 		input.update(); // first, update input state
 		processInput(); // second, handle app-level input
-		update_input(ecs.cm, input);
+		update_input(ecs, input);
 
-		update_camera_controller(ecs.cm);
+		update_camera_controller(ecs);
 
-		Camera* cam = ecs.getComponent<Camera>(player->getCamera());
-		CameraController* ctrl = ecs.getComponent<CameraController>(player->getCamera());
+		Camera* cam = ecs.get_component<Camera>(player->getCamera());
+		CameraController* ctrl = ecs.get_component<CameraController>(player->getCamera());
 
 		// --- Chunk Generation ---
 		chunkManager->generateChunks(player->getPos(), player->render_distance);
 
-		update_physics(ecs.cm, *chunkManager, deltaTime);
-		update_player_state(ecs.cm, *player, deltaTime);
+		update_physics(ecs, *chunkManager, deltaTime);
+		update_player_state(ecs, *player, deltaTime);
 
-		player->update(deltaTime, *chunkManager, ctrl->third_person);
+		player->update(deltaTime, *chunkManager);
 
 		glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
 		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 		if (renderTerrain) {
 			chunkManager->getShader().checkAndReloadIfModified();
-			chunkManager->renderChunks(*cam, *ecs.getComponent<Transform>(player->getCamera()), glfwGetTime());
+			chunkManager->renderChunks(*cam, *ecs.get_component<Transform>(player->getCamera()), glfwGetTime());
 		}
 #if defined(DEBUG)
 		if (debugRender) {
@@ -454,7 +451,7 @@ void Application::Run()
 		if (player->renderSkin) {
 			playerShader->setMat4("projection", cam->projectionMatrix);
 			playerShader->setMat4("view", cam->viewMatrix);
-			player->render(*playerShader, *cam, *ctrl);
+			player->render(*playerShader);
 		}
 
 		// --- UI Pass --- (now rendered BEFORE ImGui)
@@ -570,7 +567,7 @@ void Application::Run()
 			ImGui::PopFont();
 			ImGui::Indent();
 			// DrawBool("is Camera interpolating", player->getCameraController().isInterpolationEnabled());
-			glm::vec3& camPos = ecs.getComponent<Transform>(player->getCamera())->pos;
+			glm::vec3& camPos = ecs.get_component<Transform>(player->getCamera())->pos;
 			ImGui::Text("Camera position: %f, %f, %f", camPos.x, camPos.y, camPos.z);
 			ImGui::Unindent();
 			if (renderUI && !input.isMouseTrackingEnabled()) {
@@ -652,7 +649,7 @@ void Application::framebuffer_size_callback(GLFWwindow* window, int width, int h
 	}
 	if (app) {
 		ImGui::SetNextWindowPos(ImVec2(width - 300, 32), ImGuiCond_Always);
-		app->ecs.getComponent<Camera>(app->player->getCamera())->aspect_ratio = float(static_cast<float>(width) / height);
+		app->ecs.get_component<Camera>(app->player->getCamera())->aspect_ratio = float(static_cast<float>(width) / height);
 		app->ui->SetViewportSize(width, height);
 	}
 }

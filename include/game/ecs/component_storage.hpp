@@ -3,75 +3,59 @@
 #include <vector>
 #include <unordered_map>
 
+struct IComponentStorage {
+	virtual ~IComponentStorage()         = default;
+	virtual void remove_entity(Entity e) = 0;
+	virtual void clear() = 0;
+};
 template <typename T>
-class ComponentStorage
+class ComponentStorage : public IComponentStorage
 {
       public:
 	void add(Entity e, const T& component)
 	{
-		if (entity_to_index.find(e.id) != entity_to_index.end()) {
-			data[entity_to_index[e.id]] = component;
-			return;
-		}
-		data.push_back(component);
-		entities.push_back(e);
-		entity_to_index[e.id] = data.size() - 1;
+		data.emplace(e, component);
 	}
 
 	bool has(Entity e) const
 	{
-		return entity_to_index.count(e.id) > 0;
+		return data.find(e) != data.end();
 	}
 
 	T* get(Entity e)
 	{
-		auto it = entity_to_index.find(e.id);
-		if (it == entity_to_index.end())
-			return nullptr;
-		return &data[it->second];
+		auto it = data.find(e);
+		if (it != data.end())
+			return &it->second;
+		return nullptr;
 	}
 
 	const T* get(Entity e) const
 	{
-		auto it = entity_to_index.find(e.id);
-		if (it == entity_to_index.end())
-			return nullptr;
-		return &data[it->second];
+		auto it = data.find(e);
+		if (it != data.end())
+			return &it->second;
+		return nullptr;
 	}
 
-	void remove(Entity e)
+	void remove_entity(Entity e) override
 	{
-		auto it = entity_to_index.find(e.id);
-		if (it == entity_to_index.end())
-			return;
-
-		size_t index = it->second;
-		size_t last  = data.size() - 1;
-
-		if (index != last) {
-			// swap last element into the removed spot
-			data[index]                         = data[last];
-			entities[index]                     = entities[last];
-			entity_to_index[entities[index].id] = index;
-		}
-
-		data.pop_back();
-		entities.pop_back();
-		entity_to_index.erase(it);
+		data.erase(e);
 	}
 
-	// iterate safely over active components
-	std::vector<T>& all_components()
+	std::vector<Entity> all_entities() const
 	{
-		return data;
-	}
-	std::vector<Entity>& all_entities()
-	{
+		std::vector<Entity> entities;
+		for (auto& [e, _] : data)
+			entities.push_back(e);
 		return entities;
 	}
 
+	void clear()
+	{
+		data.clear(); // frees all T objects, keeps the map ready for reuse
+	}
+
       private:
-	std::vector<T>                        data;
-	std::vector<Entity>                   entities;
-	std::unordered_map<entity_id, size_t> entity_to_index;
+	std::unordered_map<Entity, T> data;
 };

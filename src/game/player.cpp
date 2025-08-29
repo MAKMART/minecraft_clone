@@ -57,27 +57,29 @@ bool Player::isInsidePlayerBoundingBox(const glm::vec3& checkPos) const
 {
 	return collider->aabb.intersects({checkPos, checkPos + glm::vec3(1.0f)});
 }
-void Player::render(const Shader& shader, const Camera& cam, const CameraController& ctrl)
+void Player::render(const Shader& shader)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
+	Camera* cam = ecs.get_component<Camera>(camera);
+	CameraController* ctrl = ecs.get_component<CameraController>(camera);
 	if (!skinTexture) {
 		log::system_error("Player", "skinTexture is null!");
 		return;
 	}
 
 	shader.use();
-	shader.setMat4("view", cam.viewMatrix);
-	shader.setMat4("projection", cam.projectionMatrix);
+	shader.setMat4("view", cam->viewMatrix);
+	shader.setMat4("projection", cam->projectionMatrix);
 	skinTexture->Bind(1);
 	glBindVertexArray(skinVAO);
 
-	glm::vec3 forward = cam.forward;
+	glm::vec3 forward = cam->forward;
 
 	glDisable(GL_CULL_FACE);
 
-	if (ctrl.third_person) {
+	if (ctrl->third_person) {
 		// Flatten the camera direction to ignore Y (vertical) component for horizontal facing
 		forward.y = 0.0f;
 		forward   = glm::normalize(forward);
@@ -113,7 +115,7 @@ void Player::render(const Shader& shader, const Camera& cam, const CameraControl
 		const auto& rightArm = bodyParts[2]; // Right arm at index 2
 
 		glm::mat4 armTransform = getModelMatrix();
-		glm::mat4 viewRotation = glm::mat4(glm::vec4(cam.right, 0.0f), glm::vec4(cam.up, 0.0f), glm::vec4(-forward, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+		glm::mat4 viewRotation = glm::mat4(glm::vec4(cam->right, 0.0f), glm::vec4(cam->up, 0.0f), glm::vec4(-forward, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 		armTransform           = armTransform * viewRotation;
 
 		armTransform = armTransform * glm::translate(glm::mat4(1.0f), armOffset);
@@ -138,11 +140,12 @@ void Player::render(const Shader& shader, const Camera& cam, const CameraControl
 	}
 	skinTexture->Unbind(1);
 }
-void Player::update(float deltaTime, ChunkManager& chunkManager, bool is_third_person)
+void Player::update(float deltaTime, ChunkManager& chunkManager)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
+	CameraController* ctrl = ecs.get_component<CameraController>(camera);
 	animationTime += deltaTime;
 	float speed     = state->current == PlayerMovementState::Running ? 6.0f : 4.0f;
 	float amplitude = state->current == PlayerMovementState::Running ? 0.7f : 0.5f;
@@ -169,7 +172,7 @@ void Player::update(float deltaTime, ChunkManager& chunkManager, bool is_third_p
 	}
 
 
-	if (is_third_person)
+	if (ctrl->third_person)
 		modelMat = glm::translate(glm::mat4(1.0f), getPos() + eyeHeight);
 	else
 		modelMat = glm::translate(glm::mat4(1.0f), getPos());
@@ -180,13 +183,13 @@ void Player::setPos(glm::vec3 newPos)
 	transform->pos = newPos;
 }
 
-void Player::processMouseInput(ChunkManager& chunkManager, const Camera& cam, const Transform& trans)
+void Player::processMouseInput(ChunkManager& chunkManager)
 {
 	if (input.isMousePressed(ATTACK_BUTTON) && this->canBreakBlocks) {
-		breakBlock(chunkManager, cam, trans);
+		breakBlock(chunkManager);
 	}
 	if (input.isMousePressed(DEFENSE_BUTTON) && this->canPlaceBlocks) {
-		placeBlock(chunkManager, cam, trans);
+		placeBlock(chunkManager);
 	}
 }
 void Player::processKeyInput()
@@ -204,9 +207,10 @@ void Player::processKeyInput()
 		mode->mode = Type::SPECTATOR;
 	}
 }
-void Player::breakBlock(ChunkManager& chunkManager, const Camera& cam, const Transform& trans)
+void Player::breakBlock(ChunkManager& chunkManager)
 {
-	std::optional<glm::ivec3> hitBlock = raycast::voxel(chunkManager, trans.pos, cam.forward, max_interaction_distance);
+	Camera* cam = ecs.get_component<Camera>(camera);
+	std::optional<glm::ivec3> hitBlock = raycast::voxel(chunkManager, transform->pos, cam->forward, max_interaction_distance);
 
 	if (!hitBlock.has_value())
 		return;
@@ -217,10 +221,11 @@ void Player::breakBlock(ChunkManager& chunkManager, const Camera& cam, const Tra
 
 	chunkManager.updateBlock(blockPos, Block::blocks::AIR);
 }
-void Player::placeBlock(ChunkManager& chunkManager, const Camera& cam, const Transform& trans)
+void Player::placeBlock(ChunkManager& chunkManager)
 {
+	Camera* cam = ecs.get_component<Camera>(camera);
 	std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycast::voxel_normals(
-	    chunkManager, trans.pos, cam.forward, max_interaction_distance);
+	    chunkManager, transform->pos, cam->forward, max_interaction_distance);
 
 	if (!hitResult.has_value())
 		return;
@@ -255,14 +260,15 @@ void Player::placeBlock(ChunkManager& chunkManager, const Camera& cam, const Tra
 
 	chunkManager.updateBlock(placePos, static_cast<Block::blocks>(selectedBlock));
 }
-void Player::processMouseScroll(float yoffset, bool is_third_person)
+void Player::processMouseScroll(float yoffset)
 {
+	CameraController* ctrl = ecs.get_component<CameraController>(camera);
 	float scroll_speed_multiplier = 1.0f;
 	if (state->current == PlayerMovementState::Flying && mode->mode == Type::SPECTATOR) {
 		flying_speed += yoffset;
 		if (flying_speed <= 0)
 			flying_speed = 0;
-	} else if (!is_third_person) {
+	} else if (ctrl->third_person) {
 		selectedBlock += (int)(yoffset * scroll_speed_multiplier);
 		if (selectedBlock < 1)
 			selectedBlock = 1;

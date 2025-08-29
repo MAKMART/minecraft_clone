@@ -1,13 +1,13 @@
 #pragma once
-#include "../component_manager.hpp"
-#include "../components/transform.hpp"
-#include "../components/velocity.hpp"
-#include "../components/collider.hpp"
-#include "../components/player_mode.hpp"
-#include "../components/player_state.hpp"
+#include "core/defines.hpp"
+#include "game/ecs/ecs.hpp"
+#include "game/ecs/components/transform.hpp"
+#include "game/ecs/components/velocity.hpp"
+#include "game/ecs/components/collider.hpp"
+#include "game/ecs/components/player_mode.hpp"
+#include "game/ecs/components/player_state.hpp"
 #include "chunk/chunk_manager.hpp"
 #include <glm/glm.hpp>
-#include "core/defines.hpp"
 #include "core/aabb.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
@@ -15,22 +15,21 @@
 
 bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManager& chunkManager);
 
-template <typename... Components>
-void update_physics(ComponentManager<Components...>& cm, ChunkManager& chunkManager, float dt)
+void update_physics(ECS& ecs, ChunkManager& chunkManager, float dt)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
 
-	cm.template for_each_component<Collider>([&](Entity e, Collider& col) {
-		auto* trans = cm.template get_component<Transform>(e);
-		auto* vel = cm.template get_optional_component<Velocity>(e);
+	ecs.for_each_component<Collider>([&](Entity e, Collider& col) {
+		auto* trans = ecs.get_component<Transform>(e);
+		auto* vel = ecs.get_component<Velocity>(e);
 		if (!trans || !vel)
 			return;
 
 		// Special-case: player mode behavior
-		auto* playerMode  = cm.template get_optional_component<PlayerMode>(e);
-		auto* playerState = cm.template get_optional_component<PlayerState>(e);
+		auto* playerMode  = ecs.get_component<PlayerMode>(e);
+		auto* playerState = ecs.get_component<PlayerState>(e);
 		if (playerMode && playerMode->mode == Type::SPECTATOR)
 			return;
 

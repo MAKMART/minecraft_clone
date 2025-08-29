@@ -1,26 +1,25 @@
 #pragma once
-#include "../component_manager.hpp"
-#include "../components/player_state.hpp"
-#include "../components/input.hpp"
-#include "../components/velocity.hpp"
-#include "../components/player_mode.hpp"
-#include "../components/collider.hpp"
-#include "../components/camera.hpp"
+#include "game/ecs/ecs.hpp"
+#include "game/ecs/components/player_state.hpp"
+#include "game/ecs/components/player_mode.hpp"
+#include "game/ecs/components/input.hpp"
+#include "game/ecs/components/velocity.hpp"
+#include "game/ecs/components/collider.hpp"
+#include "game/ecs/components/camera.hpp"
 #include "game/player.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
 
 // Note: This system must be called after the physics_system
-template <typename... Components>
-void update_player_state(ComponentManager<Components...>& cm, Player& player, float dt)
+void update_player_state(ECS& ecs, Player& player, float dt)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
 
-	cm.template for_each_components<PlayerState, InputComponent, Velocity, PlayerMode, Collider>(
-	    [&](Entity& e, PlayerState& ps, InputComponent& ic, Velocity& vel, PlayerMode& pm, Collider& col) {
+	ecs.for_each_components<PlayerState, InputComponent, Velocity, PlayerMode, Collider, Camera>(
+	    [&](Entity& e, PlayerState& ps, InputComponent& ic, Velocity& vel, PlayerMode& pm, Collider& col, Camera& cam) {
 		    // --- Build local movement direction from input ---
 		    glm::vec3 inputDir(0.0f);
 
@@ -36,10 +35,9 @@ void update_player_state(ComponentManager<Components...>& cm, Player& player, fl
 		    if (glm::length(inputDir) > 0.0f)
 			    inputDir = glm::normalize(inputDir);
 
-			auto* cam = cm.template get_optional_component<Camera>(player.getCamera());
 		    // --- Rotate movement into world-space based on where the player is looking ---
-		    glm::vec3 forward = cam->forward;
-		    glm::vec3 right   = cam->right;
+		    glm::vec3 forward = cam.forward;
+		    glm::vec3 right   = cam.right;
 
 		    forward.y = 0.0f;
 		    if (glm::length(forward) > 0.0f)

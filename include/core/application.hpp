@@ -59,12 +59,13 @@ class Application
 
 	b8 firstMouse = true;
 
-	ECS<Position, Velocity, Transform, Collider, InputComponent, PlayerState, PlayerMode, Camera, CameraController, MouseInput, ActiveCamera> ecs;
-	std::unique_ptr<Shader>                                                               playerShader;
-	std::unique_ptr<ChunkManager>                                                         chunkManager;
-	std::unique_ptr<Player>                                                               player;
-	InputManager                                                                          input;
-	std::unique_ptr<UI>                                                                   ui;
+	ECS ecs;
+
+	std::unique_ptr<Shader>       playerShader;
+	std::unique_ptr<ChunkManager> chunkManager;
+	std::unique_ptr<Player>       player;
+	InputManager                  input;
+	std::unique_ptr<UI>           ui;
 
 	GLFWwindow* createWindow();
 	void        processInput();

@@ -1,99 +1,103 @@
 #pragma once
 #include "component_storage.hpp"
 #include "entity.hpp"
+#include <memory>
+#include <unordered_map>
 #include <tuple>
+#include <typeindex>
 
-template <typename... Components>
 class ComponentManager
 {
       public:
 	template <typename T>
 	void add_component(Entity e, const T& component)
 	{
-		get_storage<T>().add(e, component);
-	}
-
-	template <typename T>
-	bool has_component(Entity e)
-	{
-		return std::get<ComponentStorage<T>>(storages).has(e);
+		get_storage<T>()->add(e, component);
 	}
 
 	template <typename T>
 	T* get_component(Entity e)
 	{
-		return get_storage<T>().get(e);
+		return get_storage<T>()->get(e);
 	}
 
 	template <typename T>
-	T* get_optional_component(Entity e)
+	bool has_component(Entity e)
 	{
-		return has_component<T>(e) ? get_component<T>(e) : nullptr;
+		return get_storage<T>()->has(e);
 	}
 
 	template <typename T>
 	void remove_component(Entity e)
 	{
-		get_storage<T>().remove(e);
-	}
-
-	void remove_entity(Entity e)
-	{
-		(std::get<ComponentStorage<Components>>(storages).remove(e), ...); // fold expression C++17
+		get_storage<T>()->remove(e);
 	}
 
 	template <typename T, typename Func>
-	void for_each_component(Func&& f)
+	void for_each_component(Func&& func)
 	{
-		auto& storage = std::get<ComponentStorage<T>>(storages);
-		for (Entity e : storage.all_entities()) {
-			T* comp = storage.get(e);
+		auto* storage = get_storage<T>();
+		for (Entity e : storage->all_entities()) {
+			T* comp = storage->get(e);
 			if (comp)
-				f(e, *comp);
+				func(e, *comp);
 		}
 	}
-	template <typename... Ts, typename Func>
-	void for_each_components(Func&& f)
+
+	// Iterate over multiple components (basic runtime filtering)
+	template <typename... Components, typename Func>
+	void for_each_components(Func&& func)
 	{
-		// Get references to all storages
-		auto& storagesTuple = storages;
+		if constexpr (sizeof...(Components) == 0)
+			return;
 
-		// We'll use the smallest storage to minimize iteration
-		auto& smallest = std::get<ComponentStorage<std::tuple_element_t<0, std::tuple<Ts...>>>>(storagesTuple);
+		// Cache storage pointers in a tuple
+		auto storages_tuple = std::make_tuple(get_storage<Components>()...);
 
-		for (Entity e : smallest.all_entities()) {
-			if ((std::get<ComponentStorage<Ts>>(storagesTuple).has(e) && ...)) {
-				f(e, *std::get<ComponentStorage<Ts>>(storagesTuple).get(e)...);
+		// Pick first storage as iteration base
+		auto* firstStorage = std::get<0>(storages_tuple);
+
+		for (Entity e : firstStorage->all_entities()) {
+			// Check if all components exist
+			if ((std::get<ComponentStorage<Components>*>(storages_tuple)->has(e) && ...)) {
+				// Dereference and call function
+				func(e, *std::get<ComponentStorage<Components>*>(storages_tuple)->get(e)...);
 			}
 		}
 	}
 
-	// Count of entities with a component
-	template <typename T>
-	size_t count() const
+	void remove_entity(Entity e)
 	{
-		return std::get<ComponentStorage<T>>(storages).all_entities().size();
+		for (auto& [_, storage] : storages) {
+			storage->remove_entity(e);
+		}
 	}
 
-	// Iterate only entities with one component and return vector
-	template <typename T>
-	std::vector<Entity> entities_with() const
+	void clear()
 	{
-		return std::get<ComponentStorage<T>>(storages).all_entities();
+		storages.clear(); // destroys all ComponentStorage<T>, frees memory
+	}
+
+	void reset_components()
+	{
+		for (auto& [_, storage] : storages)
+			storage->clear(); // just clears component data, keeps storage alive
 	}
 
       private:
-	std::tuple<ComponentStorage<Components>...> storages;
+	std::unordered_map<std::type_index, std::unique_ptr<IComponentStorage>> storages;
 
 	template <typename T>
-	ComponentStorage<T>& get_storage()
+	ComponentStorage<T>* get_storage()
 	{
-		return std::get<ComponentStorage<T>>(storages);
-	}
-
-	template <typename T>
-	const ComponentStorage<T>& get_storage() const
-	{
-		return std::get<ComponentStorage<T>>(storages);
+		auto type = std::type_index(typeid(T));
+		auto it   = storages.find(type);
+		if (it == storages.end()) {
+			auto storage   = std::make_unique<ComponentStorage<T>>();
+			auto ptr       = storage.get();
+			storages[type] = std::move(storage);
+			return ptr;
+		}
+		return static_cast<ComponentStorage<T>*>(it->second.get());
 	}
 };
