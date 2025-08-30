@@ -10,7 +10,7 @@ class InputManager
       public:
 	enum class KeyState { RELEASED, PRESSED, HELD };
 
-	InputManager(GLFWwindow* window);
+	InputManager(GLFWwindow& window);
 
 	// --- Keyboard Input ---
 	bool isPressed(int_fast16_t key) const;
@@ -80,7 +80,7 @@ class InputManager
 	static constexpr int MAX_MOUSE_BUTTONS = GLFW_MOUSE_BUTTON_LAST + 1;
 
       private:
-	GLFWwindow* _window;
+	GLFWwindow& _window;
 	bool        invertYAxis = false;
 	bool        invertXAxis = false;
 

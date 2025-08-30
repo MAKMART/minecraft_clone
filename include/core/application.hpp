@@ -61,10 +61,11 @@ class Application
 
 	ECS ecs;
 
-	std::unique_ptr<Shader>       playerShader;
+	// Initialize in safe order
 	std::unique_ptr<ChunkManager> chunkManager;
 	std::unique_ptr<Player>       player;
-	InputManager                  input;
+	InputManager                  input; // last, because callbacks might access others
+	std::unique_ptr<Shader>       playerShader;
 	std::unique_ptr<UI>           ui;
 
 	GLFWwindow* createWindow();

@@ -1,14 +1,14 @@
 #include "core/input_manager.hpp"
 
-InputManager::InputManager(GLFWwindow* window) : _window(window)
+InputManager::InputManager(GLFWwindow& window) : _window(window)
 {
-	glfwSetWindowUserPointer(window, this);
-	glfwSetKeyCallback(window, key_callback);
-	glfwSetMouseButtonCallback(window, mouse_button_callback);
-	glfwSetCursorPosCallback(window, cursor_pos_callback);
-	glfwSetScrollCallback(window, scroll_callback);
-	glfwSetWindowFocusCallback(window, window_focus_callback);
-	//glfwGetCursorPos(_window, &_lastMouse.x, &_lastMouse.y);
+	glfwSetWindowUserPointer(&_window, this);
+	glfwSetKeyCallback(&_window, key_callback);
+	glfwSetMouseButtonCallback(&_window, mouse_button_callback);
+	glfwSetCursorPosCallback(&_window, cursor_pos_callback);
+	glfwSetScrollCallback(&_window, scroll_callback);
+	glfwSetWindowFocusCallback(&_window, window_focus_callback);
+	//glfwGetCursorPos(&_window, &_lastMouse.x, &_lastMouse.y);
 }
 
 void InputManager::update()
@@ -129,9 +129,9 @@ void InputManager::setMouseTrackingEnabled(bool enabled)
 
 	if (enabled) {
 		// Hide cursor and capture it (disable OS cursor)
-		glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		glfwSetInputMode(&_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	} else {
 		// Show cursor and release capture (enable OS cursor)
-		glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		glfwSetInputMode(&_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 	}
 }

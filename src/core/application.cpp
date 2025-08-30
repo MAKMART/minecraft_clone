@@ -11,7 +11,7 @@
 #include "game/ecs/systems/physics_system.hpp"
 #include "game/ecs/systems/camera_controller_system.hpp"
 
-Application::Application(int width, int height) : width(width), height(height), backgroundColor(0.0f, 0.0f, 0.0f, 1.0f), window(createWindow()), input(window)
+Application::Application(int width, int height) : width(width), height(height), backgroundColor(0.0f, 0.0f, 0.0f, 1.0f), window(createWindow()), input(*window)
 {
 
 #if defined(DEBUG)
@@ -38,8 +38,6 @@ Application::Application(int width, int height) : width(width), height(height), 
 	                 {"\nApplication", SIZE_OF(Application)},
 	                 {"\nEntity", SIZE_OF(Entity)}});
 
-	// Set the Application pointer for callbacks.
-	glfwSetWindowUserPointer(window, this);
 
 	// --- CROSSHAIR STUFF ---
 	// Define texture and cell size
@@ -123,9 +121,11 @@ Application::Application(int width, int height) : width(width), height(height), 
 	crossHairshader  = std::make_unique<Shader>("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
 	crossHairTexture = std::make_unique<Texture>(ICONS_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 	chunkManager     = std::make_unique<ChunkManager>();
+	assert(chunkManager && "ChunkManager must be initialized before processing input!");
 	player           = std::make_unique<Player>(ecs, glm::vec3{0.0f, (float)chunkSize.y + 2.0f, 0.0f}, input);
 	ui               = std::make_unique<UI>(width, height, new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(width, height);
+	glfwSetWindowUserPointer(window, this);
 	// Initialize ImGui
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();

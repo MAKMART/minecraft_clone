@@ -19,7 +19,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE
         -Wextra
         -pedantic
         -Wuninitialized
-	-fsanitize=address -fno-omit-frame-pointer -g
+	-g
         -ggdb
         -flto
     >
@@ -46,10 +46,6 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     >
 )
 
-#target_link_options(${PROJECT_NAME} PRIVATE
-#    -static-libgcc -static-libstdc++
-#)
-
 target_link_options(${PROJECT_NAME} PRIVATE
-	-fsanitize=address -fno-omit-frame-pointer -g
+    -static-libgcc -static-libstdc++
 )
