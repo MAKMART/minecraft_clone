@@ -51,16 +51,23 @@ class ComponentManager
 		if constexpr (sizeof...(Components) == 0)
 			return;
 
-		// Cache storage pointers in a tuple
+		// 1) Create & cache all storages up-front.
+		//    This expands get_storage<...>() once for each component type, creating any missing storages
+		//    before we take any pointers so the unordered_map won't rehash during the loop.
 		auto storages_tuple = std::make_tuple(get_storage<Components>()...);
 
-		// Pick first storage as iteration base
-		auto* firstStorage = std::get<0>(storages_tuple);
+		// 2) Determine first storage (iteration base)
+		using FirstT       = std::tuple_element_t<0, std::tuple<Components...>>;
+		auto* firstStorage = std::get<ComponentStorage<FirstT>*>(storages_tuple);
 
+		if (!firstStorage) // defensive (shouldn't be null because get_storage creates it)
+			return;
+
+		// 3) Iterate
 		for (Entity e : firstStorage->all_entities()) {
-			// Check if all components exist
+			// Check that all components exist for this entity
 			if ((std::get<ComponentStorage<Components>*>(storages_tuple)->has(e) && ...)) {
-				// Dereference and call function
+				// NOTE: entity is passed first; lambdas should accept (Entity, Comp&...)
 				func(e, *std::get<ComponentStorage<Components>*>(storages_tuple)->get(e)...);
 			}
 		}

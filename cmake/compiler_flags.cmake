@@ -14,12 +14,12 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Debug>>:
         -D_GLIBCXX_ASSERTIONS
-        -g
         -fexceptions
         -Wall
         -Wextra
         -pedantic
         -Wuninitialized
+	-fsanitize=address -fno-omit-frame-pointer -g
         -ggdb
         -flto
     >
@@ -46,6 +46,10 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     >
 )
 
+#target_link_options(${PROJECT_NAME} PRIVATE
+#    -static-libgcc -static-libstdc++
+#)
+
 target_link_options(${PROJECT_NAME} PRIVATE
-    -static-libgcc -static-libstdc++
+	-fsanitize=address -fno-omit-frame-pointer -g
 )

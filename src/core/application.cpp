@@ -123,6 +123,7 @@ Application::Application(int width, int height) : width(width), height(height), 
 	crossHairshader  = std::make_unique<Shader>("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
 	crossHairTexture = std::make_unique<Texture>(ICONS_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 	chunkManager     = std::make_unique<ChunkManager>();
+	player           = std::make_unique<Player>(ecs, glm::vec3{0.0f, (float)chunkSize.y + 2.0f, 0.0f}, input);
 	ui               = std::make_unique<UI>(width, height, new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(width, height);
 	// Initialize ImGui
@@ -133,9 +134,6 @@ Application::Application(int width, int height) : width(width), height(height), 
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init("#version 460");
 	glLineWidth(LINE_WIDTH);
-
-	chunkManager->generateChunks({0, 0, 0}, 3);
-	player = std::make_unique<Player>(ecs, raycast::voxel(*chunkManager, {0.0f, (float)chunkSize.y, 0.0f}, {0, -1, 0}, 1000.0f).value() + glm::ivec3{0.0f, 2.0f, 0.0f}, input);
 }
 Application::~Application()
 {
@@ -391,6 +389,10 @@ void DrawBool(const char* label, bool value)
 }
 void Application::Run()
 {
+	if (!chunkManager) {
+		log::error("ChunkManager was nullptr");
+		std::exit(1);
+	}
 	while (!glfwWindowShouldClose(window) && window) {
 
 		float currentFrame = static_cast<float>(glfwGetTime());
@@ -408,7 +410,7 @@ void Application::Run()
 
 		update_camera_controller(ecs);
 
-		Camera* cam = ecs.get_component<Camera>(player->getCamera());
+		Camera*           cam  = ecs.get_component<Camera>(player->getCamera());
 		CameraController* ctrl = ecs.get_component<CameraController>(player->getCamera());
 
 		// --- Chunk Generation ---
@@ -653,7 +655,7 @@ void Application::framebuffer_size_callback(GLFWwindow* window, int width, int h
 		app->ui->SetViewportSize(width, height);
 	}
 }
-void Application::MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void*   userParam)
+void Application::MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
 	(void)length;
 	(void)userParam;
