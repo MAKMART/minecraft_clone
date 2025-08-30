@@ -5,7 +5,7 @@
 #include "game/ecs/components/transform.hpp"
 #include "game/ecs/components/active_camera.hpp"
 #if defined(TRACY_ENABLE)
-#include <tracy/tracy.hpp>
+#include <tracy/Tracy.hpp>
 #endif
 
 template <typename... Components>
