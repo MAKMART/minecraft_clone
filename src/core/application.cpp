@@ -210,7 +210,7 @@ GLFWwindow* Application::createWindow()
 	} else {
 		log::info("Raw Mouse Motion not supported!");
 	}
-	glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	InputManager::get().setMouseTrackingEnabled(true);
 
 	GLuint err = glewInit();
 	if (err != GLEW_OK) {
@@ -314,10 +314,6 @@ void Application::processInput()
 	// Poll keys, mouse buttons
 	auto& input = InputManager::get();
 
-	if (input.isMousePressed(GLFW_MOUSE_BUTTON_LEFT)) {
-		log::info("GLFW_MOUSE_BUTTON_LEFT pressed");
-	}
-
 	if (input.isPressed(EXIT_KEY))
 		glfwSetWindowShouldClose(window, true);
 
@@ -339,7 +335,7 @@ void Application::processInput()
 
 	// 1. Player
 	if (input.isMouseTrackingEnabled()) {
-		//player->processMouseInput(*chunkManager);
+		player->processMouseInput(*chunkManager);
 		float scrollY = input.getScroll().y;
 		if (scrollY != 0.0f)
 			player->processMouseScroll(scrollY);
@@ -413,10 +409,6 @@ void DrawBool(const char* label, bool value)
 }
 void Application::Run()
 {
-	if (!chunkManager) {
-		log::error("ChunkManager was nullptr");
-		std::exit(1);
-	}
 	while (!glfwWindowShouldClose(window) && window) {
 
 		float currentFrame = static_cast<float>(glfwGetTime());
@@ -428,11 +420,10 @@ void Application::Run()
 		// --- Input & Event Processing ---
 		glfwPollEvents();
 
-		InputManager::get().update(); // first, update input state
-		processInput(); // second, handle app-level input
-		//update_input(ecs);
+		processInput();
+		update_input(ecs);
 
-		//update_camera_controller(ecs);
+		update_camera_controller(ecs);
 
 		Camera* cam = nullptr;
 		if (!player) {
@@ -448,11 +439,12 @@ void Application::Run()
 		// --- Chunk Generation ---
 		chunkManager->generateChunks(player->getPos(), player->render_distance);
 
-		//update_physics(ecs, *chunkManager, deltaTime);
-		//update_player_state(ecs, *player, deltaTime);
+		update_physics(ecs, *chunkManager, deltaTime);
+		update_player_state(ecs, *player, deltaTime);
 
-		//player->update(deltaTime, *chunkManager);
+		player->update(deltaTime, *chunkManager);
 
+		InputManager::get().update();
 		glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
 		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 

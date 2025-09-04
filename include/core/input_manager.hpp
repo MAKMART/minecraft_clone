@@ -26,6 +26,7 @@ class InputManager
 	InputManager& operator=(const InputManager&) = delete;
 	InputManager& operator=(InputManager&&)      = delete;
 
+	// Remember to call this at the end of whatever input pooling that you do trough isPressed/isHeld etc
 	void update();
 
 	// --- Keyboard Input ---
@@ -90,6 +91,14 @@ class InputManager
 		if (_context && _context->window) {
 			registerCallbacks();
 		}
+		if (mouseTrackingEnabled) {
+			// Hide cursor and capture it (disable OS cursor)
+			glfwSetInputMode(_context->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		} else {
+			// Show cursor and release capture (enable OS cursor)
+			glfwSetInputMode(_context->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		}
+
 	}
 
       private:
