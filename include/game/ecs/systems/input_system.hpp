@@ -8,12 +8,13 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-void update_input(ECS& ecs, const InputManager& input)
+void update_input(ECS& ecs)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
 	ecs.for_each_component<InputComponent>([&](Entity e, InputComponent& ic) {
+		InputManager& input = InputManager::get();
 		// Reset state
 		ic.forward  = input.isHeld(FORWARD_KEY);
 		ic.backward = input.isHeld(BACKWARD_KEY);

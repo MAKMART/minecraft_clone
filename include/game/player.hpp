@@ -24,8 +24,8 @@
 class Player
 {
       public:
-	Player(ECS& ecs, glm::vec3 spawnPos, InputManager& _input)
-	    : ecs(ecs), playerHeight(1.8f), input(_input), prevPlayerHeight(playerHeight), skinTexture(std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST))
+	Player(ECS& ecs, glm::vec3 spawnPos)
+	    : ecs(ecs), playerHeight(1.8f), input(InputManager::get()), prevPlayerHeight(playerHeight), skinTexture(std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST))
 	{
 		log::info("Initializing Player...");
 		self = ecs.create_entity();

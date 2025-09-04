@@ -1,6 +1,6 @@
 #pragma once
 #include "core/defines.hpp"
-#include "core/input_manager.hpp"
+#include "core/window_context.hpp"
 #include "game/player.hpp"
 #include "game/ecs/components/input.hpp"
 #include "graphics/shader.hpp"
@@ -56,6 +56,7 @@ class Application
 	i32         windowedWidth, windowedHeight;
 	i32         windowedPosX, windowedPosY;
 	GLFWwindow* window;
+	WindowContext* context;
 
 	b8 firstMouse = true;
 
@@ -64,7 +65,6 @@ class Application
 	// Initialize in safe order
 	std::unique_ptr<ChunkManager> chunkManager;
 	std::unique_ptr<Player>       player;
-	InputManager                  input; // last, because callbacks might access others
 	std::unique_ptr<Shader>       playerShader;
 	std::unique_ptr<UI>           ui;
 

@@ -1,4 +1,6 @@
 #include "core/application.hpp"
+#include "GLFW/glfw3.h"
+#include "core/window_context.hpp"
 #include <stb_image.h>
 #include <string>
 #if defined(TRACY_ENABLE)
@@ -11,7 +13,7 @@
 #include "game/ecs/systems/physics_system.hpp"
 #include "game/ecs/systems/camera_controller_system.hpp"
 
-Application::Application(int width, int height) : width(width), height(height), backgroundColor(0.0f, 0.0f, 0.0f, 1.0f), window(createWindow()), input(*window)
+Application::Application(int width, int height) : width(width), height(height), backgroundColor(0.0f, 0.0f, 0.0f, 1.0f)
 {
 
 #if defined(DEBUG)
@@ -22,6 +24,21 @@ Application::Application(int width, int height) : width(width), height(height), 
 #else
 	std::cout << "----------------------------UNKNOWN BUILD TYPE----------------------------\n";
 #endif
+
+
+
+	window = createWindow();
+
+	context = new WindowContext{this, window};
+
+	
+	InputManager::get().setContext(context);
+
+	glfwSetWindowUserPointer(window, context);
+
+	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
+
 
 	// First thing you have to do is fix the damn stencil buffer to allow cropping in RmlUI
 
@@ -121,11 +138,10 @@ Application::Application(int width, int height) : width(width), height(height), 
 	crossHairshader  = std::make_unique<Shader>("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
 	crossHairTexture = std::make_unique<Texture>(ICONS_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 	chunkManager     = std::make_unique<ChunkManager>();
-	assert(chunkManager && "ChunkManager must be initialized before processing input!");
-	player           = std::make_unique<Player>(ecs, glm::vec3{0.0f, (float)chunkSize.y + 2.0f, 0.0f}, input);
+	assert(chunkManager && "ChunkManager must be initialized!");
+	player           = std::make_unique<Player>(ecs, glm::vec3{0.0f, (float)chunkSize.y + 2.0f, 0.0f});
 	ui               = std::make_unique<UI>(width, height, new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(width, height);
-	glfwSetWindowUserPointer(window, this);
 	// Initialize ImGui
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -140,6 +156,7 @@ Application::~Application()
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
+	delete context;
 	if (window)
 		glfwDestroyWindow(window);
 	glfwTerminate();
@@ -187,8 +204,6 @@ GLFWwindow* Application::createWindow()
 	}
 	glfwMakeContextCurrent(win);
 
-	// Set GLFW callbacks
-	glfwSetFramebufferSizeCallback(win, framebuffer_size_callback);
 
 	if (glfwRawMouseMotionSupported()) {
 		glfwSetInputMode(win, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
@@ -297,7 +312,11 @@ float Application::getFPS()
 void Application::processInput()
 {
 	// Poll keys, mouse buttons
-	auto& input = this->input;
+	auto& input = InputManager::get();
+
+	if (input.isMousePressed(GLFW_MOUSE_BUTTON_LEFT)) {
+		log::info("GLFW_MOUSE_BUTTON_LEFT pressed");
+	}
 
 	if (input.isPressed(EXIT_KEY))
 		glfwSetWindowShouldClose(window, true);
@@ -320,13 +339,18 @@ void Application::processInput()
 
 	// 1. Player
 	if (input.isMouseTrackingEnabled()) {
-		player->processMouseInput(*chunkManager);
-		float scrollY = input.getScrollY();
+		//player->processMouseInput(*chunkManager);
+		float scrollY = input.getScroll().y;
 		if (scrollY != 0.0f)
 			player->processMouseScroll(scrollY);
 	}
 
-	player->processKeyInput();
+	if (player) {
+		player->processKeyInput();
+	}
+	else {
+		log::error("Player is nullptr, WTF");
+	}
 
 	if (input.isPressed(GLFW_KEY_H)) {
 		chunkManager->getShader().reload();
@@ -336,7 +360,7 @@ void Application::processInput()
 
 	// 2. UI
 	if (ui->context) {
-		glm::vec2 mousePos = input.getMousePosition();
+		glm::vec2 mousePos = input.getMousePos();
 		ui->context->ProcessMouseMove(static_cast<int>(mousePos.x), static_cast<int>(mousePos.y), ui->GetKeyModifiers());
 
 		// Mouse buttons
@@ -348,7 +372,7 @@ void Application::processInput()
 		}
 
 		// Scroll
-		float scrollY = input.getScrollY();
+		float scrollY = input.getScroll().y;
 		if (scrollY != 0.0f)
 			ui->context->ProcessMouseWheel(-scrollY, 0);
 
@@ -404,22 +428,30 @@ void Application::Run()
 		// --- Input & Event Processing ---
 		glfwPollEvents();
 
-		input.update(); // first, update input state
+		InputManager::get().update(); // first, update input state
 		processInput(); // second, handle app-level input
-		update_input(ecs, input);
+		//update_input(ecs);
 
-		update_camera_controller(ecs);
+		//update_camera_controller(ecs);
 
-		Camera*           cam  = ecs.get_component<Camera>(player->getCamera());
+		Camera* cam = nullptr;
+		if (!player) {
+			std::cerr << "Player is null!" << std::endl;
+		} else {
+			auto cam_id = player->getCamera();
+			cam = ecs.get_component<Camera>(cam_id);
+		}
+
+		//Camera*           cam  = ecs.get_component<Camera>(player->getCamera());
 		CameraController* ctrl = ecs.get_component<CameraController>(player->getCamera());
 
 		// --- Chunk Generation ---
 		chunkManager->generateChunks(player->getPos(), player->render_distance);
 
-		update_physics(ecs, *chunkManager, deltaTime);
-		update_player_state(ecs, *player, deltaTime);
+		//update_physics(ecs, *chunkManager, deltaTime);
+		//update_player_state(ecs, *player, deltaTime);
 
-		player->update(deltaTime, *chunkManager);
+		//player->update(deltaTime, *chunkManager);
 
 		glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
 		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -572,7 +604,7 @@ void Application::Run()
 			glm::vec3& camPos = ecs.get_component<Transform>(player->getCamera())->pos;
 			ImGui::Text("Camera position: %f, %f, %f", camPos.x, camPos.y, camPos.z);
 			ImGui::Unindent();
-			if (renderUI && !input.isMouseTrackingEnabled()) {
+			if (renderUI && !InputManager::get().isMouseTrackingEnabled()) {
 				if (ImGui::CollapsingHeader("Settings")) {
 					if (ImGui::TreeNode("Player")) {
 						ImGui::SliderFloat("Player walking speed ", &player->walking_speed, 0.0f, 100.0f);
@@ -637,22 +669,20 @@ void Application::Run()
 	}
 }
 
-// Callbacks
-
 void Application::framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
 
-	Application* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+	WindowContext* ctx = static_cast<WindowContext*>(glfwGetWindowUserPointer(window));
 
 	if (width <= 0 || height <= 0) {
 		// Don't recalculate the projection matrix, skip this frame's rendering, or log a warning
 		return;
 	}
-	if (app) {
+	if (ctx->app) {
 		ImGui::SetNextWindowPos(ImVec2(width - 300, 32), ImGuiCond_Always);
-		app->ecs.get_component<Camera>(app->player->getCamera())->aspect_ratio = float(static_cast<float>(width) / height);
-		app->ui->SetViewportSize(width, height);
+		ctx->app->ecs.get_component<Camera>(ctx->app->player->getCamera())->aspect_ratio = float(static_cast<float>(width) / height);
+		ctx->app->ui->SetViewportSize(width, height);
 	}
 }
 void Application::MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
