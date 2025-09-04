@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 #include <optional>
-#include <GL/glew.h>
+#include <glad/glad.h>
 #include "core/defines.hpp"
 #include "core/input_manager.hpp"
 #include "chunk/chunk_manager.hpp"

@@ -1,5 +1,5 @@
 #include "graphics/debug_drawer.hpp"
-#include <GL/glew.h>
+#include <glad/glad.h>
 #include "core/logger.hpp"
 
 DebugDrawer::DebugDrawer()

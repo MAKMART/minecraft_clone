@@ -41,6 +41,7 @@ ChunkManager::ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed)
 ChunkManager::~ChunkManager()
 {
 	clearChunks();
+
 }
 
 void ChunkManager::unloadChunk(glm::vec3 worldPos)

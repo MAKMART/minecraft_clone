@@ -19,6 +19,6 @@ void operator delete(void* ptr) noexcept
 #endif
 int main()
 {
-	Application app(1920, 1080);
+	Application app(1366, 768);
 	app.Run();
 }

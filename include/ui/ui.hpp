@@ -7,7 +7,7 @@
 #include <RmlUi/Core/FileInterface.h>
 #include <memory>
 #include <unordered_map>
-#include <GL/glew.h> // or glad
+#include <glad/glad.h>
 #include <RmlUi/Core/Input.h>
 #include "graphics/shader.hpp"
 #include "ui/system_interface_glfw.hpp"

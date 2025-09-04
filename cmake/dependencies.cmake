@@ -1,16 +1,5 @@
 include(FetchContent)
 
-# ==== GLEW ====
-FetchContent_Declare(
-    glew
-    GIT_REPOSITORY https://github.com/Perlmint/glew-cmake.git
-    GIT_TAG        glew-cmake-2.2.0
-    GIT_SHALLOW    TRUE
-    GIT_PROGRESS   TRUE
-)
-
-FetchContent_MakeAvailable(glew)
-
 # ==== GLFW ====
 FetchContent_Declare(
     glfw

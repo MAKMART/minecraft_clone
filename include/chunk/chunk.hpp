@@ -1,7 +1,7 @@
 #pragma once
 #include "core/defines.hpp"
 #include "core/aabb.hpp"
-#include <GL/glew.h>
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <PerlinNoise.hpp>
 #include <glm/glm.hpp>

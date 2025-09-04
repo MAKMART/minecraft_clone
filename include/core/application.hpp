@@ -34,8 +34,8 @@ class Application
 {
       public:
 	Application(int width, int height);
-	~Application(void);
-	void Run(void);
+	~Application();
+	void Run();
 
       private:
 	std::string title = std::string(PROJECT_NAME) + std::string(" ") + std::string(PROJECT_VERSION);

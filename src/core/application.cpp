@@ -1,5 +1,5 @@
 #include "core/application.hpp"
-#include "GLFW/glfw3.h"
+#include <GLFW/glfw3.h>
 #include "core/window_context.hpp"
 #include <stb_image.h>
 #include <string>
@@ -25,24 +25,27 @@ Application::Application(int width, int height) : width(width), height(height), 
 	std::cout << "----------------------------UNKNOWN BUILD TYPE----------------------------\n";
 #endif
 
-
-
 	window = createWindow();
 
 	context = new WindowContext{this, window};
 
-	
 	InputManager::get().setContext(context);
 
 	glfwSetWindowUserPointer(window, context);
 
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-
-
 	// First thing you have to do is fix the damn stencil buffer to allow cropping in RmlUI
 
 	// TODO:    FIX THE CAMERA CONTROLLER TO WORK WITH INTERPOLATION
+
+#if 0
+	int nExt;
+	glGetIntegerv(GL_NUM_EXTENSIONS, &nExt);
+	for (int i = 0; i < nExt; ++i) {
+		std::cout << glGetStringi(GL_EXTENSIONS, i) << std::endl;
+	}
+#endif
 
 	log::structured(log::LogLevel::INFO,
 	                "SIZES",
@@ -54,7 +57,6 @@ Application::Application(int width, int height) : width(width), height(height), 
 	                 {"\nUI", SIZE_OF(UI)},
 	                 {"\nApplication", SIZE_OF(Application)},
 	                 {"\nEntity", SIZE_OF(Entity)}});
-
 
 	// --- CROSSHAIR STUFF ---
 	// Define texture and cell size
@@ -139,8 +141,8 @@ Application::Application(int width, int height) : width(width), height(height), 
 	crossHairTexture = std::make_unique<Texture>(ICONS_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 	chunkManager     = std::make_unique<ChunkManager>();
 	assert(chunkManager && "ChunkManager must be initialized!");
-	player           = std::make_unique<Player>(ecs, glm::vec3{0.0f, (float)chunkSize.y + 2.0f, 0.0f});
-	ui               = std::make_unique<UI>(width, height, new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
+	player = std::make_unique<Player>(ecs, glm::vec3{0.0f, (float)chunkSize.y + 2.0f, 0.0f});
+	ui     = std::make_unique<UI>(width, height, new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(width, height);
 	// Initialize ImGui
 	IMGUI_CHECKVERSION();
@@ -153,6 +155,17 @@ Application::Application(int width, int height) : width(width), height(height), 
 }
 Application::~Application()
 {
+	crossHairshader.reset();
+	crossHairTexture.reset();
+
+	glDeleteVertexArrays(1, &crosshairVAO);
+	glDeleteBuffers(1, &crosshairVBO);
+	glDeleteBuffers(1, &crosshairEBO);
+
+	chunkManager.reset();
+	player.reset();
+
+
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
@@ -164,7 +177,7 @@ Application::~Application()
 GLFWwindow* Application::createWindow()
 {
 	if (!glfwInit()) {
-		log::error("Failed to initialize GLFW for window stuff");
+		log::error("Failed to initialize GLFW for windowing");
 		std::exit(1);
 	}
 
@@ -204,7 +217,6 @@ GLFWwindow* Application::createWindow()
 	}
 	glfwMakeContextCurrent(win);
 
-
 	if (glfwRawMouseMotionSupported()) {
 		glfwSetInputMode(win, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 	} else {
@@ -212,11 +224,8 @@ GLFWwindow* Application::createWindow()
 	}
 	InputManager::get().setMouseTrackingEnabled(true);
 
-	GLuint err = glewInit();
-	if (err != GLEW_OK) {
-		const GLubyte* errorStr     = glewGetErrorString(err);
-		std::string    errorMessage = errorStr ? std::string(reinterpret_cast<const char*>(errorStr)) : "Unknown GLEW error";
-		log::error("Failed to initialize GLEW: {}", errorMessage);
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+		log::error("Failed to initialize GLEW!");
 		std::exit(1);
 	}
 
@@ -235,7 +244,7 @@ GLFWwindow* Application::createWindow()
 		glDebugMessageCallback(Application::MessageCallback, 0);
 		GLenum err2 = glGetError();
 		if (err2 != GL_NO_ERROR) {
-			log::error("Failed to set debug callback, OpenGL error: {}", reinterpret_cast<const char*>(glewGetErrorString(err2)));
+			log::error("Failed to set debug callback");
 		}
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
 	} else {
@@ -343,8 +352,7 @@ void Application::processInput()
 
 	if (player) {
 		player->processKeyInput();
-	}
-	else {
+	} else {
 		log::error("Player is nullptr, WTF");
 	}
 
@@ -430,10 +438,10 @@ void Application::Run()
 			std::cerr << "Player is null!" << std::endl;
 		} else {
 			auto cam_id = player->getCamera();
-			cam = ecs.get_component<Camera>(cam_id);
+			cam         = ecs.get_component<Camera>(cam_id);
 		}
 
-		//Camera*           cam  = ecs.get_component<Camera>(player->getCamera());
+		// Camera*           cam  = ecs.get_component<Camera>(player->getCamera());
 		CameraController* ctrl = ecs.get_component<CameraController>(player->getCamera());
 
 		// --- Chunk Generation ---

@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include <GL/glew.h> // or your appropriate OpenGL header
+#include <glad/glad.h>
 #include <filesystem>
 #include <stdexcept>
 #include "core/logger.hpp"
