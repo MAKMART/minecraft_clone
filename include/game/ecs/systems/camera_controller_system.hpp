@@ -4,12 +4,14 @@
 #include "game/ecs/components/camera_controller.hpp"
 #include "game/ecs/components/transform.hpp"
 #include "game/ecs/components/active_camera.hpp"
+#include "game/ecs/components/input.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
+#include "core/input_manager.hpp"
 
 template <typename... Components>
-void update_camera_controller(ECS& ecs)
+void update_camera_controller(ECS& ecs, Entity player)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
@@ -23,6 +25,22 @@ void update_camera_controller(ECS& ecs)
 		    auto* targetTransform = ecs.get_component<Transform>(ctrl.target);
 		    if (!targetTransform)
 			    return;
+
+		    auto* input = ecs.get_component<InputComponent>(player);
+		    if (!input)
+			    return;
+
+		    // Apply mouse input only if mouseTracking is enabled
+		    if (InputManager::get().isMouseTrackingEnabled()) {
+			    float sensitivity = 0.2f;
+			    ctrl.yaw += input->mouse_delta.x * sensitivity;
+			    ctrl.pitch += -1.0f * input->mouse_delta.y * sensitivity;
+			    ctrl.pitch = glm::clamp(ctrl.pitch, -89.0f, 89.0f);
+
+			    float smoothing = 0.15f; // 0 = no smoothing, 1 = very smooth
+			    ctrl.yaw        = glm::mix(ctrl.yaw, ctrl.yaw + input->mouse_delta.x * sensitivity, smoothing);
+			    ctrl.pitch      = glm::mix(ctrl.pitch, ctrl.pitch + input->mouse_delta.y * sensitivity, smoothing);
+		    }
 
 		    if (ctrl.third_person) {
 			    glm::vec3 offset;

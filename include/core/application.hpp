@@ -27,7 +27,6 @@
 #include "game/ecs/components/player_state.hpp"
 #include "game/ecs/components/camera.hpp"
 #include "game/ecs/components/camera_controller.hpp"
-#include "game/ecs/components/mouse_input.hpp"
 #include "game/ecs/components/active_camera.hpp"
 
 class Application

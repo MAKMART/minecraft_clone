@@ -6,6 +6,7 @@
 #include <string>
 #include <cstddef>
 #include <cstdio>
+#include <string_view>
 
 #ifndef GL_TYPES_DEFINED
 #define GL_TYPES_DEFINED
@@ -113,6 +114,21 @@ inline std::string pretty_size(std::size_t bytes)
 }
 
 #define SIZE_OF(x) pretty_size(sizeof(x))
+
+template <typename T>
+constexpr std::string_view type_name() {
+#if defined(__clang__) || defined(__GNUC__)
+    std::string_view p = __PRETTY_FUNCTION__;
+    auto start = p.find("T = ") + 4;
+    auto end = p.find(';', start);
+    return p.substr(start, end - start);
+#elif defined(_MSC_VER)
+    std::string_view p = __FUNCSIG__;
+    auto start = p.find("type_name<") + 10;
+    auto end = p.find(">(void)", start);
+    return p.substr(start, end - start);
+#endif
+}
 
 #if defined(DEBUG)
 inline DebugDrawer& getDebugDrawer()

@@ -1,6 +1,10 @@
 #pragma once
 #include "entity_manager.hpp"
 #include "component_manager.hpp"
+#include "core/defines.hpp"
+#if defined(DEBUG)
+#include "core/logger.hpp"
+#endif
 
 class ECS
 {
@@ -30,13 +34,25 @@ class ECS
 	template <typename T>
 	T* get_component(Entity e)
 	{
-		return cm.get_component<T>(e);
+		T* ptr = cm.get_component<T>(e);
+#if defined(DEBUG)
+		if (!ptr) {
+			log::system_error("ECS", "Failed to get component {}, for entity with id: {}", type_name<T>(), e.id);
+		}
+#endif
+		return ptr;
 	}
 
 	template <typename T>
 	const T* get_component(Entity e) const
 	{
-		return cm.get_component<T>(e);
+		const T* ptr = cm.get_component<T>(e);
+#if defined(DEBUG)
+		if (!ptr) {
+			log::system_error("ECS", "Failed to get component {}, for entity with id: {}", type_name<T>(), e.id);
+		}
+#endif
+		return ptr;
 	}
 
 	template <typename T, typename Func>

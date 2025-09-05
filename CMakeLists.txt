@@ -55,6 +55,7 @@ if (WIN32)
     target_link_libraries(${PROJECT_NAME} 
         PUBLIC OpenGL::GL
 	PRIVATE glfw freetype RmlUi::Core RmlUi::Debugger opengl32 imgui
+
     )
 elseif (UNIX)
     if (DEFINED ENV{WAYLAND_DISPLAY})

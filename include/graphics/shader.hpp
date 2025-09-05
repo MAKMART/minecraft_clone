@@ -17,7 +17,7 @@ class Shader
 {
       private:
 	unsigned int                                   ID;
-	std::string                                    name;
+	std::string                                    s_name;
 	std::filesystem::path                          vertexShaderPath;
 	std::filesystem::path                          fragmentShaderPath;
 	mutable std::unordered_map<std::string, GLint> uniformCache;
@@ -34,11 +34,11 @@ class Shader
 
 	std::string getName() const
 	{
-		return name;
+		return s_name;
 	}
 
 	Shader(const std::string& _name, const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath)
-	    : name(_name), vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath)
+	    : s_name(_name), vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath)
 	{
 		ID = loadAndCompile(vertexPath, fragmentPath);
 		reflectUniforms();
@@ -47,7 +47,7 @@ class Shader
 	}
 
 	Shader(std::string _name, std::string vertexPath, std::string fragmentPath)
-	    : name(_name), vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath)
+	    : s_name(_name), vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath)
 	{
 		ID = loadAndCompile(vertexShaderPath, fragmentShaderPath);
 		reflectUniforms();
@@ -70,7 +70,7 @@ class Shader
 		if (glIsProgram(ID)) {
 			glUseProgram(ID);
 		} else {
-			log::system_error("Shader", "[{}] Program is not valid! ID = {}", name, ID);
+			log::system_error("Shader", "[{}] Program is not valid! ID = {}", s_name, ID);
 		}
 	}
 
@@ -86,7 +86,7 @@ class Shader
 				return reload();
 			}
 		} catch (const std::exception& e) {
-			log::system_warn("Shader", "[{}] Error checking shader file timestamps: {}", name, e.what());
+			log::system_warn("Shader", "[{}] Error checking shader file timestamps: {}", s_name, e.what());
 		}
 		return false;
 	}
@@ -104,68 +104,151 @@ class Shader
 			uniformCache.clear(); // Uniforms may have changed
 			reflectUniforms();
 
-			log::system_info("Shader", "[{}] Reloaded shader from {} and {}", name, vertexShaderPath.string(), fragmentShaderPath.string());
+			log::system_info("Shader", "[{}] Reloaded shader from {} and {}", s_name, vertexShaderPath.string(), fragmentShaderPath.string());
 			return true;
 		} catch (const std::exception& e) {
-			log::system_error("Shader", "[{}] Failed to reload shader: {}", name, e.what());
+			log::system_error("Shader", "[{}] Failed to reload shader: {}", s_name, e.what());
 			return false;
 		}
 	}
 
 	void setBool(const std::string& name, bool value) const
 	{
-		GLint location = getUniformLocation(name);
-		if (location != -1) {
-			glProgramUniform1i(ID, location, static_cast<int>(value));
+		if (ID == 0) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Attempting to set uniform '{}' on invalid shader program!", s_name, name);
+#endif
+			return;
 		}
+
+		GLint location = getUniformLocation(name);
+		if (location == -1) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", s_name, name);
+#endif
+			return;
+		}
+
+		glProgramUniform1i(ID, location, static_cast<int>(value));
 	}
 
 	void setInt(const std::string& name, int value) const
 	{
-		GLint location = getUniformLocation(name);
-		if (location != -1) {
-			glProgramUniform1i(ID, location, value);
+		if (ID == 0) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Attempting to set uniform '{}' on invalid shader program!", s_name, name);
+#endif
+			return;
 		}
+
+		GLint location = getUniformLocation(name);
+		if (location == -1) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", s_name, name);
+#endif
+			return;
+		}
+
+		glProgramUniform1i(ID, location, value);
 	}
 
 	void setFloat(const std::string& name, float value) const
 	{
-		GLint location = getUniformLocation(name);
-		if (location != -1) {
-			glProgramUniform1f(ID, location, value);
+		if (ID == 0) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Attempting to set uniform '{}' on invalid shader program!", s_name, name);
+#endif
+			return;
 		}
+
+		GLint location = getUniformLocation(name);
+		if (location == -1) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", s_name, name);
+#endif
+			return;
+		}
+
+		glProgramUniform1f(ID, location, value);
 	}
 
 	void setVec2(const std::string& name, const glm::vec2& value) const
 	{
-		GLint location = getUniformLocation(name);
-		if (location != -1) {
-			glProgramUniform2fv(ID, location, 1, glm::value_ptr(value));
+		if (ID == 0) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Attempting to set uniform '{}' on invalid shader program!", s_name, name);
+#endif
+			return;
 		}
+
+		GLint location = getUniformLocation(name);
+		if (location == -1) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", s_name, name);
+#endif
+			return;
+		}
+
+		glProgramUniform2fv(ID, location, 1, glm::value_ptr(value));
 	}
 
 	void setVec3(const std::string& name, const glm::vec3& value) const
 	{
-		GLint location = getUniformLocation(name);
-		if (location != -1) {
-			glProgramUniform3fv(ID, location, 1, glm::value_ptr(value));
+		if (ID == 0) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Attempting to set uniform '{}' on invalid shader program!", s_name, name);
+#endif
+			return;
 		}
+
+		GLint location = getUniformLocation(name);
+		if (location == -1) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", s_name, name);
+#endif
+			return;
+		}
+
+		glProgramUniform3fv(ID, location, 1, glm::value_ptr(value));
 	}
 
 	void setVec4(const std::string& name, const glm::vec4& value) const
 	{
-		GLint location = getUniformLocation(name);
-		if (location != -1) {
-			glProgramUniform4fv(ID, location, 1, glm::value_ptr(value));
+		if (ID == 0) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Attempting to set uniform '{}' on invalid shader program!", s_name, name);
+#endif
+			return;
 		}
+
+		GLint location = getUniformLocation(name);
+		if (location == -1) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", s_name, name);
+#endif
+			return;
+		}
+
+		glProgramUniform4fv(ID, location, 1, glm::value_ptr(value));
 	}
 
 	void setMat4(const std::string& name, const glm::mat4& mat) const
 	{
-		GLint location = getUniformLocation(name);
-		if (location != -1) {
-			glProgramUniformMatrix4fv(ID, location, 1, GL_FALSE, glm::value_ptr(mat));
+		if (ID == 0) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Attempting to set uniform '{}' on invalid shader program!", s_name, name);
+#endif
+			return;
 		}
+
+		GLint location = getUniformLocation(name);
+		if (location == -1) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", s_name, name);
+#endif
+			return;
+		}
+		glProgramUniformMatrix4fv(ID, location, 1, GL_FALSE, glm::value_ptr(mat));
 	}
 
       private:
@@ -185,15 +268,15 @@ class Shader
 			GLenum  type;
 
 			glGetActiveUniform(ID, i, sizeof(nameBuffer), &length, &size, &type, nameBuffer);
-			std::string name(nameBuffer, length);
+			std::string uni_name(nameBuffer, length);
 
-			GLint location = glGetUniformLocation(ID, name.c_str());
+			GLint location = glGetUniformLocation(ID, uni_name.c_str());
 			if (location != -1) {
-				uniformCache[name] = location;
+				uniformCache[uni_name] = location;
 			}
 		}
 
-		log::system_info("Shader", "[{}] Reflected and cached {} active uniforms.", name, uniformCache.size());
+		log::system_info("Shader", "[{}] Reflected and cached {} active uniforms.", s_name, uniformCache.size());
 	}
 
 	GLint getUniformLocation(const std::string& uni_name) const
@@ -203,9 +286,9 @@ class Shader
 		if (it != uniformCache.end()) {
 			return it->second;
 		}
-		GLint location = glGetUniformLocation(ID, name.c_str());
+		GLint location = glGetUniformLocation(ID, uni_name.c_str());
 		if (location == -1) {
-			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", name, uni_name);
+			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", s_name, uni_name);
 		} else {
 			uniformCache[uni_name] = location;
 		}
@@ -234,10 +317,10 @@ class Shader
 			fragmentCode = fShaderStream.str();
 
 			if (vertexCode.empty() || fragmentCode.empty()) {
-				log::system_error("Shader", "[{}] Shader source code is empty.", name);
+				log::system_error("Shader", "[{}] Shader source code is empty.", s_name);
 			}
 		} catch (std::ifstream::failure& e) {
-			log::system_error("Shader", "[{}] Failed to read shader files: {}", name, std::string(e.what()));
+			log::system_error("Shader", "[{}] Failed to read shader files: {}", s_name, std::string(e.what()));
 		}
 
 		const GLchar* vShaderCode = vertexCode.c_str();
@@ -265,7 +348,7 @@ class Shader
 		if (!programSuccess) {
 			char infoLog[1024];
 			glGetProgramInfoLog(program, 1024, nullptr, infoLog);
-			log::system_error("Shader", "[{}] Shader validation failed: {}", name, infoLog);
+			log::system_error("Shader", "[{}] Shader validation failed: {}", s_name, infoLog);
 		}
 
 		glDeleteShader(vertex);
@@ -282,13 +365,13 @@ class Shader
 			glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
 			if (!success) {
 				glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
-				log::system_error("Shader", "[{}] SHADER_COMPILATION_ERROR of type: {}\n{}", name, type, infoLog);
+				log::system_error("Shader", "[{}] SHADER_COMPILATION_ERROR of type: {}\n{}", s_name, type, infoLog);
 			}
 		} else {
 			glGetProgramiv(shader, GL_LINK_STATUS, &success);
 			if (!success) {
 				glGetProgramInfoLog(shader, 1024, nullptr, infoLog);
-				log::system_error("Shader", "[{}] PROGRAM_LINKING_ERROR of type: {}\n{}", name, type, infoLog);
+				log::system_error("Shader", "[{}] PROGRAM_LINKING_ERROR of type: {}\n{}", s_name, type, infoLog);
 			}
 		}
 	}

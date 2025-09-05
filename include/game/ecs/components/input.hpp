@@ -11,8 +11,10 @@ struct InputComponent {
 	bool sprint   = false;
 	bool crouch   = false;
 
-	glm::vec2 mouseDelta{0.0f};
-	bool is_primary_pressed = false;
-	bool is_ternary_pressed = false;
+	glm::vec2 mouse_delta{0.0f};
+	glm::vec2 scroll_delta{0.0f};
+
+	bool is_primary_pressed   = false;
+	bool is_ternary_pressed   = false;
 	bool is_secondary_pressed = false;
 };

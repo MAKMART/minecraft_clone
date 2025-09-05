@@ -32,7 +32,7 @@ ChunkManager::ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed)
 		std::mt19937                       engine((std::random_device())());
 		std::uniform_int_distribution<int> distribution(1, 999999);
 		siv::PerlinNoise::seed_type        random_seed = distribution(engine);
-		perlin                                         = siv::PerlinNoise(random_seed);
+		perlin                                         = siv::PerlinNoise(/*random_seed*/116896);
 		log::system_info("ChunkManager", "initialized with random seed: {}", random_seed);
 	}
 

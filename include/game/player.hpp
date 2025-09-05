@@ -18,58 +18,12 @@
 #include "game/ecs/components/transform.hpp"
 #include "game/ecs/components/camera.hpp"
 #include "game/ecs/components/camera_controller.hpp"
-#include "game/ecs/components/mouse_input.hpp"
-
 
 class Player
 {
       public:
-	Player(ECS& ecs, glm::vec3 spawnPos)
-	    : ecs(ecs), playerHeight(1.8f), input(InputManager::get()), prevPlayerHeight(playerHeight), skinTexture(std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST))
-	{
-		log::info("Initializing Player...");
-		self = ecs.create_entity();
-
-		// Create the player entity
-		ecs.add_component(self, Transform{spawnPos});
-		transform = ecs.get_component<Transform>(self);
-
-		ecs.add_component(self, Velocity{});
-		velocity = ecs.get_component<Velocity>(self);
-
-		ecs.add_component(self, Collider{glm::vec3(ExtentX, playerHeight / 2.0f, ExtentY)});
-		collider = ecs.get_component<Collider>(self);
-
-		ecs.add_component(self, InputComponent{});
-		input_comp = ecs.get_component<InputComponent>(self);
-
-		ecs.add_component(self, PlayerState{});
-		state = ecs.get_component<PlayerState>(self);
-
-		ecs.add_component(self, PlayerMode{});
-		mode = ecs.get_component<PlayerMode>(self);
-
-		// Create the camera entity
-		camera = ecs.create_entity();
-		ecs.add_component(camera, Transform{spawnPos + glm::vec3(0.0f, eyeHeight, 0.0f)});
-		ecs.add_component(camera, Camera{});
-		ecs.add_component(camera, CameraController(self));
-		ecs.add_component(camera, MouseInput{});
-
-		// Other init stuff
-		eyeHeight       = playerHeight * 0.9f;
-		scaleFactor     = 0.076f;
-		lastScaleFactor = scaleFactor;
-
-		setupBodyParts();
-		glCreateVertexArrays(1, &skinVAO);
-		glBindVertexArray(skinVAO);
-	}
-
-	~Player()
-	{
-		glDeleteVertexArrays(1, &skinVAO);
-	}
+	Player(ECS& ecs, glm::vec3 spawnPos);
+	~Player();
 
 	enum ACTION { BREAK_BLOCK,
 		      PLACE_BLOCK };
@@ -81,6 +35,10 @@ class Player
 	const Entity& getCamera() const
 	{
 		return camera;
+	}
+	const Entity& getSelf() const
+	{
+		return self;
 	}
 	const glm::mat4& getModelMatrix() const
 	{
@@ -94,7 +52,7 @@ class Player
 		return armOffset;
 	};
 
-	void update(float deltaTime, ChunkManager& chunkManager);
+	void update(float deltaTime);
 	void render(const Shader& shader);
 	void loadSkin(const std::string& path);
 	void loadSkin(const std::filesystem::path& path);
@@ -247,7 +205,7 @@ class Player
 	bool hasInfiniteBlocks = false;
 
       private:
-	ECS& ecs;
+	ECS&   ecs;
 	Entity self;
 	Entity camera;
 	// -- Player Model ---
@@ -265,12 +223,12 @@ class Player
 
 	glm::mat4 modelMat;
 
-	Transform*       transform;
-	Velocity*        velocity;
-	Collider*        collider;
-	InputComponent*  input_comp;
-	PlayerState*     state;
-	PlayerMode*      mode;
+	Transform*      transform;
+	Velocity*       velocity;
+	Collider*       collider;
+	InputComponent* input_comp;
+	PlayerState*    state;
+	PlayerMode*     mode;
 
 	float ExtentX = 0.4f;
 	float ExtentY = 0.4f;

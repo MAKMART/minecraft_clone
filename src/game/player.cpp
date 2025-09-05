@@ -6,10 +6,58 @@
 #include <optional>
 #include "glm/trigonometric.hpp"
 #include "core/raycast.hpp"
+#include "game/ecs/components/active_camera.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
 
+Player::Player(ECS& ecs, glm::vec3 spawnPos)
+    : ecs(ecs), playerHeight(1.8f), input(InputManager::get()), prevPlayerHeight(playerHeight), skinTexture(std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST))
+{
+	log::info("Initializing Player...");
+
+	// Create the player entity
+	self = ecs.create_entity();
+
+	ecs.add_component(self, Transform{spawnPos});
+	transform = ecs.get_component<Transform>(self);
+
+	ecs.add_component(self, Velocity{});
+	velocity = ecs.get_component<Velocity>(self);
+
+	ecs.add_component(self, Collider{glm::vec3(ExtentX, playerHeight / 2.0f, ExtentY)});
+	collider = ecs.get_component<Collider>(self);
+
+	ecs.add_component(self, InputComponent{});
+	input_comp = ecs.get_component<InputComponent>(self);
+
+	ecs.add_component(self, PlayerState{});
+	state = ecs.get_component<PlayerState>(self);
+
+	ecs.add_component(self, PlayerMode{});
+	mode = ecs.get_component<PlayerMode>(self);
+
+	// Create the camera entity
+	camera = ecs.create_entity();
+	ecs.add_component(camera, Transform{spawnPos + glm::vec3(0.0f, eyeHeight, 0.0f)});
+	ecs.add_component(camera, Camera{});
+	ecs.add_component(camera, CameraController{self});
+	// Bro, you know that if you don't mark the camera as "Active" it won't render a thing :)
+	ecs.add_component(camera, ActiveCamera{});
+
+	// Other init stuff
+	eyeHeight       = playerHeight * 0.9f;
+	scaleFactor     = 0.076f;
+	lastScaleFactor = scaleFactor;
+
+	setupBodyParts();
+	glCreateVertexArrays(1, &skinVAO);
+	glBindVertexArray(skinVAO);
+}
+Player::~Player()
+{
+	glDeleteVertexArrays(1, &skinVAO);
+}
 void Player::setupBodyParts()
 {
 	bodyParts.resize(6);
@@ -62,7 +110,7 @@ void Player::render(const Shader& shader)
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-	Camera* cam = ecs.get_component<Camera>(camera);
+	Camera*           cam  = ecs.get_component<Camera>(camera);
 	CameraController* ctrl = ecs.get_component<CameraController>(camera);
 	if (!skinTexture) {
 		log::system_error("Player", "skinTexture is null!");
@@ -140,7 +188,7 @@ void Player::render(const Shader& shader)
 	}
 	skinTexture->Unbind(1);
 }
-void Player::update(float deltaTime, ChunkManager& chunkManager)
+void Player::update(float deltaTime)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
@@ -171,12 +219,10 @@ void Player::update(float deltaTime, ChunkManager& chunkManager)
 		bodyParts[3].transform = glm::rotate(glm::mat4(1.0f), -bend / 2, glm::vec3(1, 0, 0));
 	}
 
-
 	if (ctrl->third_person)
 		modelMat = glm::translate(glm::mat4(1.0f), getPos() + eyeHeight);
 	else
 		modelMat = glm::translate(glm::mat4(1.0f), getPos());
-
 }
 void Player::setPos(glm::vec3 newPos)
 {
@@ -209,7 +255,7 @@ void Player::processKeyInput()
 }
 void Player::breakBlock(ChunkManager& chunkManager)
 {
-	Camera* cam = ecs.get_component<Camera>(camera);
+	Camera*                   cam      = ecs.get_component<Camera>(camera);
 	std::optional<glm::ivec3> hitBlock = raycast::voxel(chunkManager, transform->pos, cam->forward, max_interaction_distance);
 
 	if (!hitBlock.has_value())
@@ -223,7 +269,7 @@ void Player::breakBlock(ChunkManager& chunkManager)
 }
 void Player::placeBlock(ChunkManager& chunkManager)
 {
-	Camera* cam = ecs.get_component<Camera>(camera);
+	Camera*                                          cam       = ecs.get_component<Camera>(camera);
 	std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycast::voxel_normals(
 	    chunkManager, transform->pos, cam->forward, max_interaction_distance);
 
@@ -262,8 +308,8 @@ void Player::placeBlock(ChunkManager& chunkManager)
 }
 void Player::processMouseScroll(float yoffset)
 {
-	CameraController* ctrl = ecs.get_component<CameraController>(camera);
-	float scroll_speed_multiplier = 1.0f;
+	CameraController* ctrl                    = ecs.get_component<CameraController>(camera);
+	float             scroll_speed_multiplier = 1.0f;
 	if (state->current == PlayerMovementState::Flying && mode->mode == Type::SPECTATOR) {
 		flying_speed += yoffset;
 		if (flying_speed <= 0)

@@ -19,7 +19,6 @@ Application::Application(int width, int height) : width(width), height(height), 
 #if defined(DEBUG)
 	std::cout << "----------------------------DEBUG MODE----------------------------\n";
 #elif defined(NDEBUG)
-	std::cout << "----------------------------RELEASE MODE----------------------------\n";
 	log::set_min_log_level(log::LogLevel::WARNING);
 #else
 	std::cout << "----------------------------UNKNOWN BUILD TYPE----------------------------\n";
@@ -164,7 +163,6 @@ Application::~Application()
 
 	chunkManager.reset();
 	player.reset();
-
 
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
@@ -431,26 +429,19 @@ void Application::Run()
 		processInput();
 		update_input(ecs);
 
-		update_camera_controller(ecs);
+		update_player_state(ecs, *player, deltaTime);
 
-		Camera* cam = nullptr;
-		if (!player) {
-			std::cerr << "Player is null!" << std::endl;
-		} else {
-			auto cam_id = player->getCamera();
-			cam         = ecs.get_component<Camera>(cam_id);
-		}
 
-		// Camera*           cam  = ecs.get_component<Camera>(player->getCamera());
+		Camera*           cam  = ecs.get_component<Camera>(player->getCamera());
 		CameraController* ctrl = ecs.get_component<CameraController>(player->getCamera());
 
 		// --- Chunk Generation ---
 		chunkManager->generateChunks(player->getPos(), player->render_distance);
 
 		update_physics(ecs, *chunkManager, deltaTime);
-		update_player_state(ecs, *player, deltaTime);
+		update_camera_controller(ecs, player->getSelf());
 
-		player->update(deltaTime, *chunkManager);
+		player->update(deltaTime);
 
 		InputManager::get().update();
 		glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
@@ -469,7 +460,6 @@ void Application::Run()
 				if (!chunkPtr)
 					continue; // safety
 
-				// Get the chunk's AABB (you need a method for that in Chunk)
 				AABB chunkBox = chunkPtr->getAABB();
 
 				// Color for chunk boxes, maybe a translucent blue-ish?

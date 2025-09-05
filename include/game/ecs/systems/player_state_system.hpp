@@ -18,8 +18,8 @@ void update_player_state(ECS& ecs, Player& player, float dt)
 	ZoneScoped;
 #endif
 
-	ecs.for_each_components<PlayerState, InputComponent, Velocity, PlayerMode, Collider, Camera>(
-	    [&](Entity& e, PlayerState& ps, InputComponent& ic, Velocity& vel, PlayerMode& pm, Collider& col, Camera& cam) {
+	ecs.for_each_components<PlayerState, InputComponent, Velocity, PlayerMode, Collider>(
+	    [&](Entity& e, PlayerState& ps, InputComponent& ic, Velocity& vel, PlayerMode& pm, Collider& col) {
 		    // --- Build local movement direction from input ---
 		    glm::vec3 inputDir(0.0f);
 
@@ -35,9 +35,11 @@ void update_player_state(ECS& ecs, Player& player, float dt)
 		    if (glm::length(inputDir) > 0.0f)
 			    inputDir = glm::normalize(inputDir);
 
+		    Camera* cam = ecs.get_component<Camera>(player.getCamera());
+
 		    // --- Rotate movement into world-space based on where the player is looking ---
-		    glm::vec3 forward = cam.forward;
-		    glm::vec3 right   = cam.right;
+		    glm::vec3 forward = cam->forward;
+		    glm::vec3 right   = cam->right;
 
 		    forward.y = 0.0f;
 		    if (glm::length(forward) > 0.0f)
