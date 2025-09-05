@@ -152,10 +152,12 @@ jobs:
         id: package
         run: |
           exe_name="game"   # <-- must match your add_executable()
-          version="${GITHUB_REF_NAME}"  # e.g. v1.0.0
+          version="${GITHUB_REF_NAME}"  # e.g., v1.0.0
           platform="${RUNNER_OS,,}"    # lowercase OS name
-          zip -r ${exe_name}-${version}-release.zip Release/*
-          zip -r ${exe_name}-${version}-debug.zip Debug/*
+          
+          zip -r ${exe_name}-${version}-${platform}-release.zip Release/*
+          zip -r ${exe_name}-${version}-${platform}-debug.zip Debug/*
+
           echo "exe_name=${exe_name}" >> $GITHUB_OUTPUT
           echo "version=${version}" >> $GITHUB_OUTPUT
           echo "platform=${platform}" >> $GITHUB_OUTPUT
@@ -166,5 +168,6 @@ jobs:
           files: |
             ${{ steps.package.outputs.exe_name }}-${{ steps.package.outputs.version }}-${{ steps.package.outputs.platform }}-release.zip
             ${{ steps.package.outputs.exe_name }}-${{ steps.package.outputs.version }}-${{ steps.package.outputs.platform }}-debug.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
