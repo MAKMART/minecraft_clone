@@ -164,7 +164,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-          ${{ steps.package.outputs.exe_name }}-${{ steps.package.outputs.version }}-${{ steps.package.outputs.platform }}-release.zip
-          ${{ steps.package.outputs.exe_name }}-${{ steps.package.outputs.version }}-${{ steps.package.outputs.platform }}-debug.zip
+            ${{ steps.package.outputs.exe_name }}-${{ steps.package.outputs.version }}-${{ steps.package.outputs.platform }}-release.zip
+            ${{ steps.package.outputs.exe_name }}-${{ steps.package.outputs.version }}-${{ steps.package.outputs.platform }}-debug.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
