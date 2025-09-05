@@ -3,13 +3,11 @@ name: Build
 on:
   push:
     branches: [ main ]
+    tags: ["v*"]   # trigger on tags like v1.0.0
   pull_request:
     branches: [ main ]
   schedule: # nightly full matrix
     - cron: '0 2 * * *'  # 2 AM UTC
-  push:
-    tags:
-      - "v*"   # when tagging versions like v1.0.0
 
 jobs:
   fast-build:
