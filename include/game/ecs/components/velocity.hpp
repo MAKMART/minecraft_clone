@@ -7,7 +7,7 @@ struct Velocity {
 	Velocity(float x, float y, float z) : value(x, y, z)
 	{
 	}
-	Velocity(const glm::vec3& vel) : value(vel)
+	explicit Velocity(const glm::vec3& vel) : value(vel)
 	{
 	}
 };

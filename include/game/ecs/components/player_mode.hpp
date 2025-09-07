@@ -5,7 +5,7 @@ enum Type { SURVIVAL,
 	    SPECTATOR };
 
 struct PlayerMode {
-	PlayerMode(Type starting_mode) : mode(starting_mode)
+	explicit PlayerMode(Type starting_mode) : mode(starting_mode)
 	{
 	}
 	PlayerMode() = default;

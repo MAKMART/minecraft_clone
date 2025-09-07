@@ -10,7 +10,7 @@ struct Transform {
 	Entity    parent = {UINT32_MAX}; // invalid if no parent
 
 	Transform() = default;
-	Transform(const glm::vec3& pos) : pos(pos)
+	explicit Transform(const glm::vec3& pos) : pos(pos)
 	{
 	}
 	Transform(const glm::vec3& pos, const glm::quat& quat) : pos(pos), rot(quat)

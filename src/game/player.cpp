@@ -12,7 +12,7 @@
 #endif
 
 Player::Player(ECS& ecs, glm::vec3 spawnPos)
-    : ecs(ecs), playerHeight(1.8f), input(InputManager::get()), prevPlayerHeight(playerHeight), skinTexture(std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST))
+    : ecs(ecs), playerHeight(1.8f), input(InputManager::get()), skinTexture(std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST))
 {
 	log::info("Initializing Player...");
 
@@ -41,7 +41,7 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos)
 	camera = ecs.create_entity();
 	ecs.add_component(camera, Transform{spawnPos + glm::vec3(0.0f, eyeHeight, 0.0f)});
 	ecs.add_component(camera, Camera{});
-	ecs.add_component(camera, CameraController{self});
+	ecs.add_component(camera, CameraController{self, glm::vec3(0.0f, eyeHeight, 0.0f)});
 	// Bro, you know that if you don't mark the camera as "Active" it won't render a thing :)
 	ecs.add_component(camera, ActiveCamera{});
 
@@ -180,7 +180,7 @@ void Player::render(const Shader& shader)
 		}
 		if (DEPTH_TEST) {
 			glEnable(GL_DEPTH_TEST);
-			glDepthFunc(GL_LEQUAL);
+			glDepthFunc(DEPTH_FUNC);
 		}
 	}
 	if (FACE_CULLING) {
@@ -240,6 +240,10 @@ void Player::processMouseInput(ChunkManager& chunkManager)
 }
 void Player::processKeyInput()
 {
+
+	if (input.isPressed(CAMERA_SWITCH_KEY)) {
+		ecs.get_component<CameraController>(camera)->third_person = !ecs.get_component<CameraController>(camera)->third_person;
+	}
 
 	if (input.isPressed(SURVIVAL_MODE_KEY)) {
 		state->current = PlayerMovementState::Walking;

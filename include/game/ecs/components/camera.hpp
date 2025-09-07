@@ -2,9 +2,13 @@
 #include <glm/matrix.hpp>
 
 struct Camera {
+	explicit Camera(float _fov) : fov(_fov) {}
+	Camera() {}
+
 	float     fov          = 90.0f; // DEG
-	float     near_plane   = 0.0001f;
-	float     far_plane    = 100000.0f;
+	// Be cautios of the underlying values' ratio as a 24-bit depth buffer will likely run out of percision
+	float     near_plane   = 0.1f;
+	float     far_plane    = 1000.0f;
 	float     aspect_ratio = 16.0f / 9.0f;
 	glm::mat4 viewMatrix{1.0f};
 	glm::mat4 projectionMatrix{1.0f};

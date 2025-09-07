@@ -19,6 +19,6 @@ void operator delete(void* ptr) noexcept
 #endif
 int main()
 {
-	Application app(1366, 768);
+	Application app(1920, 1080, std::string(PROJECT_NAME) + std::string(" ") + std::string(PROJECT_VERSION));
 	app.Run();
 }

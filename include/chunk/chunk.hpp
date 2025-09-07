@@ -138,7 +138,7 @@ struct Face {
 class Chunk
 {
       public:
-	Chunk(const glm::ivec3& chunkPos);
+	explicit Chunk(const glm::ivec3& chunkPos);
 	~Chunk();
 
 	const std::vector<Block>& getChunkData()

@@ -7,7 +7,7 @@ struct Position {
 	Position(float x, float y, float z) : value(x, y, z)
 	{
 	}
-	Position(const glm::vec3& pos) : value(pos)
+	explicit Position(const glm::vec3& pos) : value(pos)
 	{
 	}
 };

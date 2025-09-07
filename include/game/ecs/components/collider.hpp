@@ -17,5 +17,5 @@ struct Collider {
 	Collider(const glm::vec3& min, const glm::vec3& max) : aabb(min, max)
 	{
 	}
-	Collider(const glm::vec3& _halfExtents) : halfExtents(_halfExtents) {};
+	explicit Collider(const glm::vec3& _halfExtents) : halfExtents(_halfExtents) {};
 };

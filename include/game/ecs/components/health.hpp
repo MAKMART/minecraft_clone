@@ -5,7 +5,7 @@ struct Health {
 	int max     = 20;
 
 	Health() = default;
-	Health(int maxHP) : current(maxHP), max(maxHP)
+	explicit Health(int maxHP) : current(maxHP), max(maxHP)
 	{
 	}
 };

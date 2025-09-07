@@ -32,42 +32,29 @@
 class Application
 {
       public:
-	Application(int width, int height);
+	Application(int width, int height, std::string title);
 	~Application();
 	void Run();
 
       private:
-	std::string title = std::string(PROJECT_NAME) + std::string(" ") + std::string(PROJECT_VERSION);
-	u16         width, height;
-	float       aspectRatio;
-	glm::vec4   backgroundColor;
+	glm::vec4 backgroundColor;
 
 	u8  nbFrames  = 0;
 	f32 deltaTime = 0.0f;
 	f32 lastFrame = 0.0f;
 
-	b8 isFullscreen  = false;
 	b8 renderUI      = true;
 	b8 renderTerrain = true;
 #if defined(DEBUG)
 	b8 debugRender = false;
 #endif
-	i32         windowedWidth, windowedHeight;
-	i32         windowedPosX, windowedPosY;
-	GLFWwindow* window;
-	WindowContext* context;
+	std::unique_ptr<WindowContext> context;
+	std::unique_ptr<ChunkManager>  chunkManager;
+	std::unique_ptr<Player>        player;
+	std::unique_ptr<Shader>        playerShader;
+	std::unique_ptr<UI>            ui;
+	ECS                            ecs;
 
-	b8 firstMouse = true;
-
-	ECS ecs;
-
-	// Initialize in safe order
-	std::unique_ptr<ChunkManager> chunkManager;
-	std::unique_ptr<Player>       player;
-	std::unique_ptr<Shader>       playerShader;
-	std::unique_ptr<UI>           ui;
-
-	GLFWwindow* createWindow();
 	void        processInput();
 	float       getFPS();
 	static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -75,15 +62,12 @@ class Application
 	// -- Crosshair ---
 	std::unique_ptr<Shader>  crossHairshader;
 	std::unique_ptr<Texture> crossHairTexture;
-	// Use std::vector for dynamic size safety
 	std::vector<float>            Crosshairvertices;
 	static constexpr unsigned int CrosshairIndices[6] = {
-	    0, 1, 2, // First triangle
-	    2, 3, 0  // Second triangle
+	    0, 1, 2,
+	    2, 3, 0
 	};
 	float crosshairSize;
 
 	unsigned int crosshairVAO, crosshairVBO, crosshairEBO;
-
-	static void MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 };

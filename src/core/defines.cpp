@@ -105,7 +105,8 @@ void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei
 float   LINE_WIDTH     = 1.5f;
 bool    WIREFRAME_MODE = false;
 bool    DEPTH_TEST     = true;
-uint8_t DEPTH_BITS     = 24;
+uint8_t DEPTH_BITS     = 32;
+GLenum  DEPTH_FUNC     = GL_GREATER;
 uint8_t STENCIL_BITS   = 8;
 bool    BLENDING       = true;
 bool    V_SYNC         = false;

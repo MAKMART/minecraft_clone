@@ -186,7 +186,6 @@ class Player
 	unsigned int render_distance          = 5;
 
 	float        playerHeight;
-	float        prevPlayerHeight;
 	float        eyeHeight;
 	std::uint8_t selectedBlock = 1;
 
