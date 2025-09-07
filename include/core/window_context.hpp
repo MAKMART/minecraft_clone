@@ -1,6 +1,7 @@
 #pragma once
 #include <GLFW/glfw3.h>
 #include <stb_image.h>
+#include <stb_image.h>
 #include "core/defines.hpp"
 #include "core/logger.hpp"
 #if defined(TRACY_ENABLE)

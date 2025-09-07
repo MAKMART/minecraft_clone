@@ -392,7 +392,7 @@ void Application::Run()
 			ImGui::Text("Selected block: ");
 			ImGui::SameLine();
 			ImGui::SetWindowFontScale(1.2f);
-			ImGui::Text(Block::toString(player->selectedBlock));
+			ImGui::Text("%s", Block::toString(player->selectedBlock));
 			ImGui::SetWindowFontScale(1.0f);
 			ImGui::Unindent();
 			ImGui::Spacing();
