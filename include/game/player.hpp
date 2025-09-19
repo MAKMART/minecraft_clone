@@ -183,7 +183,7 @@ class Player
 	float        JUMP_FORCE               = 4.5f;
 	const float  h                        = 1.252f; // Height of the jump of the player
 	float        max_interaction_distance = 10.0f;
-	unsigned int render_distance          = 5;
+	unsigned int render_distance          = 1;
 
 	float        playerHeight;
 	float        eyeHeight;

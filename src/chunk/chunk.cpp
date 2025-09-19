@@ -26,36 +26,6 @@ Chunk::~Chunk()
 	if (SSBO)
 		glDeleteBuffers(1, &SSBO);
 }
-void Chunk::generateTreeAt(int x, int y, int z)
-{
-	const int trunkHeight = 4 + rand() % 2; // height 4 or 5
-	const int leafRadius  = 2;
-
-	// Place trunk
-	for (int i = 0; i < trunkHeight; ++i) {
-		int index = getBlockIndex(x, y + i, z);
-		if (index != -1) {
-			chunkData[index].type = Block::blocks::WOOD;
-		}
-	}
-
-	// Place leaves - simple cube or spherical cap
-	for (int dy = -leafRadius; dy <= leafRadius; ++dy) {
-		for (int dx = -leafRadius; dx <= leafRadius; ++dx) {
-			for (int dz = -leafRadius; dz <= leafRadius; ++dz) {
-				if (dx * dx + dy * dy + dz * dz <= leafRadius * leafRadius + 1) {
-					int lx = x + dx;
-					int ly = y + trunkHeight + dy;
-					int lz = z + dz;
-					// Only place leaves on Block::blocks::AIR
-					if (getBlockAt(lx, ly, lz).type == Block::blocks::AIR)
-						setBlockAt(lx, ly, lz, Block::blocks::LEAVES);
-				}
-			}
-		}
-	}
-}
-
 void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ)
 {
 #if defined(TRACY_ENABLE)
@@ -132,28 +102,6 @@ void Chunk::genWaterPlane(std::span<const float> fullNoise, int regionWidth, int
 		}
 	}
 }
-void Chunk::genTrees(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ)
-{
-#if defined(TRACY_ENABLE)
-	ZoneScoped;
-#endif
-	Timer tree_timer("trees_pass");
-	for (int z = 0; z < chunkSize.z; ++z) {
-		for (int x = 0; x < chunkSize.x; ++x) {
-			int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
-			int height     = static_cast<int>(fullNoise[noiseIndex] * chunkSize.y);
-			height         = std::clamp(height, 0, chunkSize.y - 1);
-
-			// Rough condition for tree placement: 1 in 20 chance
-			int index = getBlockIndex(x, height, z);
-			if (index == -1)
-				continue;
-			if (chunkData[index].type == Block::blocks::GRASS && height > seaLevel && rand() % 80 == 0) {
-				generateTreeAt(x, height + 1, z); // +1 so it grows *on top* of the grass
-			}
-		}
-	}
-}
 void Chunk::uploadData()
 {
 	if (faces.empty() && waterFaces.empty()) {
@@ -174,7 +122,7 @@ void Chunk::uploadData()
 	combinedFaces.insert(combinedFaces.end(), waterFaces.begin(), waterFaces.end());
 
 	glNamedBufferData(SSBO, combinedFaces.size() * sizeof(Face), combinedFaces.data(), GL_DYNAMIC_DRAW);
-	// glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
 }
 
 void Chunk::updateMesh()

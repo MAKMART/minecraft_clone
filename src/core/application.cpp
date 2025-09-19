@@ -114,6 +114,7 @@ Application::Application(int width, int height, std::string title) : backgroundC
 	glVertexArrayAttribBinding(crosshairVAO, 1, 0);
 	glEnableVertexArrayAttrib(crosshairVAO, 1);
 
+
 	// TODO: Framebuffer implementation
 
 	log::info("Initializing Shaders...");
@@ -121,7 +122,6 @@ Application::Application(int width, int height, std::string title) : backgroundC
 	crossHairshader  = std::make_unique<Shader>("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
 	crossHairTexture = std::make_unique<Texture>(ICONS_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 	chunkManager     = std::make_unique<ChunkManager>();
-	assert(chunkManager && "ChunkManager must be initialized!");
 	player = std::make_unique<Player>(ecs, glm::vec3{0.0f, (float)chunkSize.y + 2.0f, 0.0f});
 	ui     = std::make_unique<UI>(width, height, new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(width, height);

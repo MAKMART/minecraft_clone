@@ -220,8 +220,6 @@ class Chunk
 
 	void updateMesh();
 
-	void genTrees(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ);
-
 	inline int getBlockIndex(int x, int y, int z) const noexcept
 	{
 #if defined(DEBUG)
@@ -315,8 +313,6 @@ class Chunk
 	void generateBlockFace(const Block& block, int x, int y, int z);
 
 	bool isFaceVisible(const Block& block, int x, int y, int z);
-
-	void generateTreeAt(int x, int y, int z);
 
 	// Chunk-space position
 	glm::ivec3                position;

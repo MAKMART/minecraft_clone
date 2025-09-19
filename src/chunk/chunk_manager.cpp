@@ -41,6 +41,10 @@ ChunkManager::ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed)
 ChunkManager::~ChunkManager()
 {
 	clearChunks();
+	if (VAO) {
+		glDeleteBuffers(1, &VAO);
+	
+	}
 
 }
 
@@ -280,8 +284,6 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 
 			if (neighborsAreGenerated(chunk) && chunk->state == ChunkState::Linked) {
 				chunk->genWaterPlane(std::span{noiseRegion}, region.x, offsetX, offsetZ);
-				chunk->genTrees(std::span{noiseRegion}, region.x, offsetX, offsetZ);
-				chunk->state = ChunkState::TreesPlaced;
 				chunk->updateMesh();
 
 				chunk->updateNeighborMeshes();

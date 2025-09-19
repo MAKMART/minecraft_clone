@@ -37,18 +37,20 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos)
 	ecs.add_component(self, PlayerMode{});
 	mode = ecs.get_component<PlayerMode>(self);
 
-	// Create the camera entity
-	camera = ecs.create_entity();
-	ecs.add_component(camera, Transform{spawnPos + glm::vec3(0.0f, eyeHeight, 0.0f)});
-	ecs.add_component(camera, Camera{});
-	ecs.add_component(camera, CameraController{self, glm::vec3(0.0f, eyeHeight, 0.0f)});
-	// Bro, you know that if you don't mark the camera as "Active" it won't render a thing :)
-	ecs.add_component(camera, ActiveCamera{});
-
 	// Other init stuff
 	eyeHeight       = playerHeight * 0.9f;
 	scaleFactor     = 0.076f;
 	lastScaleFactor = scaleFactor;
+
+
+	// Create the camera entity
+	camera = ecs.create_entity();
+	ecs.add_component(camera, Transform{});
+	ecs.add_component(camera, Camera{});
+	ecs.add_component(camera, CameraController{self, glm::vec3(0.0f, eyeHeight / 2.0f, 0.0f)});
+	// Bro, you know that if you don't mark the camera as "Active" it won't render a thing :)
+	ecs.add_component(camera, ActiveCamera{});
+
 
 	setupBodyParts();
 	glCreateVertexArrays(1, &skinVAO);
