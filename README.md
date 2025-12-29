@@ -19,7 +19,7 @@ To build this project, you’ll need:
 * [A C++ compiler](https://isocpp.org/get-started)
 * [sccache](https://github.com/mozilla/sccache)
 
-Make sure all three are installed and added to your system's `PATH` if you're on Windows.
+Make sure all four are installed and added to your system's `PATH` if you're on Windows.
 
 ## Building the Project from Source 🛠️
 
