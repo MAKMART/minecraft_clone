@@ -1,8 +1,6 @@
 #include "game/player.hpp"
 #include "core/defines.hpp"
-#include "graphics/cube.hpp"
 #include "glm/ext/matrix_transform.hpp"
-#include <memory>
 #include <optional>
 #include "glm/trigonometric.hpp"
 #include "core/raycast.hpp"
@@ -12,7 +10,7 @@
 #endif
 
 Player::Player(ECS& ecs, glm::vec3 spawnPos)
-    : ecs(ecs), playerHeight(1.8f), input(InputManager::get()), skinTexture(std::make_unique<Texture>(DEFAULT_SKIN_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST))
+    : ecs(ecs), playerHeight(1.8f), input(InputManager::get())
 {
 	log::info("Initializing Player...");
 
@@ -39,8 +37,6 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos)
 
 	// Other init stuff
 	eyeHeight       = playerHeight * 0.9f;
-	scaleFactor     = 0.076f;
-	lastScaleFactor = scaleFactor;
 
 
 	// Create the camera entity
@@ -52,143 +48,13 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos)
 	ecs.add_component(camera, ActiveCamera{});
 
 
-	setupBodyParts();
-	glCreateVertexArrays(1, &skinVAO);
-	glBindVertexArray(skinVAO);
 }
 Player::~Player()
 {
-	glDeleteVertexArrays(1, &skinVAO);
-}
-void Player::setupBodyParts()
-{
-	bodyParts.resize(6);
-
-	// Base sizes
-	glm::vec3 headSize  = glm::vec3(8, 8, 8);
-	glm::vec3 torsoSize = glm::vec3(8, 12, 4);
-	glm::vec3 limbSize  = glm::vec3(4, 12, 4);
-
-	// Base offsets
-	glm::vec3 headOffset     = glm::vec3(0, 18, 0);
-	glm::vec3 torsoOffset    = glm::vec3(0, 6, 0);
-	glm::vec3 rightArmOffset = glm::vec3(-6, 6, 0);
-	glm::vec3 leftArmOffset  = glm::vec3(6, 6, 0);
-	glm::vec3 rightLegOffset = glm::vec3(-2, 0, 0);
-	glm::vec3 leftLegOffset  = glm::vec3(2, 0, 0);
-
-	// Apply scale factor
-	headSize *= scaleFactor;
-	torsoSize *= scaleFactor;
-	limbSize *= scaleFactor;
-	headOffset *= scaleFactor;
-	torsoOffset *= scaleFactor;
-	rightArmOffset *= scaleFactor;
-	leftArmOffset *= scaleFactor;
-	rightLegOffset *= scaleFactor;
-	leftLegOffset *= scaleFactor;
-
-	bodyParts[0] = {std::make_unique<Cube>(headSize, BodyPartType::HEAD), headOffset};
-	bodyParts[1] = {std::make_unique<Cube>(torsoSize, BodyPartType::TORSO), torsoOffset};
-	bodyParts[2] = {std::make_unique<Cube>(limbSize, BodyPartType::RIGHT_ARM), rightArmOffset};
-	bodyParts[3] = {std::make_unique<Cube>(limbSize, BodyPartType::LEFT_ARM), leftArmOffset};
-	bodyParts[4] = {std::make_unique<Cube>(limbSize, BodyPartType::RIGHT_LEG), rightLegOffset};
-	bodyParts[5] = {std::make_unique<Cube>(limbSize, BodyPartType::LEFT_LEG), leftLegOffset};
-}
-void Player::loadSkin(const std::string& path)
-{
-	skinTexture = std::make_unique<Texture>(path, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST);
-}
-void Player::loadSkin(const std::filesystem::path& path)
-{
-	skinTexture = std::make_unique<Texture>(path, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST);
 }
 bool Player::isInsidePlayerBoundingBox(const glm::vec3& checkPos) const
 {
 	return collider->aabb.intersects({checkPos, checkPos + glm::vec3(1.0f)});
-}
-void Player::render(const Shader& shader)
-{
-#if defined(TRACY_ENABLE)
-	ZoneScoped;
-#endif
-	Camera*           cam  = ecs.get_component<Camera>(camera);
-	CameraController* ctrl = ecs.get_component<CameraController>(camera);
-	if (!skinTexture) {
-		log::system_error("Player", "skinTexture is null!");
-		return;
-	}
-
-	shader.use();
-	shader.setMat4("view", cam->viewMatrix);
-	shader.setMat4("projection", cam->projectionMatrix);
-	skinTexture->Bind(1);
-	glBindVertexArray(skinVAO);
-
-	glm::vec3 forward = cam->forward;
-
-	glDisable(GL_CULL_FACE);
-
-	if (ctrl->third_person) {
-		// Flatten the camera direction to ignore Y (vertical) component for horizontal facing
-		forward.y = 0.0f;
-		forward   = glm::normalize(forward);
-
-		// Player's forward direction (initially facing -Z, or (0, 0, -1))
-		glm::vec3 playerForward(0.0f, 0.0f, -1.0f);
-
-		// Calculate the rotation angle around the Y-axis
-		float dot   = glm::dot(playerForward, forward);
-		dot         = glm::clamp(dot, -1.0f, 1.0f); // Ensure dot product is within valid range
-		float angle = glm::degrees(std::acos(dot)); // Convert to degrees
-
-		// Determine rotation direction (cross product for right-hand rule)
-		glm::vec3 cross = glm::cross(playerForward, forward);
-		if (cross.y < 0)
-			angle = -angle; // Rotate clockwise if cross.y is negative
-
-		glm::mat4 baseTransform = getModelMatrix();
-		// Apply rotation around Y-axis to face the camera
-		baseTransform *= glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
-
-		for (const auto& part : bodyParts) {
-			glm::mat4 transform = baseTransform * glm::translate(glm::mat4(1.0f), part.offset) * part.transform;
-			transform           = glm::translate(transform, glm::vec3(0, 0.5, 0));
-			// log::system_info("Player", "Rendering body part with size: {}", glm::to_string(part.cube->getSize()));
-			shader.setVec3("cubeSize", part.cube->getSize()); // Pass size_ to shader
-			shader.setMat4("model", transform);
-			part.cube->render(transform);
-		}
-	} else {
-		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_BLEND);
-		const auto& rightArm = bodyParts[2]; // Right arm at index 2
-
-		glm::mat4 armTransform = getModelMatrix();
-		glm::mat4 viewRotation = glm::mat4(glm::vec4(cam->right, 0.0f), glm::vec4(cam->up, 0.0f), glm::vec4(-forward, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-		armTransform           = armTransform * viewRotation;
-
-		armTransform = armTransform * glm::translate(glm::mat4(1.0f), armOffset);
-		armTransform = armTransform * rightArm.transform;
-
-		armTransform = glm::translate(armTransform, glm::vec3(0, 0.5, 0));
-
-		shader.setMat4("model", armTransform);
-		shader.setVec3("cubeSize", rightArm.cube->getSize()); // Pass size_ to shader
-		// log::system_info("Player", "Rendering body part with size: {}", glm::to_string(rightArm.cube->getSize()));
-		rightArm.cube->render(armTransform);
-		if (BLENDING) {
-			glEnable(GL_BLEND);
-		}
-		if (DEPTH_TEST) {
-			glEnable(GL_DEPTH_TEST);
-			glDepthFunc(DEPTH_FUNC);
-		}
-	}
-	if (FACE_CULLING) {
-		glEnable(GL_CULL_FACE);
-	}
-	skinTexture->Unbind(1);
 }
 void Player::update(float deltaTime)
 {
@@ -196,30 +62,6 @@ void Player::update(float deltaTime)
 	ZoneScoped;
 #endif
 	CameraController* ctrl = ecs.get_component<CameraController>(camera);
-	animationTime += deltaTime;
-	float speed     = state->current == PlayerMovementState::Running ? 6.0f : 4.0f;
-	float amplitude = state->current == PlayerMovementState::Running ? 0.7f : 0.5f;
-	float swing     = std::sin(animationTime * speed) * amplitude;
-
-	if (collider->is_on_ground) {
-		if (state->current == PlayerMovementState::Walking || state->current == PlayerMovementState::Running) {
-			bodyParts[2].transform = glm::rotate(glm::mat4(1.0f), -swing, glm::vec3(1, 0, 0));
-			bodyParts[3].transform = glm::rotate(glm::mat4(1.0f), swing, glm::vec3(1, 0, 0));
-			bodyParts[4].transform = glm::rotate(glm::mat4(1.0f), swing, glm::vec3(1, 0, 0));
-			bodyParts[5].transform = glm::rotate(glm::mat4(1.0f), -swing, glm::vec3(1, 0, 0));
-		} else {
-			// → reset transforms
-			for (auto& part : bodyParts)
-				part.transform = glm::mat4(1.0f);
-		}
-	} else {
-		// In air
-		float bend             = 0.3f;
-		bodyParts[4].transform = glm::rotate(glm::mat4(1.0f), bend, glm::vec3(1, 0, 0));
-		bodyParts[5].transform = glm::rotate(glm::mat4(1.0f), bend, glm::vec3(1, 0, 0));
-		bodyParts[2].transform = glm::rotate(glm::mat4(1.0f), -bend / 2, glm::vec3(1, 0, 0));
-		bodyParts[3].transform = glm::rotate(glm::mat4(1.0f), -bend / 2, glm::vec3(1, 0, 0));
-	}
 
 	if (ctrl->third_person)
 		modelMat = glm::translate(glm::mat4(1.0f), getPos() + eyeHeight);
@@ -262,55 +104,82 @@ void Player::processKeyInput()
 void Player::breakBlock(ChunkManager& chunkManager)
 {
 	Camera*                   cam      = ecs.get_component<Camera>(camera);
-	std::optional<glm::ivec3> hitBlock = raycast::voxel(chunkManager, transform->pos, cam->forward, max_interaction_distance);
+	Transform*		  trans    = ecs.get_component<Transform>(camera);
 
-	if (!hitBlock.has_value())
-		return;
+	// projection matrix (perspective)
+	glm::mat4 projection = cam->projectionMatrix;
+	// view matrix (world -> camera)
+	glm::mat4 view = cam->viewMatrix;
+	float ndc_x = 0.0f; // center of screen
+	float ndc_y = 0.0f; // center of screen
+	float ndc_z = -1.0f; // near plane
+	glm::vec4 clip = glm::vec4(ndc_x, ndc_y, ndc_z, 1.0f);
 
-	glm::ivec3 blockPos = hitBlock.value();
+	glm::vec4 view_space = glm::inverse(projection) * clip;
+	view_space.z = -1.0f; // forward direction
+	view_space.w = 0.0f;  // this is a direction, not a position
+
+	glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(view) * view_space));
+	glm::vec3 ray_origin = trans->pos; // start at camera position
+
+
+	std::optional<glm::ivec3> hitBlock = raycast::voxel(chunkManager, ray_origin, ray_dir, max_interaction_distance);
+	if (hitBlock.has_value()) {
+		glm::ivec3 blockPos = hitBlock.value();
+		chunkManager.updateBlock(blockPos, Block::blocks::AIR);
+	}
 
 	// log::system_info("Player", "Breaking block at: {}, {}, {}", blockPos.x, blockPos.y, blockPos.z);
 
-	chunkManager.updateBlock(blockPos, Block::blocks::AIR);
 }
 void Player::placeBlock(ChunkManager& chunkManager)
 {
-	Camera*                                          cam       = ecs.get_component<Camera>(camera);
-	std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycast::voxel_normals(
-	    chunkManager, transform->pos, cam->forward, max_interaction_distance);
+	Camera*                   cam      = ecs.get_component<Camera>(camera);
+	Transform*		  trans    = ecs.get_component<Transform>(camera);
 
-	if (!hitResult.has_value())
-		return;
+	// projection matrix (perspective)
+	glm::mat4 projection = cam->projectionMatrix;
+	// view matrix (world -> camera)
+	glm::mat4 view = cam->viewMatrix;
+	float ndc_x = 0.0f; // center of screen
+	float ndc_y = 0.0f; // center of screen
+	float ndc_z = -1.0f; // near plane
+	glm::vec4 clip = glm::vec4(ndc_x, ndc_y, ndc_z, 1.0f);
 
-	glm::ivec3 hitBlockPos = hitResult->first;
-	glm::ivec3 normal      = hitResult->second;
+	glm::vec4 view_space = glm::inverse(projection) * clip;
+	view_space.z = -1.0f; // forward direction
+	view_space.w = 0.0f;  // this is a direction, not a position
 
-	glm::ivec3 placePos = hitBlockPos + (-normal);
+	glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(view) * view_space));
+	glm::vec3 ray_origin = trans->pos; // start at camera position
 
-	if (isInsidePlayerBoundingBox(placePos))
-		return;
+	std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycast::voxel_normals(chunkManager, ray_origin, ray_dir, max_interaction_distance);
 
-	Chunk* placeChunk = chunkManager.getChunk(placePos);
-	if (!placeChunk) {
-		return;
+	if (hitResult.has_value()) {
+		glm::ivec3 hitBlockPos = hitResult->first;
+		glm::ivec3 normal      = hitResult->second;
+		glm::ivec3 placePos = hitBlockPos + (-normal);
+		if (isInsidePlayerBoundingBox(placePos))
+			return;
+		chunkManager.updateBlock(hitBlockPos, Block::blocks::AIR);
+		Chunk* placeChunk = chunkManager.getChunk(placePos);
+		if (!placeChunk) {
+			return;
+		}
+
+		glm::ivec3 localBlockPos = Chunk::worldToLocal(placePos);
+
+		int blockIndex = placeChunk->getBlockIndex(localBlockPos.x, localBlockPos.y, localBlockPos.z);
+
+		if (placeChunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
+			log::system_info("Player", "❌ Target block is NOT air! It's type: {}", Block::toString(placeChunk->getChunkData()[blockIndex].type));
+			return;
+		}
+
+		// log::system_info("Player", "Placing block at: {}, {}, {}", placePos.x, placePos.y, placePos.z);
+
+		chunkManager.updateBlock(placePos, static_cast<Block::blocks>(selectedBlock));
 	}
-
-	glm::ivec3 localBlockPos = Chunk::worldToLocal(placePos);
-
-	int blockIndex = placeChunk->getBlockIndex(localBlockPos.x, localBlockPos.y, localBlockPos.z);
-	if (blockIndex < 0 || static_cast<size_t>(blockIndex) >= placeChunk->getChunkData().size()) {
-		log::system_info("Player", "❌ Invalid block index: {}", blockIndex);
-		return;
-	}
-
-	if (placeChunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
-		log::system_info("Player", "❌ Target block is NOT air! It's type: {}", Block::toString(placeChunk->getChunkData()[blockIndex].type));
-		return;
-	}
-
-	// log::system_info("Player", "Placing block at: {}, {}, {}", placePos.x, placePos.y, placePos.z);
-
-	chunkManager.updateBlock(placePos, static_cast<Block::blocks>(selectedBlock));
 }
 void Player::processMouseScroll(float yoffset)
 {

@@ -3,6 +3,7 @@
 #include "core/aabb.hpp"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include "graphics/renderer/shader_storage_buffer.hpp"
 #include <PerlinNoise.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -318,7 +319,7 @@ class Chunk
 	glm::ivec3                position;
 	AABB                      aabb;
 	const int                 seaLevel = 5;
-	GLuint                    SSBO;
+	SSBO			  ssbo;
 	GLuint                    opaqueFaceCount      = 0;
 	GLuint                    transparentFaceCount = 0;
 	void                      uploadData();

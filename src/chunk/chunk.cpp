@@ -2,6 +2,7 @@
 #include <cstdlib>
 
 #include "core/timer.hpp"
+#include "graphics/renderer/shader_storage_buffer.hpp"
 #include "graphics/shader.hpp"
 #include "core/defines.hpp"
 #if defined(TRACY_ENABLE)
@@ -9,7 +10,7 @@
 #endif
 
 Chunk::Chunk(const glm::ivec3& chunkPos)
-    : position(chunkPos), SSBO(0), logSizeX(std::log2(chunkSize.x)), logSizeY(std::log2(chunkSize.y))
+    : position(chunkPos), logSizeX(std::log2(chunkSize.x)), logSizeY(std::log2(chunkSize.y))
 {
 
 	chunkData.resize(chunkSize.x * chunkSize.y * chunkSize.z); // Preallocate memory
@@ -18,13 +19,10 @@ Chunk::Chunk(const glm::ivec3& chunkPos)
 	glm::vec3 worldOrigin = chunkToWorld(position);
 	glm::vec3 worldMax    = worldOrigin + glm::vec3(chunkSize);
 	aabb                  = AABB(worldOrigin, worldMax);
-	glCreateBuffers(1, &SSBO);
 	srand(static_cast<unsigned int>(position.x ^ position.y ^ position.z));
 }
 Chunk::~Chunk()
 {
-	if (SSBO)
-		glDeleteBuffers(1, &SSBO);
 }
 void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ)
 {
@@ -109,10 +107,6 @@ void Chunk::uploadData()
 		return;
 	}
 
-	if (SSBO == 0) {
-		glCreateBuffers(1, &SSBO);
-	}
-
 	opaqueFaceCount      = static_cast<GLuint>(faces.size());
 	transparentFaceCount = static_cast<GLuint>(waterFaces.size());
 
@@ -121,8 +115,7 @@ void Chunk::uploadData()
 	combinedFaces.insert(combinedFaces.end(), faces.begin(), faces.end());
 	combinedFaces.insert(combinedFaces.end(), waterFaces.begin(), waterFaces.end());
 
-	glNamedBufferData(SSBO, combinedFaces.size() * sizeof(Face), combinedFaces.data(), GL_DYNAMIC_DRAW);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
+	ssbo = SSBO(combinedFaces.data(), combinedFaces.size() * sizeof(Face), SSBO::usage::dynamic_draw);
 }
 
 void Chunk::updateMesh()
@@ -264,7 +257,7 @@ void Chunk::renderOpaqueMesh(const Shader& shader)
 {
 	shader.setMat4("model", getModelMatrix());
 	if (!faces.empty()) {
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
+		ssbo.bind_to_slot(0);
 		DrawArraysWrapper(GL_TRIANGLES, 0, opaqueFaceCount * 6);
 	}
 }
@@ -272,7 +265,7 @@ void Chunk::renderTransparentMesh(const Shader& shader)
 {
 	shader.setMat4("model", getModelMatrix());
 	if (!waterFaces.empty()) {
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
+		ssbo.bind_to_slot(0);
 		DrawArraysWrapper(GL_TRIANGLES, opaqueFaceCount * 6, transparentFaceCount * 6);
 	}
 }

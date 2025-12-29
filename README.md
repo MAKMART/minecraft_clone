@@ -1,23 +1,11 @@
-# Minecraft Clone (Working Title) 🎮
-
-Yeah, I haven’t named it yet. Suggestions welcome 😅
-
+# Minecraft Clone
 ## Introduction 📝
 
-This is a small game project built using modern OpenGL and C++20. Think Minecraft-style voxel fun, but from scratch and fully under your control. The project is in a very early, experimental stage 🚀.
+This is a small minecraft clone built using OpenGL 4.6 and C++ 20. The project is in a very early, experimental stage 🚀.
 
-Since this is meant for me to learn programming, don't expect high-quality stuff here for some time 😜.
+Since this is meant for me to learn programming, don't expect high-quality stuff here for some time.
 
-## Features ✨
-
-* Procedural terrain generation through chunking system 🌄
-* Block breaking/placing ability ⛏️
-* Multiple modes 🎯
-* Skin rendering system (broken) 🧑‍🎨
-* Multiple block types 🧱
-* Collision system with AABBs ⚔️
-
-### Some screenshots 🖼️
+### Screenshots 🖼️
 
 ![Screenshot 2025-07-03 231412](https://github.com/user-attachments/assets/7c71a15f-02c1-4c36-b6ec-c6c13c0c7fb2)
 ![Screenshot 2025-07-03 231457](https://github.com/user-attachments/assets/35c74a69-89f6-48f6-a708-d0e05c6931ba)
@@ -26,9 +14,10 @@ Since this is meant for me to learn programming, don't expect high-quality stuff
 
 To build this project, you’ll need:
 
-* [CMake](https://cmake.org/download/) `(>= 3.30)` 🏗️
-* [Ninja](https://github.com/ninja-build/ninja) ⚡
-* [A C++ compiler](https://isocpp.org/get-started) 🖥️
+* [CMake](https://cmake.org/download/) `(>= 3.30)`
+* [Ninja](https://github.com/ninja-build/ninja)
+* [A C++ compiler](https://isocpp.org/get-started)
+* [sccache](https://github.com/mozilla/sccache)
 
 Make sure all three are installed and added to your system's `PATH` if you're on Windows.
 
@@ -37,8 +26,8 @@ Make sure all three are installed and added to your system's `PATH` if you're on
 After building, all build files will be stored in the `build` directory.
 The final binary will be located in:
 
-* `build/bin/debug/` for **Debug** builds 🐛
-* `build/bin/release/` for **Release** builds 🚀
+* `build/bin/debug/` for **Debug** builds
+* `build/bin/release/` for **Release** builds
 
 ---
 
@@ -91,5 +80,4 @@ cmake --build --preset release
 
 ## Troubleshooting 🛡️
 
-If you run into any build issues or have questions, feel free to email me:
-✉️ [martinmarco813@gmail.com](mailto:martinmarco813@gmail.com)
+If you run into any build issues or have questions, feel free to [email me](mailto:martinmarco813@gmail.com).

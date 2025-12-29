@@ -11,11 +11,11 @@
 			"displayName": "Debug Build",
 			"description": "Debug build with optional Tracy profiler",
 			"generator": "Ninja",
-			"binaryDir": "build/debug",
+			"binaryDir": "build/",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
-				"ENABLE_TRACY": "OFF",
-				"ENABLE_UNITY_BUILD": "OFF",
+				"ENABLE_TRACY": "ON",
+				"ENABLE_UNITY_BUILD": "ON",
 				"CMAKE_C_COMPILER_LAUNCHER": "sccache",
 				"CMAKE_CXX_COMPILER_LAUNCHER": "sccache"
 			}
@@ -25,7 +25,7 @@
 			"displayName": "Release Build",
 			"description": "Release build with optional Tracy profiler",
 			"generator": "Ninja",
-			"binaryDir": "build/release",
+			"binaryDir": "build/",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release",
 				"ENABLE_TRACY": "OFF",

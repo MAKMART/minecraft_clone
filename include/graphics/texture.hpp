@@ -1,4 +1,5 @@
 #pragma once
+#include <cassert>
 #include <string>
 #include <glad/glad.h>
 #include <filesystem>
@@ -31,22 +32,24 @@ class Texture
 	void        Bind(int unit) const;
 	static void Unbind(int unit);
 
-	const GLuint& getID() const
+	GLuint getID() const
 	{
 		if (ID == 0)
 			log::system_error("Texture", "Trying to get invalid ID == 0");
 		return ID;
 	}
-	const int& getWidth() const
+	int getWidth() const
 	{
+		assert(ID != 0 && "getHeight() on Texture with ID = 0");
 		return width;
 	}
-	const int& getHeight() const
+	int getHeight() const
 	{
+		assert(ID != 0 && "getHeight() on Texture with ID = 0");
 		return height;
 	}
 
       private:
-	GLuint ID;
+	GLuint ID = 0;
 	int    width, height;
 };

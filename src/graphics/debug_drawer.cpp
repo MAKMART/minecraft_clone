@@ -1,11 +1,12 @@
 #include "graphics/debug_drawer.hpp"
 #include <glad/glad.h>
+#include "core/defines.hpp"
 #include "core/logger.hpp"
 
 DebugDrawer::DebugDrawer()
 {
 	// TODO: Adjust paths
-	shader = new Shader("Debug", std::filesystem::path("shaders/debug_vert.glsl"), std::filesystem::path("shaders/debug_frag.glsl"));
+	shader = new Shader("Debug", std::filesystem::path(SHADERS_DIRECTORY / "debug_vert.glsl"), std::filesystem::path(SHADERS_DIRECTORY / "debug_frag.glsl"));
 
 	vertices = {
 	    // Front face
@@ -41,13 +42,24 @@ DebugDrawer::DebugDrawer()
 
 DebugDrawer::~DebugDrawer()
 {
-	destroyGLResources();
+	if (vao != 0) {
+		glDeleteVertexArrays(1, &vao);
+		vao = 0;
+	}
+	if (vao_lines != 0) {
+		glDeleteVertexArrays(1, &vao_lines);
+		vao_lines = 0;
+	}
 	delete shader;
 }
 
 void DebugDrawer::addAABB(const AABB& box, const glm::vec3& color)
 {
 	aabbs.emplace_back(box, color); // Use emplace_back
+}
+
+void DebugDrawer::addRay(glm::vec3 start, glm::vec3 dir, glm::vec3 color) {
+	rays.emplace_back(std::tuple<glm::vec3, glm::vec3, glm::vec3>(start, dir, color));
 }
 
 void DebugDrawer::addOBB(const glm::mat4& transform, const glm::vec3& halfExtents, const glm::vec3& color)
@@ -84,9 +96,39 @@ void DebugDrawer::draw(const glm::mat4& viewProj)
 		checkGLError("AABBDebugDrawer::draw - OBB glDrawArrays");
 	}
 
+	glDisable(GL_DEPTH_TEST);
+	for (auto& ray_tuple : rays) {
+		auto& [origin, direction, color] = ray_tuple;
+		shader->setVec3("debugColor", color);
+
+		direction = glm::normalize(direction);
+		glm::vec3 up = glm::vec3(0, 1, 0); // unit line in +Y
+		glm::vec3 axis = glm::cross(up, direction);
+		float angle = acos(glm::clamp(glm::dot(up, glm::normalize(direction)), -1.0f, 1.0f));
+
+		glm::mat4 rotation = glm::mat4(1.0f);
+		if (glm::length(axis) > 0.0001f) {
+			rotation = glm::rotate(glm::mat4(1.0f), angle, glm::normalize(axis));
+		}
+
+		float length = glm::length(direction) > 0.0001f ? glm::length(direction) : 10000.0f;
+
+		glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, length, 1.0f));
+		glm::mat4 translation = glm::translate(glm::mat4(1.0f), origin);
+
+		glm::mat4 model = translation * rotation * scale;
+
+		shader->setMat4("model", model);
+		glBindVertexArray(vao_lines);
+		glDrawArrays(GL_LINES, 0, 2);
+	}
+
+	glEnable(GL_DEPTH_TEST);
+
 	glBindVertexArray(0);
 	checkGLError("AABBDebugDrawer::draw - glBindVertexArray(0)");
 
+	rays.clear();
 	aabbs.clear();
 	obbs.clear();
 }
@@ -94,27 +136,21 @@ void DebugDrawer::draw(const glm::mat4& viewProj)
 void DebugDrawer::initGLResources()
 {
 	glGenVertexArrays(1, &vao);
-	glGenBuffers(1, &vbo);
-	glBindVertexArray(vao);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	checkGLError("AABBDebugDrawer::initGLResources");
-}
+	glGenVertexArrays(1, &vao_lines);
+	vbo = VB(vertices.data(), vertices.size() * sizeof(glm::vec3), VB::usage::static_draw);
+	vbo2 = VB(line_vertices, sizeof(line_vertices), VB::usage::static_draw);
 
-void DebugDrawer::destroyGLResources()
-{
-	if (vao != 0) {
-		glDeleteVertexArrays(1, &vao);
-		vao = 0;
-	}
-	if (vbo != 0) {
-		glDeleteBuffers(1, &vbo);
-		vbo = 0;
-	}
+	glBindVertexArray(vao);
+	glVertexArrayVertexBuffer(vao, 0, vbo.id(), 0, sizeof(glm::vec3));
+	glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+	glEnableVertexArrayAttrib(vao, 0);
+	glBindVertexArray(0);
+
+	glBindVertexArray(vao_lines);
+	glVertexArrayVertexBuffer(vao_lines, 0, vbo2.id(), 0, sizeof(glm::vec3));
+	glVertexArrayAttribFormat(vao_lines, 0, 3, GL_FLOAT, GL_FALSE, 0);
+	glEnableVertexArrayAttrib(vao_lines, 0);
+	checkGLError("AABBDebugDrawer::initGLResources");
 }
 
 void DebugDrawer::checkGLError(const std::string& operation)

@@ -141,9 +141,9 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 	ZoneScoped;
 #endif
 
-	Timer chunksTimer("chunk_generation");
 	if (renderDistance <= 0)
 		return;
+	Timer chunksTimer("chunk_generation");
 
 	const int side = 2 * renderDistance + 1;
 
@@ -282,12 +282,14 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 			Timer neighbor_timer("Neighboring chunks checks");
 			chunk->updateMesh();
 
+			/*
 			if (neighborsAreGenerated(chunk) && chunk->state == ChunkState::Linked) {
 				chunk->genWaterPlane(std::span{noiseRegion}, region.x, offsetX, offsetZ);
 				chunk->updateMesh();
 
 				chunk->updateNeighborMeshes();
 			}
+			*/
 		}
 	}
 }

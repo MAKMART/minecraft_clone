@@ -4,7 +4,7 @@ include(FetchContent)
 FetchContent_Declare(
     glfw
     GIT_REPOSITORY https://github.com/glfw/glfw.git
-    GIT_TAG        3.4
+    GIT_TAG        master
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -14,7 +14,7 @@ FetchContent_MakeAvailable(glfw)
 FetchContent_Declare(
     glm
     GIT_REPOSITORY https://github.com/g-truc/glm.git
-    GIT_TAG        1.0.1
+    GIT_TAG        master
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -46,7 +46,7 @@ target_include_directories(imgui PUBLIC
 FetchContent_Declare(
     freetype
     GIT_REPOSITORY https://github.com/freetype/freetype.git
-    GIT_TAG        VER-2-13-2  # pinned
+    GIT_TAG        VER-2-14-1  # pinned
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -57,7 +57,7 @@ add_library(Freetype::Freetype ALIAS freetype)
 FetchContent_Declare(
     RmlUi
     GIT_REPOSITORY https://github.com/mikke89/RmlUi.git
-    GIT_TAG        6.1
+    GIT_TAG        master
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -68,7 +68,7 @@ if(ENABLE_TRACY)
     FetchContent_Declare(
         tracy
         GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-        GIT_TAG        v0.12.2
+        GIT_TAG        master
 	GIT_SHALLOW    TRUE
         GIT_PROGRESS   TRUE
     )

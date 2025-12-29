@@ -13,7 +13,7 @@ struct Camera {
 	glm::mat4 viewMatrix{1.0f};
 	glm::mat4 projectionMatrix{1.0f};
 
-	glm::vec3 forward{0.0f, 0.0f, -1.0f};
+	glm::vec3 forward{0.0f, 0.0f, 1.0f};
 	glm::vec3 up{0.0f, 1.0f, 0.0f};
 	glm::vec3 right{1.0f, 0.0f, 0.0f};
 };

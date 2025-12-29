@@ -5,7 +5,6 @@
 #include "core/defines.hpp"
 #include "core/input_manager.hpp"
 #include "chunk/chunk_manager.hpp"
-#include "graphics/cube.hpp"
 #include "core/aabb.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
@@ -45,17 +44,7 @@ class Player
 		return modelMat;
 	}
 
-	// Non-const ref can be changed
-	// If you'd not return it as a & the user would just modify its local copy of the type
-	glm::vec3& getArmOffset()
-	{
-		return armOffset;
-	};
-
 	void update(float deltaTime);
-	void render(const Shader& shader);
-	void loadSkin(const std::string& path);
-	void loadSkin(const std::filesystem::path& path);
 
 	bool is_on_ground() const
 	{
@@ -172,9 +161,6 @@ class Player
 	}
 
 	// --- Player Settings ---
-	float        animationTime = 0.0f;
-	float        scaleFactor;
-	float        lastScaleFactor;
 	float        walking_speed            = 3.6f;
 	float        running_speed_increment  = 4.2f;
 	float        running_speed            = walking_speed + running_speed_increment;
@@ -207,19 +193,6 @@ class Player
 	ECS&   ecs;
 	Entity self;
 	Entity camera;
-	// -- Player Model ---
-	struct BodyPart {
-		std::unique_ptr<Cube> cube;
-		glm::vec3             offset;
-		glm::mat4             transform = glm::mat4(1.0f);
-	};
-	std::vector<BodyPart> bodyParts;
-
-	glm::vec3 armOffset = glm::vec3(0.3f, -0.792f, -0.5f); // Right, down, forward
-
-	std::unique_ptr<Texture> skinTexture;
-	GLuint                   skinVAO;
-
 	glm::mat4 modelMat;
 
 	Transform*      transform;
@@ -234,5 +207,4 @@ class Player
 
 	InputManager& input;
 
-	void setupBodyParts();
 };

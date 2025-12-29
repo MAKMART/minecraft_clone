@@ -7,21 +7,19 @@
 #if defined(TRACY_ENABLE)
 #include <tracy/TracyOpenGL.hpp>
 #endif
-class Application;
 // class Renderer;
 //	Maybe implement in future
 
 struct WindowContext {
-	WindowContext(int _width, int _height, std::string _title, Application* _app) : width(_width), height(_height), title(_title), app(_app)
+	WindowContext(int _width, int _height, std::string _title) : width(_width), height(_height), title(_title)
 	{
 		create_window();
 		glfwSetWindowUserPointer(window, this);
 	}
 	~WindowContext()
 	{
-		if (window) {
+		if (window)
 			glfwDestroyWindow(window);
-		}
 	}
 	void toggle_fullscreen()
 	{
@@ -37,19 +35,10 @@ struct WindowContext {
 		}
 	}
 
-	int getWidth() const
-	{
-		return width;
-	}
-	int getHeight() const
-	{
-		return height;
-	}
-	bool isFullscreen() const
-	{
-		return is_fullscreen;
-	}
-	Application* app    = nullptr;
+	int getWidth() const { return width; }
+	int getHeight() const { return height; }
+	bool isFullscreen() const { return is_fullscreen; }
+
 	GLFWwindow*  window = nullptr;
 	// Renderer* renderer = nullptr;
 
@@ -71,12 +60,7 @@ struct WindowContext {
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if defined(__APPLE__)
-		glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#else
 		glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_FALSE);
-#endif
-
 #if defined(DEBUG)
 		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #endif
@@ -111,7 +95,7 @@ struct WindowContext {
 		}
 
 		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-			log::error("Failed to initialize GLEW!");
+			log::error("Failed to initialize GLAD!");
 			std::exit(1);
 		}
 

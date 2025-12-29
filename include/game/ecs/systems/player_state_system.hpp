@@ -24,9 +24,9 @@ void update_player_state(ECS& ecs, Player& player, float dt)
 		    glm::vec3 inputDir(0.0f);
 
 		    if (ic.forward)
-			    inputDir.z += 1.0f;
-		    if (ic.backward)
 			    inputDir.z -= 1.0f;
+		    if (ic.backward)
+			    inputDir.z += 1.0f;
 		    if (ic.left)
 			    inputDir.x -= 1.0f;
 		    if (ic.right)

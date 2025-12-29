@@ -48,18 +48,13 @@ void update_camera_controller(ECS& ecs, Entity player)
 		    if (ctrl.third_person) {
 			    // Compute orbit offset
 			    glm::vec3 offset;
-			    offset.x         = ctrl.orbit_distance * -1.0f * cos(glm::radians(ctrl.yaw)) * cos(glm::radians(ctrl.pitch));
+			    offset.x         = ctrl.orbit_distance * -cos(glm::radians(ctrl.yaw)) * cos(glm::radians(ctrl.pitch));
 			    offset.y         = ctrl.orbit_distance * sin(glm::radians(ctrl.pitch));
 			    offset.z         = ctrl.orbit_distance * sin(glm::radians(ctrl.yaw)) * cos(glm::radians(ctrl.pitch));
 			    camTransform.pos = targetPos - offset;
 			    // Make camera look at target
 			    glm::vec3 dir = glm::normalize(targetPos - camTransform.pos);
-			    if (glm::abs(glm::dot(dir, glm::vec3(0, 1, 0))) > 0.999f) {
-				    camTransform.rot = glm::quatLookAt(dir, glm::vec3(0, 0, 1));
-			    } else {
-				    camTransform.rot = glm::quatLookAt(dir, glm::vec3(0, 1, 0));
-			    }
-
+			    camTransform.rot = glm::quatLookAt(dir, glm::vec3(0, 1, 0));
 		    } else {
 			    // First-person
 			    glm::quat qPitch = glm::angleAxis(glm::radians(ctrl.pitch), glm::vec3(1, 0, 0));
@@ -69,7 +64,7 @@ void update_camera_controller(ECS& ecs, Entity player)
 		    }
 		    camTransform.rot = glm::normalize(camTransform.rot);
 
-		    cam.forward = camTransform.rot * glm::vec3(0, 0, -1);
+		    cam.forward = camTransform.rot * glm::vec3(0, 0, 1);
 		    cam.right   = camTransform.rot * glm::vec3(1, 0, 0);
 		    cam.up      = camTransform.rot * glm::vec3(0, 1, 0);
 
@@ -80,6 +75,13 @@ void update_camera_controller(ECS& ecs, Entity player)
 		        cam.aspect_ratio,
 		        cam.far_plane,
 		        cam.near_plane);
+		    /*
+		    cam.projectionMatrix = glm::perspectiveRH_NO(
+		        glm::radians(cam.fov),
+		        cam.aspect_ratio,
+		        cam.near_plane,
+		        cam.far_plane);
+			*/
 	    });
 }
 
