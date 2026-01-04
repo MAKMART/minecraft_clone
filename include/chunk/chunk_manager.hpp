@@ -17,6 +17,7 @@
 #include "core/logger.hpp"
 #include "game/ecs/components/camera.hpp"
 #include "game/ecs/components/transform.hpp"
+#include "game/ecs/components/frustum_volume.hpp"
 #include <functional>
 
 struct ivec3_hash {
@@ -44,6 +45,9 @@ class ChunkManager
 	{
 		return shader;
 	}
+	const GLuint& getVAO() const {
+		return VAO;
+	}
 
 	Shader& getWaterShader()
 	{
@@ -65,6 +69,36 @@ class ChunkManager
 		return chunks;
 	}
 
+	std::vector<std::shared_ptr<Chunk>> getOpaqueChunks(const FrustumVolume& fv) const
+	{
+		std::vector<std::shared_ptr<Chunk>> opaqueChunks;
+		for (const auto& chunk : chunks) {
+		if (isAABBInsideFrustum(chunk.second->getAABB(), fv) && chunk.second->hasOpaqueMesh()) {
+			opaqueChunks.emplace_back(chunk.second);
+		}
+		}
+		return opaqueChunks;
+	}
+
+	std::vector<std::shared_ptr<Chunk>> getTransparentChunks(const FrustumVolume& fv, const Transform& ts) const
+	{
+		std::vector<std::shared_ptr<Chunk>> transparentChunks;
+		for (const auto& chunk : chunks) {
+			if (isAABBInsideFrustum(chunk.second->getAABB(), fv) && chunk.second->hasTransparentMesh()) {
+				transparentChunks.emplace_back(chunk.second);
+			}
+
+		
+		}
+		std::sort(transparentChunks.begin(), transparentChunks.end(),
+				[&](const auto& a, const auto& b) {
+				float distA = glm::distance(ts.pos, a->getCenter());
+				float distB = glm::distance(ts.pos, b->getCenter());
+				return distA > distB; // farthest first
+				});
+		return transparentChunks;
+	}
+
 	void updateBlock(glm::vec3 worldPos, Block::blocks newType);
 
 	void updateChunk(glm::vec3 worldPos)
@@ -76,8 +110,6 @@ class ChunkManager
 	}
 
 	void generateChunks(glm::vec3 playerPos, unsigned int renderDistance);
-
-	void renderChunks(const Camera& cam, const Transform& trans, float time);
 
 	Chunk* getChunk(glm::vec3 worldPos) const;
 
@@ -92,10 +124,32 @@ class ChunkManager
 		chunks.clear();
 	}
 
-      private:
+    private:
+
+
+	//TODO: Maybe move this into a utils namespace or smth
+	static bool isAABBInsideFrustum(const AABB& aabb, const FrustumVolume& fv) {
+		for (const auto& plane : fv.planes) { // assuming you store planes publicly or via accessor
+			glm::vec3 normal = plane.normal();
+
+			// Get the positive vertex along the plane normal
+			glm::vec3 p = aabb.min;
+			if (normal.x >= 0) p.x = aabb.max.x;
+			if (normal.y >= 0) p.y = aabb.max.y;
+			if (normal.z >= 0) p.z = aabb.max.z;
+
+			// Distance from plane to positive vertex
+			float distance = glm::dot(normal, p) + plane.offset();
+			if (distance < 0)
+				return false; // AABB is completely outside this plane
+		}
+		return true; // Intersects or is fully inside
+	}
+
+
+
 	siv::PerlinNoise perlin;
 	GLuint           VAO;
-	Texture          Atlas;
 	Shader           shader;
 	Shader           waterShader;
 

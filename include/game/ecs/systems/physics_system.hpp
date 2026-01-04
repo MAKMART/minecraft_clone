@@ -15,7 +15,7 @@
 
 bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManager& chunkManager);
 
-void update_physics(ECS& ecs, ChunkManager& chunkManager, float dt)
+void physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
@@ -106,7 +106,7 @@ inline bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManage
 	glm::ivec3 blockMax = glm::ceil(box.max) - glm::vec3(1);
 
 	blockMin.y = std::max(blockMin.y, 0);
-	blockMax.y = std::clamp(blockMax.y, 0, (int)chunkSize.y - 1);
+	blockMax.y = std::clamp(blockMax.y, 0, (int)CHUNK_SIZE.y - 1);
 
 	for (int y = blockMin.y; y <= blockMax.y; ++y) {
 		for (int x = blockMin.x; x <= blockMax.x; ++x) {
@@ -116,7 +116,7 @@ inline bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManage
 				if (!chunk)
 					return true;
 
-				glm::ivec3   local = blockWorldPos - Chunk::worldToChunk(blockWorldPos) * chunkSize;
+				glm::ivec3   local = blockWorldPos - Chunk::worldToChunk(blockWorldPos) * CHUNK_SIZE;
 				const Block& block = chunk->getBlockAt(local.x, local.y, local.z);
 
 				if (block.type != Block::blocks::AIR &&

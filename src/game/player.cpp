@@ -1,10 +1,12 @@
 #include "game/player.hpp"
 #include "core/defines.hpp"
+#include "game/ecs/components/frustum_volume.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include <optional>
 #include "glm/trigonometric.hpp"
 #include "core/raycast.hpp"
 #include "game/ecs/components/active_camera.hpp"
+#include "game/ecs/components/temporal_camera.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
@@ -46,6 +48,8 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos)
 	ecs.add_component(camera, CameraController{self, glm::vec3(0.0f, eyeHeight / 2.0f, 0.0f)});
 	// Bro, you know that if you don't mark the camera as "Active" it won't render a thing :)
 	ecs.add_component(camera, ActiveCamera{});
+	ecs.add_component(camera, FrustumVolume{});
+	ecs.add_component(camera, CameraTemporal{});
 
 
 }
@@ -103,17 +107,14 @@ void Player::processKeyInput()
 }
 void Player::breakBlock(ChunkManager& chunkManager)
 {
-	Camera*                   cam      = ecs.get_component<Camera>(camera);
-	Transform*		  trans    = ecs.get_component<Transform>(camera);
+	Camera* cam = ecs.get_component<Camera>(camera);
+	Transform* trans = ecs.get_component<Transform>(camera);
 
 	// projection matrix (perspective)
 	glm::mat4 projection = cam->projectionMatrix;
 	// view matrix (world -> camera)
 	glm::mat4 view = cam->viewMatrix;
-	float ndc_x = 0.0f; // center of screen
-	float ndc_y = 0.0f; // center of screen
-	float ndc_z = -1.0f; // near plane
-	glm::vec4 clip = glm::vec4(ndc_x, ndc_y, ndc_z, 1.0f);
+	glm::vec4 clip = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
 
 	glm::vec4 view_space = glm::inverse(projection) * clip;
 	view_space.z = -1.0f; // forward direction
@@ -134,17 +135,14 @@ void Player::breakBlock(ChunkManager& chunkManager)
 }
 void Player::placeBlock(ChunkManager& chunkManager)
 {
-	Camera*                   cam      = ecs.get_component<Camera>(camera);
-	Transform*		  trans    = ecs.get_component<Transform>(camera);
+	Camera* cam = ecs.get_component<Camera>(camera);
+	Transform* trans = ecs.get_component<Transform>(camera);
 
 	// projection matrix (perspective)
 	glm::mat4 projection = cam->projectionMatrix;
 	// view matrix (world -> camera)
 	glm::mat4 view = cam->viewMatrix;
-	float ndc_x = 0.0f; // center of screen
-	float ndc_y = 0.0f; // center of screen
-	float ndc_z = -1.0f; // near plane
-	glm::vec4 clip = glm::vec4(ndc_x, ndc_y, ndc_z, 1.0f);
+	glm::vec4 clip = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
 
 	glm::vec4 view_space = glm::inverse(projection) * clip;
 	view_space.z = -1.0f; // forward direction
@@ -161,23 +159,15 @@ void Player::placeBlock(ChunkManager& chunkManager)
 		glm::ivec3 placePos = hitBlockPos + (-normal);
 		if (isInsidePlayerBoundingBox(placePos))
 			return;
-		chunkManager.updateBlock(hitBlockPos, Block::blocks::AIR);
-		Chunk* placeChunk = chunkManager.getChunk(placePos);
-		if (!placeChunk) {
-			return;
-		}
 
 		glm::ivec3 localBlockPos = Chunk::worldToLocal(placePos);
 
-		int blockIndex = placeChunk->getBlockIndex(localBlockPos.x, localBlockPos.y, localBlockPos.z);
-
-		if (placeChunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
-			log::system_info("Player", "❌ Target block is NOT air! It's type: {}", Block::toString(placeChunk->getChunkData()[blockIndex].type));
+		if (chunkManager.getChunk(placePos)->getBlockAt(localBlockPos.x, localBlockPos.y, localBlockPos.z).type != Block::blocks::AIR) {
+			log::system_info("Player", "❌ Target block is NOT air! It's type: {}", Block::toString(chunkManager.getChunk(placePos)->getBlockAt(localBlockPos.x, localBlockPos.y, localBlockPos.z).type));
 			return;
 		}
 
-		// log::system_info("Player", "Placing block at: {}, {}, {}", placePos.x, placePos.y, placePos.z);
-
+		//log::system_info("Player", "Placing block at: {}, {}, {}", placePos.x, placePos.y, placePos.z);
 		chunkManager.updateBlock(placePos, static_cast<Block::blocks>(selectedBlock));
 	}
 }

@@ -176,6 +176,9 @@ struct WindowContext {
 		if (MSAA)
 			glEnable(GL_MULTISAMPLE);
 
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
 		aspect_ratio = (float)width / (float)height;
 	}
 	static void MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)

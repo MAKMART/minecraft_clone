@@ -1,3 +1,6 @@
+#include "game/ecs/systems/chunk_renderer_system.hpp"
+#include "game/ecs/systems/frustum_volume_system.hpp"
+#include <GL/gl.h>
 #if defined(TRACY_ENABLE)
 #include "tracy/Tracy.hpp"
 #endif
@@ -21,6 +24,8 @@ void operator delete(void* ptr) noexcept
 #include "game/player.hpp"
 #include "game/ecs/components/input.hpp"
 #include "graphics/shader.hpp"
+#include "graphics/renderer/framebuffer.hpp"
+#include "graphics/renderer/index_buffer.hpp"
 #include "ui/ui.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -49,6 +54,8 @@ void operator delete(void* ptr) noexcept
 #include "game/ecs/systems/camera_controller_system.hpp"
 #include "game/ecs/systems/input_system.hpp"
 #include "game/ecs/systems/physics_system.hpp"
+#include "game/ecs/systems/frustum_volume_system.hpp"
+#include "game/ecs/systems/temporal_camera_system.hpp"
 
 
 
@@ -60,12 +67,13 @@ f32 lastFrame = 0.0f;
 std::unique_ptr<UI>            ui;
 ECS                            ecs;
 Player *g_player = nullptr;
+framebuffer* g_fb = nullptr;
 std::unique_ptr<WindowContext> context;
 #if defined(DEBUG)
 	b8 debugRender = false;
 #endif
 float getFPS();
-void processInput(Player& player, Shader& playerShader, ChunkManager& chunkManager);
+void processInput(Player& player, Shader& playerShader, Shader& fb_shader, ChunkManager& chunkManager);
 void DrawBool(const char* label, bool value);
 //static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
@@ -76,18 +84,8 @@ int main()
 
 	b8 renderUI      = true;
 	b8 renderTerrain = true;
-
-#if defined(DEBUG)
-	std::cout << "----------------------------DEBUG MODE----------------------------\n";
-#elif defined(NDEBUG)
-	log::set_min_log_level(log::LogLevel::WARNING);
-#else
-	std::cout << "----------------------------UNKNOWN BUILD TYPE----------------------------\n";
-#endif
-
 	InputManager::get().setMouseTrackingEnabled(true);
 	InputManager::get().setContext(context.get());
-
 
 
 	// First thing you have to do is fix the damn stencil buffer to allow cropping in RmlUI
@@ -114,12 +112,29 @@ int main()
 
 	log::info("Initializing Shaders...");
 	Shader playerShader("Player", PLAYER_VERTEX_SHADER_DIRECTORY, PLAYER_FRAGMENT_SHADER_DIRECTORY);
+	Shader fb_shader("Framebuffer", SHADERS_DIRECTORY / "fb_vert.glsl", SHADERS_DIRECTORY / "fb_frag.glsl");
 	ChunkManager chunkManager;
-	Player player(ecs, glm::vec3{0.0f, (float)chunkSize.y + 2.0f, 0.0f});
+	Player player(ecs, glm::vec3{0.0f, (float)CHUNK_SIZE.y + 2.0f, 0.0f});
 	g_player = &player;
 	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(context->getWidth(), context->getHeight());
 
+
+	// TODO: Framebuffer implementation
+	framebuffer fb;
+	g_fb = &fb;
+
+	std::array<framebuffer_attachment_desc, 2> gbuffer_desc = {{
+			{ framebuffer_attachment_type::color, GL_RGBA16F }, // albedo
+			//{ framebuffer_attachment_type::color, GL_RGBA16F }, // normal
+			//{ framebuffer_attachment_type::color, GL_RG16F   }, // material
+			{ framebuffer_attachment_type::depth, GL_DEPTH_COMPONENT24 }
+	}};
+
+	int fb_width, fb_height;
+	glfwGetFramebufferSize(context->window, &fb_width, &fb_height);
+	fb.create(fb_width, fb_height, gbuffer_desc);
+	fb.set_debug_name("gbuffer");
 
 	auto framebuffer_size_callback_lambda = [](GLFWwindow* window, int width, int height) {
 		glViewport(0, 0, width, height);
@@ -130,6 +145,7 @@ int main()
 		ImGui::SetNextWindowPos(ImVec2(width - 300, 32), ImGuiCond_Always);
 		ecs.get_component<Camera>(g_player->getCamera())->aspect_ratio = float(static_cast<float>(width) / height);
 		ui->SetViewportSize(width, height);
+		g_fb->resize(width, height);
 	};
 
 	glfwSetFramebufferSizeCallback(context->window, framebuffer_size_callback_lambda);
@@ -143,7 +159,7 @@ int main()
 	};
 	float crosshairSize;
 
-	unsigned int crosshairVAO, crosshairVBO, crosshairEBO;
+	unsigned int crosshairVAO;
 
 
 	std::cout << crossHairTexture.getWidth() << " x " << crossHairTexture.getHeight() << "\n";
@@ -189,15 +205,11 @@ int main()
 	};
 
 	glCreateVertexArrays(1, &crosshairVAO);
-	glCreateBuffers(1, &crosshairVBO);
-	glCreateBuffers(1, &crosshairEBO);
+	VB crosshairVBO(Crosshairvertices.data(), Crosshairvertices.size() * sizeof(float));
+	IB crosshairEBO(CrosshairIndices, sizeof(CrosshairIndices));
 
-	glNamedBufferData(crosshairVBO, Crosshairvertices.size() * sizeof(float), Crosshairvertices.data(), GL_STATIC_DRAW);
-
-	glNamedBufferData(crosshairEBO, sizeof(CrosshairIndices), CrosshairIndices, GL_STATIC_DRAW);
-
-	glVertexArrayVertexBuffer(crosshairVAO, 0, crosshairVBO, 0, 5 * sizeof(float));
-	glVertexArrayElementBuffer(crosshairVAO, crosshairEBO);
+	glVertexArrayVertexBuffer(crosshairVAO, 0, crosshairVBO.id(), 0, 5 * sizeof(float));
+	glVertexArrayElementBuffer(crosshairVAO, crosshairEBO.id());
 
 	glVertexArrayAttribFormat(crosshairVAO, 0, 3, GL_FLOAT, GL_FALSE, 0);
 	glVertexArrayAttribBinding(crosshairVAO, 0, 0);
@@ -208,7 +220,6 @@ int main()
 	glEnableVertexArrayAttrib(crosshairVAO, 1);
 
 
-	// TODO: Framebuffer implementation
 
 
 	IMGUI_CHECKVERSION();
@@ -220,6 +231,7 @@ int main()
 	glLineWidth(LINE_WIDTH);
 
 
+    Texture Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 
 	// Test ray
 	
@@ -227,6 +239,8 @@ int main()
 	glm::vec3 direction{};
 	glm::vec3 color{};
 
+	GLuint dummy_vao;
+	glCreateVertexArrays(1, &dummy_vao);
 
 	while (!glfwWindowShouldClose(context->window)) {
 
@@ -239,10 +253,10 @@ int main()
 		// --- Input & Event Processing ---
 		glfwPollEvents();
 
-		processInput(player, playerShader, chunkManager);
-		update_input(ecs);
+		processInput(player, playerShader, fb_shader, chunkManager);
+		input_system(ecs);
 
-		update_player_state(ecs, player, deltaTime);
+		player_state_system(ecs, player, deltaTime);
 
 		Camera*           cam  = ecs.get_component<Camera>(player.getCamera());
 		CameraController* ctrl = ecs.get_component<CameraController>(player.getCamera());
@@ -250,20 +264,29 @@ int main()
 		// --- Chunk Generation ---
 		chunkManager.generateChunks(player.getPos(), player.render_distance);
 
-		update_physics(ecs, chunkManager, deltaTime);
-		update_camera_controller(ecs, player.getSelf());
+		physics_system(ecs, chunkManager, deltaTime);
+		frustum_volume_system(ecs);
+		camera_controller_system(ecs, player.getSelf());
 
+		glm::mat4 curr_view_proj = ecs.get_component<Camera>(player.getCamera())->projectionMatrix * ecs.get_component<Camera>(player.getCamera())->viewMatrix;
+		glm::mat4 prev_view_proj = ecs.get_component<CameraTemporal>(player.getCamera())->prev_view_proj;
+		glm::mat4 curr_inv_view_proj = glm::inverse(curr_view_proj);
+
+		fb_shader.setMat4("curr_inv_view_proj", curr_inv_view_proj);
+		fb_shader.setMat4("prev_view_proj", prev_view_proj);
 		player.update(deltaTime);
 
 		InputManager::get().update();
 		glClearDepth(0.0f);
 		glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
+		fb.bind_draw();
 		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 		if (renderTerrain) {
 			chunkManager.getShader().checkAndReloadIfModified();
-			chunkManager.renderChunks(*cam, *ecs.get_component<Transform>(player.getCamera()), glfwGetTime());
+			chunk_renderer_system(ecs, chunkManager, chunkManager.getShader(), deltaTime, Atlas);
 		}
+
 #if defined(DEBUG)
 		if (debugRender) {
 			// Add player bounding box (with a nice greenish color)
@@ -277,20 +300,14 @@ int main()
 			getDebugDrawer().addRay(player.getPos(), world_up, {0.0f, 1.0f, 0.0f});
 			getDebugDrawer().addRay(player.getPos(), world_right, {0.0, 0.0f, 1.0f});
 
-			// projection matrix (perspective)
-			glm::mat4 projection = cam->projectionMatrix;
-			// view matrix (world -> camera)
-			glm::mat4 view = cam->viewMatrix;
-			float ndc_x = 0.0f; // center of screen
-			float ndc_y = 0.0f; // center of screen
 			float ndc_z = -1.0f; // near plane
-			glm::vec4 clip = glm::vec4(ndc_x, ndc_y, ndc_z, 1.0f);
+			glm::vec4 clip = glm::vec4(0.0f, 0.0f, ndc_z, 1.0f);
 
-			glm::vec4 view_space = glm::inverse(projection) * clip;
+			glm::vec4 view_space = glm::inverse(cam->projectionMatrix) * clip;
 			view_space.z = -1.0f; // forward direction
 			view_space.w = 0.0f;  // this is a direction, not a position
 
-			glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(view) * view_space));
+			glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(cam->viewMatrix) * view_space));
 			glm::vec3 cam_pos   = cam_trans->pos + glm::vec3(0.1, 0.0, 0.1f);
 			getDebugDrawer().addRay(cam_pos, ray_dir, {1.0f, 0.0f, 0.0f});
 			glm::vec3 cam_dir   = glm::normalize(cam_trans->rot * cam->forward);
@@ -312,6 +329,7 @@ int main()
 			//Test line
 			getDebugDrawer().addRay(position, glm::normalize(direction), color);
 			getDebugDrawer().addRay(player.getPos(), glm::normalize(player.getVelocity()), {1.0f, 1.0f, 0.0f});
+			getDebugDrawer().addRay(player.getPos(), glm::normalize(glm::vec3{0.0f, -GRAVITY, 0.0f}), glm::vec3(0.5f, 0.5f, 1.0f));
 			glm::mat4 pv = cam->projectionMatrix * cam->viewMatrix; // Render from the player's camera's prospective
 			getDebugDrawer().draw(pv);
 		}
@@ -325,6 +343,23 @@ int main()
 			player.render(playerShader);
 		}
 		*/
+		//Render everything to the framebuffer before the UI rendering that will be done on the default framebuffer, I believe!?!?
+		framebuffer::bind_default_draw();
+		glClear(GL_COLOR_BUFFER_BIT);
+		fb_shader.use();
+		glBindTextureUnit(0, fb.color_attachment(0));
+		glBindTextureUnit(1, fb.depth_attachment());
+		fb_shader.setInt("color", 0);
+		fb_shader.setInt("depth", 1);
+		fb_shader.setFloat("time", (float)glfwGetTime());
+		glBindVertexArray(dummy_vao);
+		glDisable(GL_DEPTH_TEST);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+		if (DEPTH_TEST) {
+			glEnable(GL_DEPTH_TEST);
+			glDepthFunc(DEPTH_FUNC);
+		}
+
 
 		// --- UI Pass --- (now rendered BEFORE ImGui)
 		if (renderUI) {
@@ -485,6 +520,7 @@ int main()
 		}
 #endif
 
+		camera_temporal_system(ecs);
 		// other UI things...
 
 		if (DEPTH_TEST) {
@@ -492,6 +528,24 @@ int main()
 			glDepthFunc(DEPTH_FUNC);
 		}
 		glPolygonMode(GL_FRONT_AND_BACK, WIREFRAME_MODE ? GL_LINE : GL_FILL);
+		// 3. Bind default framebuffer
+		/*
+		framebuffer::bind_default_draw();
+		glClear(GL_COLOR_BUFFER_BIT);
+		fb_shader.use();
+		glBindTextureUnit(0, fb.color_attachment(0));
+		glBindTextureUnit(1, fb.depth_attachment());
+		fb_shader.setInt("color", 0);
+		fb_shader.setInt("depth", 1);
+		fb_shader.setFloat("time", (float)glfwGetTime());
+		glBindVertexArray(dummy_vao);
+		glDisable(GL_DEPTH_TEST);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+		if (DEPTH_TEST) {
+			glEnable(GL_DEPTH_TEST);
+			glDepthFunc(DEPTH_FUNC);
+		}
+		*/
 		glfwSwapBuffers(context->window);
 #if defined(TRACY_ENABLE)
 		FrameMark;
@@ -500,8 +554,8 @@ int main()
 
 
 	glDeleteVertexArrays(1, &crosshairVAO);
-	glDeleteBuffers(1, &crosshairVBO);
-	glDeleteBuffers(1, &crosshairEBO);
+	crosshairVBO.~VB();
+	crosshairEBO.~IB();
 
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
@@ -521,7 +575,7 @@ float getFPS()
 	return fps;
 	//}
 }
-void processInput(Player& player, Shader& playerShader, ChunkManager& chunkManager)
+void processInput(Player& player, Shader& playerShader, Shader& fb_shader, ChunkManager& chunkManager)
 {
 	// Poll keys, mouse buttons
 	auto& input = InputManager::get();
@@ -534,6 +588,30 @@ void processInput(Player& player, Shader& playerShader, ChunkManager& chunkManag
 
 	if (!input.isMouseTrackingEnabled())
 		glLineWidth(LINE_WIDTH);
+
+	float far_plane = ecs.get_component<Camera>(player.getCamera())->far_plane;
+	float near_plane = ecs.get_component<Camera>(player.getCamera())->near_plane;
+
+	fb_shader.setFloat("near_plane", near_plane);
+	fb_shader.setFloat("far_plane", far_plane);
+	static float scale = 0.01f;
+	fb_shader.setFloat("scale", scale);
+	if (input.isPressed(GLFW_KEY_UP)) scale+=0.01f;
+	if (input.isPressed(GLFW_KEY_DOWN)) scale-=0.01f;
+
+	static bool toggle = false;
+	static bool was_pressed = false;
+
+	bool pressed = input.isPressed(GLFW_KEY_6);
+
+	if (pressed && !was_pressed) { // only trigger on key-down edge
+		toggle = !toggle;          // flip toggle
+		fb_shader.setInt("toggle", toggle ? 1 : 0);
+	}
+
+	was_pressed = pressed; // remember state for next frame
+
+
 
 	// 1. Player
 	if (input.isMouseTrackingEnabled()) {
@@ -548,6 +626,7 @@ void processInput(Player& player, Shader& playerShader, ChunkManager& chunkManag
 	if (input.isPressed(GLFW_KEY_H)) {
 		chunkManager.getShader().reload();
 		playerShader.reload();
+		fb_shader.reload();
 	}
 	playerShader.checkAndReloadIfModified();
 

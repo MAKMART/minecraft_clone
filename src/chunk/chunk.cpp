@@ -10,14 +10,12 @@
 #endif
 
 Chunk::Chunk(const glm::ivec3& chunkPos)
-    : position(chunkPos), logSizeX(std::log2(chunkSize.x)), logSizeY(std::log2(chunkSize.y))
+    : position(chunkPos), logSizeX(std::log2(CHUNK_SIZE.x)), logSizeY(std::log2(CHUNK_SIZE.y))
 {
-
-	chunkData.resize(chunkSize.x * chunkSize.y * chunkSize.z); // Preallocate memory
 
 	// Construct AABB
 	glm::vec3 worldOrigin = chunkToWorld(position);
-	glm::vec3 worldMax    = worldOrigin + glm::vec3(chunkSize);
+	glm::vec3 worldMax    = worldOrigin + glm::vec3(CHUNK_SIZE);
 	aabb                  = AABB(worldOrigin, worldMax);
 	srand(static_cast<unsigned int>(position.x ^ position.y ^ position.z));
 }
@@ -34,8 +32,9 @@ void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int nois
 	constexpr int dirtDepth  = 3;
 	constexpr int beachDepth = 1; // How wide the beach is vertically
 
-	for (int z = 0; z < chunkSize.z; ++z) {
-		for (int x = 0; x < chunkSize.x; ++x) {
+	for (int z = 0; z < CHUNK_SIZE.z; ++z) {
+		for (int y = 0; y < CHUNK_SIZE.y; ++y) {
+			for (int x = 0; x < CHUNK_SIZE.x; ++x) {
 			int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
 #if defined(DEBUG)
 			if (noiseIndex < 0 || noiseIndex >= static_cast<int>(fullNoise.size())) {
@@ -43,33 +42,34 @@ void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int nois
 				continue;
 			}
 #endif
-			int height = static_cast<int>(fullNoise[noiseIndex] * chunkSize.y);
-			height     = std::clamp(height, 0, chunkSize.y - 1);
+			int height = static_cast<int>(fullNoise[noiseIndex] * CHUNK_SIZE.y);
+			height     = std::clamp(height, 0, CHUNK_SIZE.y - 1);
 
-			for (int y = 0; y < chunkSize.y; ++y) {
 				int index = getBlockIndex(x, y, z);
+#if defined (DEBUG)
 				if (index == -1)
 					continue;
+#endif
 
 				if (y > height) {
-					chunkData[index].type = Block::blocks::AIR;
+					blocks[index].type = Block::blocks::AIR;
 					continue;
 				}
 
 				if (y == height) {
 					if (height <= seaLevel + beachDepth) {
-						chunkData[index].type = Block::blocks::SAND; // Beach top
+						blocks[index].type = Block::blocks::SAND; // Beach top
 					} else {
-						chunkData[index].type = Block::blocks::GRASS;
+						blocks[index].type = Block::blocks::GRASS;
 					}
 				} else if (y >= height - dirtDepth) {
 					if (height <= seaLevel + beachDepth) {
-						chunkData[index].type = Block::blocks::SAND; // Beach body
+						blocks[index].type = Block::blocks::SAND; // Beach body
 					} else {
-						chunkData[index].type = Block::blocks::DIRT;
+						blocks[index].type = Block::blocks::DIRT;
 					}
 				} else {
-					chunkData[index].type = Block::blocks::STONE;
+					blocks[index].type = Block::blocks::STONE;
 				}
 			}
 		}
@@ -82,18 +82,18 @@ void Chunk::genWaterPlane(std::span<const float> fullNoise, int regionWidth, int
 	ZoneScoped;
 #endif
 
-	for (int z = 0; z < chunkSize.z; ++z) {
-		for (int x = 0; x < chunkSize.x; ++x) {
+	for (int z = 0; z < CHUNK_SIZE.z; ++z) {
+		for (int x = 0; x < CHUNK_SIZE.x; ++x) {
 			int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
-			int height     = static_cast<int>(fullNoise[noiseIndex] * chunkSize.y);
-			height         = std::clamp(height, 0, chunkSize.y - 1);
+			int height     = static_cast<int>(fullNoise[noiseIndex] * CHUNK_SIZE.y);
+			height         = std::clamp(height, 0, CHUNK_SIZE.y - 1);
 
-			int upperLimit = std::min(seaLevel, chunkSize.y - 1);
+			int upperLimit = std::min(seaLevel, CHUNK_SIZE.y - 1);
 			for (int y = height + 1; y <= upperLimit; ++y) {
 				int index = getBlockIndex(x, y, z);
 				if (index == -1)
 					continue;
-				Block& block = chunkData[index];
+				Block& block = blocks[index];
 				if (block.type == Block::blocks::AIR)
 					setBlockAt(x, y, z, Block::blocks::WATER);
 			}
@@ -124,14 +124,14 @@ void Chunk::updateMesh()
 	ZoneScoped;
 #endif
 	faces.clear();
-	for (int z = 0; z < chunkSize.z; ++z) {
-		for (int x = 0; x < chunkSize.x; ++x) {
-			for (int y = 0; y < chunkSize.y; ++y) {
+	for (int z = 0; z < CHUNK_SIZE.z; ++z) {
+		for (int y = 0; y < CHUNK_SIZE.y; ++y) {
+			for (int x = 0; x < CHUNK_SIZE.x; ++x) {
 				int index = getBlockIndex(x, y, z);
 				if (index == -1)
 					continue;
 
-				const Block& block = chunkData[index];
+				const Block& block = blocks[index];
 
 				if (block.type == Block::blocks::AIR)
 					continue;
@@ -141,7 +141,7 @@ void Chunk::updateMesh()
 	}
 	uploadData();
 }
-bool Chunk::isFaceVisible(const Block& block, int x, int y, int z)
+bool Chunk::isFaceVisible(int x, int y, int z)
 {
 	return Block::isTransparent(getBlockAt(x, y, z).type);
 }
@@ -159,43 +159,41 @@ void Chunk::generateBlockFace(const Block& block, int x, int y, int z)
 		this->waterFaces.emplace_back(Face(x, y, z, u, v, face, block_type));
 	};
 
-	/*
 	        uint8_t visibilityMask =
-	                (isFaceVisible(block, x, y, z + 1) << 0) | // Front Face
-	                (isFaceVisible(block, x, y, z - 1) << 1) | // Back Face
-	                (isFaceVisible(block, x - 1, y, z) << 2) | // Left Face
-	                (isFaceVisible(block, x + 1, y, z) << 3) | // Right Face
-	                (isFaceVisible(block, x, y + 1, z) << 4) | // Top Face
-	                (isFaceVisible(block, x, y - 1, z) << 5);  // Bottom Face
+	                (isFaceVisible(x, y, z + 1) << 0) | // Front Face
+	                (isFaceVisible(x, y, z - 1) << 1) | // Back Face
+	                (isFaceVisible(x - 1, y, z) << 2) | // Left Face
+	                (isFaceVisible(x + 1, y, z) << 3) | // Right Face
+	                (isFaceVisible(x, y + 1, z) << 4) | // Top Face
+	                (isFaceVisible(x, y - 1, z) << 5);  // Bottom Face
 
-	*/
-	auto pushBlock = [pushFace, pushWaterFace /*, visibilityMask*/](int x, int y, int z, int topX, int topY, int sideX, int sideY, int botX, int botY, int block_type) {
+	auto pushBlock = [pushFace, pushWaterFace , visibilityMask](int x, int y, int z, int topX, int topY, int sideX, int sideY, int botX, int botY, int block_type) {
 		if (block_type == Block::toInt(Block::blocks::WATER)) {
-			// if (visibilityMask & (1 << 0))
+			 if (visibilityMask & (1 << 0))
 			pushWaterFace(x, y, z, sideX, sideY, 0, block_type);
-			// if (visibilityMask & (1 << 1))
+			 if (visibilityMask & (1 << 1))
 			pushWaterFace(x, y, z, sideX, sideY, 1, block_type);
-			// if (visibilityMask & (1 << 2))
+			 if (visibilityMask & (1 << 2))
 			pushWaterFace(x, y, z, sideX, sideY, 2, block_type);
-			// if (visibilityMask & (1 << 3))
+			 if (visibilityMask & (1 << 3))
 			pushWaterFace(x, y, z, sideX, sideY, 3, block_type);
-			// if (visibilityMask & (1 << 4))
+			 if (visibilityMask & (1 << 4))
 			pushWaterFace(x, y, z, topX, topY, 4, block_type);
-			// if (visibilityMask & (1 << 5))
+			 if (visibilityMask & (1 << 5))
 			pushWaterFace(x, y, z, botX, botY, 5, block_type);
 
 		} else {
-			// if (visibilityMask & (1 << 0))
+			 if (visibilityMask & (1 << 0))
 			pushFace(x, y, z, sideX, sideY, 0, block_type);
-			// if (visibilityMask & (1 << 1))
+			 if (visibilityMask & (1 << 1))
 			pushFace(x, y, z, sideX, sideY, 1, block_type);
-			// if (visibilityMask & (1 << 2))
+			 if (visibilityMask & (1 << 2))
 			pushFace(x, y, z, sideX, sideY, 2, block_type);
-			// if (visibilityMask & (1 << 3))
+			 if (visibilityMask & (1 << 3))
 			pushFace(x, y, z, sideX, sideY, 3, block_type);
-			// if (visibilityMask & (1 << 4))
+			 if (visibilityMask & (1 << 4))
 			pushFace(x, y, z, topX, topY, 4, block_type);
-			// if (visibilityMask & (1 << 5))
+			 if (visibilityMask & (1 << 5))
 			pushFace(x, y, z, botX, botY, 5, block_type);
 		}
 	};

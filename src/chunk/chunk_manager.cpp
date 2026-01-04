@@ -3,25 +3,26 @@
 #include <cstdint>
 #include <stdexcept>
 #include "chunk/chunk.hpp"
+#include "core/defines.hpp"
 #include "core/timer.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
 
 ChunkManager::ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed)
-    : Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST),
-      shader("Chunk", CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY),
+    : shader("Chunk", CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY),
       waterShader("Water", WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY)
 {
 
+	log::info("Loading texture atlas from {} with working dir = {}", BLOCK_ATLAS_TEXTURE_DIRECTORY.string(), WORKING_DIRECTORY.string());
 	log::info("Initializing Chunk Manager...");
 
-	if (chunkSize.x <= 0 || chunkSize.y <= 0 || chunkSize.z <= 0) {
-		log::system_error("ChunkManager", "chunkSize < 0");
+	if (CHUNK_SIZE.x <= 0 || CHUNK_SIZE.y <= 0 || CHUNK_SIZE.z <= 0) {
+		log::system_error("ChunkManager", "CHUNK_SIZE < 0");
 		std::exit(1);
 	}
-	if ((chunkSize.x & (chunkSize.x - 1)) != 0 || (chunkSize.y & (chunkSize.y - 1)) != 0 || (chunkSize.z & (chunkSize.z - 1)) != 0) {
-		log::system_error("ChunkManager", "chunkSize must be a power of 2");
+	if ((CHUNK_SIZE.x & (CHUNK_SIZE.x - 1)) != 0 || (CHUNK_SIZE.y & (CHUNK_SIZE.y - 1)) != 0 || (CHUNK_SIZE.z & (CHUNK_SIZE.z - 1)) != 0) {
+		log::system_error("ChunkManager", "CHUNK_SIZE must be a power of 2");
 		std::exit(1);
 	}
 
@@ -94,7 +95,7 @@ void ChunkManager::updateBlock(glm::vec3 worldPos, Block::blocks newType)
 			neighbor->updateMesh();
 		}
 	}
-	if (localPos.x == chunkSize.x - 1) {
+	if (localPos.x == CHUNK_SIZE.x - 1) {
 		if (auto neighbor = chunk->rightChunk.lock()) {
 			neighbor->updateMesh();
 		}
@@ -104,7 +105,7 @@ void ChunkManager::updateBlock(glm::vec3 worldPos, Block::blocks newType)
 			neighbor->updateMesh();
 		}
 	}
-	if (localPos.z == chunkSize.z - 1) {
+	if (localPos.z == CHUNK_SIZE.z - 1) {
 		if (auto neighbor = chunk->frontChunk.lock()) {
 			neighbor->updateMesh();
 		}
@@ -147,7 +148,7 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 
 	const int side = 2 * renderDistance + 1;
 
-	glm::ivec2 region = {side * chunkSize.x, side * chunkSize.z};
+	glm::ivec2 region = {side * CHUNK_SIZE.x, side * CHUNK_SIZE.z};
 
 	// Precomputed noise for the full region
 	static std::vector<float> cachedNoiseRegion;
@@ -155,9 +156,9 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 	static glm::ivec3         lastNoiseOrigin = {-999999, 0, -999999};
 
 	const glm::ivec3 noiseOrigin = {
-	    (playerChunkPos.x - renderDistance) * chunkSize.x,
+	    (playerChunkPos.x - renderDistance) * CHUNK_SIZE.x,
 	    0,
-	    (playerChunkPos.z - renderDistance) * chunkSize.z};
+	    (playerChunkPos.z - renderDistance) * CHUNK_SIZE.z};
 
 	// Pass 1: generate the noise map for all the chunks in the current region that we want to render
 	{
@@ -166,8 +167,8 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 			cachedNoiseRegion.resize(region.x * region.y);
 			for (int y = 0; y < region.y; ++y) {
 				for (int x = 0; x < region.x; ++x) {
-					float wx                            = float((playerChunkPos.x - renderDistance) * chunkSize.x + x);
-					float wz                            = float((playerChunkPos.z - renderDistance) * chunkSize.z + y);
+					float wx                            = float((playerChunkPos.x - renderDistance) * CHUNK_SIZE.x + x);
+					float wz                            = float((playerChunkPos.z - renderDistance) * CHUNK_SIZE.z + y);
 					float rawNoise                      = LayeredPerlin(wx, wz, 7, 0.003f, 1.2f);
 					cachedNoiseRegion[y * region.x + x] = std::pow(std::abs(rawNoise), 1.3f) * glm::sign(rawNoise);
 				}
@@ -276,8 +277,8 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 			glm::vec3  worldPos = Chunk::chunkToWorld(chunkPos);
 
 			Chunk* chunk   = getChunk(worldPos);
-			int    offsetX = (dx + renderDistance) * chunkSize.x;
-			int    offsetZ = (dz + renderDistance) * chunkSize.z;
+			int    offsetX = (dx + renderDistance) * CHUNK_SIZE.x;
+			int    offsetZ = (dz + renderDistance) * CHUNK_SIZE.z;
 
 			Timer neighbor_timer("Neighboring chunks checks");
 			chunk->updateMesh();
@@ -353,60 +354,4 @@ void ChunkManager::generateChunks(glm::vec3 playerPos, unsigned int renderDistan
 		last_player_chunk_pos.x = playerChunk.x;
 		last_player_chunk_pos.z = playerChunk.z;
 	}
-}
-void ChunkManager::renderChunks(const Camera& cam, const Transform& trans, float time)
-{
-#if defined(TRACY_ENABLE)
-	ZoneScoped;
-#endif
-	shader.use();
-	shader.setMat4("projection", cam.projectionMatrix);
-	shader.setMat4("view", cam.viewMatrix);
-	shader.setFloat("time", time);
-
-	Atlas.Bind(0);
-	glBindVertexArray(VAO);
-
-	std::vector<std::shared_ptr<Chunk>> opaqueChunks;
-	std::vector<std::shared_ptr<Chunk>> transparentChunks;
-
-	for (const auto& [key, chunk] : chunks) {
-		if (!chunk)
-			continue;
-
-		//if (!cam_ctrl.isAABBVisible(chunk->getAABB()))
-			//continue;
-		if (chunk->hasOpaqueMesh())
-			opaqueChunks.emplace_back(chunk);
-		if (chunk->hasTransparentMesh())
-			transparentChunks.emplace_back(chunk);
-	}
-
-	for (auto& chunk : opaqueChunks) {
-		chunk->renderOpaqueMesh(shader);
-	}
-
-	glDisable(GL_CULL_FACE);
-	if (BLENDING) {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	}
-
-	std::sort(transparentChunks.begin(), transparentChunks.end(),
-	          [&](const auto& a, const auto& b) {
-		          float distA = glm::distance(trans.pos, a->getCenter());
-		          float distB = glm::distance(trans.pos, b->getCenter());
-		          return distA > distB; // farthest first
-	          });
-
-	for (auto& chunk : transparentChunks) {
-		chunk->renderTransparentMesh(shader);
-	}
-
-	if (FACE_CULLING) {
-		glEnable(GL_CULL_FACE);
-	}
-
-	glBindVertexArray(0);
-	Atlas.Unbind(0);
 }

@@ -74,7 +74,7 @@ extern std::filesystem::path MAIN_DOC_DIRECTORY;
 
 // World Attributes
 extern float     GRAVITY;
-const glm::ivec3 chunkSize{16, 32, 16};
+constexpr static glm::ivec3 CHUNK_SIZE{16, 16, 16};
 
 // Utils for rendering
 extern unsigned int g_drawCallCount;

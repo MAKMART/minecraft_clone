@@ -24,10 +24,10 @@ public:
 
     // ✅ move constructor
     IB(IB&& other) noexcept
-	    : m_id(other.m_id), m_size(other.m_size)
+	    : m_id(other.m_id), m_count(other.m_count)
 	    {
 		    other.m_id   = 0;
-		    other.m_size = 0;
+		    other.m_count = 0;
 	    }
 
     // ✅ move assignment
@@ -35,9 +35,9 @@ public:
 	    if (this != &other) {
 		    release();
 		    m_id        = other.m_id;
-		    m_size      = other.m_size;
+		    m_count      = other.m_count;
 		    other.m_id  = 0;
-		    other.m_size = 0;
+		    other.m_count = 0;
 	    }
 	    return *this;
     }

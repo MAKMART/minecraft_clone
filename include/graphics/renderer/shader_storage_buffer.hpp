@@ -52,12 +52,13 @@ public:
 
     // Update contents (DSA)
     void update_data(const void* data, size_t size, size_t offset = 0) {
+		assert(offset + size <= m_size);
         glNamedBufferSubData(m_id, offset, size, data);
     }
 
 private:
-    GLuint m_id;
-    size_t m_size;
+    GLuint m_id = 0;
+    size_t m_size = 0;
 
 
     void release() {

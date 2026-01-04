@@ -26,7 +26,7 @@ enum class ChunkState {
 };
 
 struct Block {
-	enum class blocks : uint8_t {
+	enum class blocks : std::uint8_t {
 		AIR    = 0,
 		DIRT   = 1,
 		GRASS  = 2,
@@ -138,13 +138,13 @@ struct Face {
 
 class Chunk
 {
-      public:
+	public:
 	explicit Chunk(const glm::ivec3& chunkPos);
 	~Chunk();
 
-	const std::vector<Block>& getChunkData()
+	const Block* getChunkData()
 	{
-		return chunkData;
+		return blocks;
 	}
 
 	const glm::ivec3 getPos() const
@@ -164,7 +164,7 @@ class Chunk
 
 	glm::vec3 getCenter() const
 	{
-		return glm::vec3(position) * glm::vec3(chunkSize) + glm::vec3(chunkSize) * 0.5f;
+		return glm::vec3(position) * glm::vec3(CHUNK_SIZE) + glm::vec3(CHUNK_SIZE) * 0.5f;
 	}
 
 	Block getBlockAt(int x, int y, int z) const
@@ -178,16 +178,16 @@ class Chunk
 
 			if (x < 0) {
 				neighbor = leftChunk.lock().get();
-				nx       = chunkSize.x + x;
-			} else if (x >= chunkSize.x) {
+				nx       = CHUNK_SIZE.x + x;
+			} else if (x >= CHUNK_SIZE.x) {
 				neighbor = rightChunk.lock().get();
-				nx       = x - chunkSize.x;
+				nx       = x - CHUNK_SIZE.x;
 			} else if (z < 0) {
 				neighbor = backChunk.lock().get();
-				nz       = chunkSize.z + z;
-			} else if (z >= chunkSize.z) {
+				nz       = CHUNK_SIZE.z + z;
+			} else if (z >= CHUNK_SIZE.z) {
 				neighbor = frontChunk.lock().get();
-				nz       = z - chunkSize.z;
+				nz       = z - CHUNK_SIZE.z;
 			} else {
 				// Y-axis out-of-bounds: no neighbor system for that
 				return Block(Block::blocks::AIR);
@@ -203,7 +203,7 @@ class Chunk
 			return neighbor->getBlockAt(nx, ny, nz);
 
 		} else
-			return chunkData[index];
+			return blocks[index];
 	}
 
 	bool setBlockAt(int x, int y, int z, Block::blocks type)
@@ -213,7 +213,7 @@ class Chunk
 			log::system_error("Chunk", "tried to set block out-of-bounds for chunk at {}", glm::to_string(position));
 			return false;
 		}
-		chunkData[index].type = type;
+		blocks[index].type = type;
 		return true;
 	}
 
@@ -224,7 +224,7 @@ class Chunk
 	inline int getBlockIndex(int x, int y, int z) const noexcept
 	{
 #if defined(DEBUG)
-		if (x < 0 || x >= chunkSize.x || y < 0 || y >= chunkSize.y || z < 0 || z >= chunkSize.z) {
+		if (x < 0 || x >= CHUNK_SIZE.x || y < 0 || y >= CHUNK_SIZE.y || z < 0 || z >= CHUNK_SIZE.z) {
 			log::system_error("Chunk", "Invalid index for block at {}!", glm::to_string(glm::ivec3(x, y, z)));
 			return -1;
 		}
@@ -233,6 +233,7 @@ class Chunk
 	}
 
 	ChunkState state = ChunkState::Empty;
+	constexpr static int SIZE = CHUNK_SIZE.x * CHUNK_SIZE.y * CHUNK_SIZE.z;
 	AABB       getAABB() const
 	{
 		return aabb;
@@ -245,9 +246,9 @@ class Chunk
 
 	static glm::ivec3 worldToChunk(const glm::vec3& worldPos)
 	{
-		return glm::ivec3(static_cast<int>(std::floor(worldPos.x / chunkSize.x)),
-		                  0, // ✅ Flat world — no vertical chunking
-		                  static_cast<int>(std::floor(worldPos.z / chunkSize.z)));
+		return glm::ivec3(static_cast<int>(std::floor(worldPos.x / CHUNK_SIZE.x)),
+		                  0, // no vertical chunking
+		                  static_cast<int>(std::floor(worldPos.z / CHUNK_SIZE.z)));
 	}
 
 	static glm::ivec3 worldToLocal(const glm::vec3& worldPos)
@@ -262,12 +263,12 @@ class Chunk
 
 	static glm::vec3 chunkToWorld(const glm::ivec3& chunkPos)
 	{
-		return glm::vec3(chunkPos * chunkSize);
+		return glm::vec3(chunkPos * CHUNK_SIZE);
 	}
 
 	bool isAir(int x, int y, int z) const
 	{
-		return chunkData[getBlockIndex(x, y, z)].type == Block::blocks::AIR;
+		return blocks[getBlockIndex(x, y, z)].type == Block::blocks::AIR;
 	}
 
 	glm::mat4 getModelMatrix() const
@@ -310,10 +311,10 @@ class Chunk
 		return leftChunk.lock() || rightChunk.lock() || frontChunk.lock() || backChunk.lock();
 	}
 
-      private:
+	private:
 	void generateBlockFace(const Block& block, int x, int y, int z);
 
-	bool isFaceVisible(const Block& block, int x, int y, int z);
+	bool isFaceVisible(int x, int y, int z);
 
 	// Chunk-space position
 	glm::ivec3                position;
@@ -327,7 +328,7 @@ class Chunk
 	int                       logSizeY;
 	std::vector<Face>         faces;
 	std::vector<Face>         waterFaces;
-	std::vector<Block>        chunkData;
+	alignas(64) Block blocks[SIZE];
 	std::vector<unsigned int> indices;
 	glm::mat4                 modelMat; // TODO: actually use this model matrix in the class
 };

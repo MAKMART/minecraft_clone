@@ -12,7 +12,7 @@
 #endif
 
 // Note: This system must be called after the physics_system
-void update_player_state(ECS& ecs, Player& player, float dt)
+void player_state_system(ECS& ecs, Player& player, float dt)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;

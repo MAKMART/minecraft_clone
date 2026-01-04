@@ -147,14 +147,32 @@ void UI::ReleaseGeometry(Rml::CompiledGeometryHandle handle)
 
 Rml::TextureHandle UI::LoadTexture(Rml::Vector2i& out_dimensions, const Rml::String& source)
 {
+    std::filesystem::path source_path(source); // absolute path
+    std::filesystem::path real_source;
 
-	Texture tex(source, GL_RGBA, GL_REPEAT, GL_LINEAR);
+	// TODO: Fix this
+	// currently you can't load assets from UI/ because the path just gets deleted
+    bool skip_next = false;
+    for (auto& part : source_path)
+    {
+        if (skip_next) { skip_next = false; continue; }
+
+        std::string str = part.string();
+        if (str == "UI")
+        {
+            // skip this folder
+            continue;
+        }
+        real_source /= part;
+    }
+
+	Texture tex(real_source, GL_RGBA, GL_REPEAT, GL_LINEAR);
 	out_dimensions.x = tex.getWidth();
 	out_dimensions.y = tex.getHeight();
 
 	Rml::TextureHandle handle = next_texture_handle++;
 	texture_map.emplace(handle, std::move(tex));
-	log::system_info("UI", "Loaded texture handle {} from {}", handle, source);
+	log::system_info("UI", "Loaded texture handle {} from {}", handle, real_source.string());
 	return handle;
 }
 

@@ -7,7 +7,7 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-void update_input(ECS& ecs)
+void input_system(ECS& ecs)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;

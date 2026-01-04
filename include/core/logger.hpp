@@ -68,7 +68,8 @@ class log
 			return;
 
 		std::scoped_lock lock(log_mutex);
-		auto&            out = *primary_stream;
+		//auto&            out = *primary_stream;
+		std::ostream& out = (level == LogLevel::INFO) ? std::cout : std::cerr;
 
 		const std::string RESET_COLOR = "\x1b[0m";
 		std::string       message     = std::format(fmt, std::forward<Args>(args)...);

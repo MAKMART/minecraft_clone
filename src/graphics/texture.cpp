@@ -16,27 +16,56 @@ Texture::Texture(const std::filesystem::path& path, GLenum format, GLenum wrapMo
 		return true;
 	}();
 
+	int desired_channels = 0;
+	GLenum data_format = GL_NONE;
+	GLenum internal_format = GL_NONE;
+
+	switch (format) {
+		case GL_RED:
+			desired_channels = 1;
+			data_format = GL_RED;
+			internal_format = GL_R8;
+			break;
+
+		case GL_RGB:
+			desired_channels = 3;
+			data_format = GL_RGB;
+			internal_format = GL_RGB8;
+			break;
+
+		case GL_RGBA:
+			desired_channels = 4;
+			data_format = GL_RGBA;
+			internal_format = GL_RGBA8;
+			break;
+
+		default:
+			throw std::runtime_error("Unsupported texture format");
+	}
+
 	glCreateTextures(GL_TEXTURE_2D, 1, &ID);
 
 	// Load image using stb_image
-	int            channels = 0;
-	std::string    strPath  = path.string();
-	unsigned char* data     = stbi_load(strPath.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+	int channels_in_file = 0;
+	unsigned char* data = stbi_load(
+			path.string().c_str(),
+			&width,
+			&height,
+			&channels_in_file,
+			desired_channels
+			);
 	if (!data) {
 		log::system_error("Texture", "Failed to load texture: {}", path.string());
+		std::exit(1);
 	}
-	GLenum internalFormat = GL_RGBA8;
-	GLenum dataFormat     = GL_RGBA;
-
 	// Allocate immutable storage
-	int maxDim = std::max(width, height);
 	int levels = 1;
-	while ((maxDim >>= 1) > 0)
-		++levels;
-	glTextureStorage2D(ID, levels, internalFormat, width, height);
+	int size = std::max(width, height);
+	while (size >>= 1) ++levels;
+	glTextureStorage2D(ID, levels, internal_format, width, height);
 
 	// Upload texture data
-	glTextureSubImage2D(ID, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
+	glTextureSubImage2D(ID, 0, 0, 0, width, height, data_format, GL_UNSIGNED_BYTE, data);
 
 	// Generate mipmaps
 	glGenerateTextureMipmap(ID);
@@ -45,7 +74,7 @@ Texture::Texture(const std::filesystem::path& path, GLenum format, GLenum wrapMo
 	glTextureParameteri(ID, GL_TEXTURE_WRAP_S, wrapMode);
 	glTextureParameteri(ID, GL_TEXTURE_WRAP_T, wrapMode);
 	glTextureParameteri(ID, GL_TEXTURE_MIN_FILTER, filterMode);
-	glTextureParameteri(ID, GL_TEXTURE_MAG_FILTER, filterMode);
+	glTextureParameteri(ID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	stbi_image_free(data);
 }
 // Move constructor
@@ -91,11 +120,14 @@ bool Texture::createEmpty(int width, int height, GLenum internalFormat)
 	}
 	if (width <= 0 || height <= 0) {
 		log::system_error("Texture", "Invalid texture dimensions: {} x {}", std::to_string(width), std::to_string(height));
+		std::exit(1);
 	}
 
 	glCreateTextures(GL_TEXTURE_2D, 1, &ID);
-	if (ID == 0)
+	if (ID == 0) {
 		log::system_error("Texture", "Failed to create OpenGL texture");
+		std::exit(1);
+	}
 	glTextureStorage2D(ID, 1, internalFormat, width, height);
 
 	glTextureParameteri(ID, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
