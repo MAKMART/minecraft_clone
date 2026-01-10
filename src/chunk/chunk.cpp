@@ -1,6 +1,5 @@
 #include "chunk/chunk.hpp"
 #include <cstdlib>
-
 #include "core/timer.hpp"
 #include "graphics/renderer/shader_storage_buffer.hpp"
 #include "graphics/shader.hpp"
@@ -75,31 +74,6 @@ void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int nois
 		}
 	}
 }
-void Chunk::genWaterPlane(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ)
-{
-
-#if defined(TRACY_ENABLE)
-	ZoneScoped;
-#endif
-
-	for (int z = 0; z < CHUNK_SIZE.z; ++z) {
-		for (int x = 0; x < CHUNK_SIZE.x; ++x) {
-			int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
-			int height     = static_cast<int>(fullNoise[noiseIndex] * CHUNK_SIZE.y);
-			height         = std::clamp(height, 0, CHUNK_SIZE.y - 1);
-
-			int upperLimit = std::min(seaLevel, CHUNK_SIZE.y - 1);
-			for (int y = height + 1; y <= upperLimit; ++y) {
-				int index = getBlockIndex(x, y, z);
-				if (index == -1)
-					continue;
-				Block& block = blocks[index];
-				if (block.type == Block::blocks::AIR)
-					setBlockAt(x, y, z, Block::blocks::WATER);
-			}
-		}
-	}
-}
 void Chunk::uploadData()
 {
 	if (faces.empty() && waterFaces.empty()) {
@@ -143,7 +117,10 @@ void Chunk::updateMesh()
 }
 bool Chunk::isFaceVisible(int x, int y, int z)
 {
-	return Block::isTransparent(getBlockAt(x, y, z).type);
+	if (x > CHUNK_SIZE.x || y > CHUNK_SIZE.y || z > CHUNK_SIZE.z) 
+		return true;
+	else
+		return Block::isTransparent(getBlockAt(x, y, z).type);
 }
 void Chunk::generateBlockFace(const Block& block, int x, int y, int z)
 {

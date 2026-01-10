@@ -33,6 +33,11 @@ target_include_directories(game_c PRIVATE
     $<$<CONFIG:Debug>:${PROJECT_SOURCE_DIR}/include/external/glad-debug>
     $<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/include/external/glad-release>
 )
+disable_debug_symbols(glfw)
+disable_debug_symbols(freetype)
+disable_debug_symbols(RmlCore)
+disable_debug_symbols(RmlDebugger)
+
 # ==== Main Executable ====
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 

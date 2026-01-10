@@ -4,10 +4,10 @@
 #include "game/ecs/components/transform.hpp"
 #include "game/ecs/components/velocity.hpp"
 #include "game/ecs/components/collider.hpp"
-#include "game/ecs/components/player_mode.hpp"
 #include "game/ecs/components/player_state.hpp"
+#include "game/ecs/components/movement_config.hpp"
 #include "chunk/chunk_manager.hpp"
-#include <glm/glm.hpp>
+#include <glm/common.hpp>
 #include "core/aabb.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
@@ -15,39 +15,71 @@
 
 bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManager& chunkManager);
 
-void physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
+void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
 
-	ecs.for_each_component<Collider>([&](Entity e, Collider& col) {
-		auto* trans = ecs.get_component<Transform>(e);
-		auto* vel = ecs.get_component<Velocity>(e);
-		if (!trans || !vel)
-			return;
+	ecs.for_each_components<MovementIntent, Velocity, Collider, PlayerState, MovementConfig>(
+			[&](Entity e, MovementIntent& intent, Velocity& vel, Collider& col, PlayerState& ps, MovementConfig& cfg) {
+			auto* trans = ecs.get_component<Transform>(e);
+			if (!trans) return;
 
-		// Special-case: player mode behavior
-		auto* playerMode  = ecs.get_component<PlayerMode>(e);
-		auto* playerState = ecs.get_component<PlayerState>(e);
-		if (playerMode && playerMode->mode == Type::SPECTATOR)
-			return;
 
-		// Apply gravity if applicable
-		if (!playerMode || !playerState || playerState->current != PlayerMovementState::Flying) {
-			vel->value.y -= GRAVITY * dt; // Intgrate gravitational acceleration
-		}
+			// --- Horizontal movement ---
+			float speed = 0.0f;
+			switch (ps.current) {
+			case PlayerMovementState::Walking:   speed = cfg.walk_speed; break;
+			case PlayerMovementState::Running:   speed = cfg.run_speed; break;
+			case PlayerMovementState::Crouching: speed = cfg.crouch_speed; break;
+			case PlayerMovementState::Flying:    speed = cfg.fly_speed; break;
+			default: speed = 0.0f;
+			}
+
+
+			glm::vec3 horizontal_vel = intent.wish_dir * speed;
+			vel.value.x = horizontal_vel.x;
+			vel.value.z = horizontal_vel.z;
+			if (cfg.can_fly) {
+				vel.value.y = intent.wish_dir.y * cfg.fly_speed;
+			}
+
+			// Decoyple this shit
+		    // --- Jumping ---
+		    if (cfg.can_jump && intent.jump && col.is_on_ground && !cfg.can_fly) {
+			    vel.value.y      = std::sqrt(2 * GRAVITY * cfg.jump_height);
+			    ps.current       = PlayerMovementState::Jumping;
+			    col.is_on_ground = false; // immediately mark as airborne
+		    }
+
+		    // --- Transition Jumping → Falling ---
+		    if (ps.current == PlayerMovementState::Jumping && vel.value.y <= 0.0f) {
+			    ps.current = PlayerMovementState::Falling;
+		    }
+
+		    // --- Transition Falling → Idle/Walking/Running when grounded ---
+		    if (ps.current == PlayerMovementState::Falling && col.is_on_ground) {
+			    if (glm::length(intent.wish_dir) > 0.1f && cfg.can_walk) {
+				    ps.current = PlayerMovementState::Walking;
+			    } else {
+				    ps.current = PlayerMovementState::Idle;
+			    }
+		    }
+
+
+		if(!col.is_on_ground || !cfg.can_fly) vel.value.y -= GRAVITY * dt;
 
 		// Skip early-out only for completely stationary entities
-		if (glm::all(glm::epsilonEqual(vel->value, glm::vec3(0.0f), 1e-4f))) {
-			col.is_on_ground = isCollidingAt(trans->pos - glm::vec3(0, 0.001f, 0), col, chunkManager);
+		if (glm::all(glm::epsilonEqual(vel.value, glm::vec3(0.0f), 1e-4f))) {
+			col.is_on_ground = isCollidingAt(trans->pos - glm::vec3(0, 0.05f, 0), col, chunkManager);
 			// Still sync AABB
 			col.aabb = col.getBoundingBoxAt(trans->pos);
 			return;
 		}
 
 		glm::vec3 oldPos = trans->pos;
-		glm::vec3 newPos = trans->pos + vel->value * dt;
+		glm::vec3 newPos = trans->pos + vel.value * dt;
 		col.is_on_ground = false;
 
 		// --- Axis-by-axis collision resolution ---
@@ -59,13 +91,13 @@ void physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
 		} else {
 			trans->pos.y = oldPos.y;
 
-			if (vel->value.y < 0) {
+			if (vel.value.y < 0) {
 				// Falling → hit the ground
-				vel->value.y     = 0;
+				vel.value.y     = 0;
 				col.is_on_ground = true;
-			} else if (vel->value.y > 0) {
+			} else if (vel.value.y > 0) {
 				// Jumping → hit ceiling, just stop upward motion
-				vel->value.y = 0;
+				vel.value.y = 0;
 				// do NOT set is_on_ground
 			}
 		}
@@ -76,7 +108,7 @@ void physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
 			trans->pos.x = testPos.x;
 		} else {
 			trans->pos.x = oldPos.x;
-			vel->value.x = 0;
+			vel.value.x = 0;
 		}
 
 		// Z-axis
@@ -85,12 +117,12 @@ void physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
 			trans->pos.z = testPos.z;
 		} else {
 			trans->pos.z = oldPos.z;
-			vel->value.z = 0;
+			vel.value.z = 0;
 		}
 
 		// Final on-ground check for small epsilon
 		if (!col.is_on_ground) {
-			col.is_on_ground = isCollidingAt(trans->pos - glm::vec3(0, 0.001f, 0), col, chunkManager);
+			col.is_on_ground = isCollidingAt(trans->pos - glm::vec3(0, 0.05f, 0), col, chunkManager);
 		}
 
 		// Sync AABB to final position

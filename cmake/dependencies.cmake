@@ -34,6 +34,7 @@ set(IMGUI_INCLUDE_DIRS
     ${PROJECT_SOURCE_DIR}/include/external/imgui/backends
 )
 add_library(imgui STATIC ${IMGUI_SOURCES})
+disable_debug_symbols(imgui)
 target_link_libraries(imgui
     PUBLIC glfw
 )

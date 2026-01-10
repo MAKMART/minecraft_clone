@@ -17,6 +17,8 @@
 #include "game/ecs/components/transform.hpp"
 #include "game/ecs/components/camera.hpp"
 #include "game/ecs/components/camera_controller.hpp"
+#include "game/ecs/components/movement_intent.hpp"
+#include "game/ecs/components/movement_config.hpp"
 
 class Player
 {
@@ -161,13 +163,6 @@ class Player
 	}
 
 	// --- Player Settings ---
-	float        walking_speed            = 3.6f;
-	float        running_speed_increment  = 4.2f;
-	float        running_speed            = walking_speed + running_speed_increment;
-	float        swimming_speed           = 8.0f;
-	float        flying_speed             = 17.5f;
-	float        JUMP_FORCE               = 4.5f;
-	const float  h                        = 1.252f; // Height of the jump of the player
 	float        max_interaction_distance = 10.0f;
 	unsigned int render_distance          = 1;
 
@@ -181,13 +176,12 @@ class Player
 	bool canPlaceBlocks = true;
 	bool canBreakBlocks = true;
 	bool renderSkin     = false;
-	bool canFly         = true;
-	bool canWalk        = true;
-	bool canRun         = true;
-	bool canJump        = true;
-	bool canCrouch      = true;
 
 	bool hasInfiniteBlocks = false;
+
+	MovementConfig* getMovementConfig() const {
+		return move_config;
+	}
 
       private:
 	ECS&   ecs;
@@ -195,6 +189,7 @@ class Player
 	Entity camera;
 	glm::mat4 modelMat;
 
+	MovementConfig* move_config;
 	Transform*      transform;
 	Velocity*       velocity;
 	Collider*       collider;

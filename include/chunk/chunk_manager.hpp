@@ -87,8 +87,6 @@ class ChunkManager
 			if (isAABBInsideFrustum(chunk.second->getAABB(), fv) && chunk.second->hasTransparentMesh()) {
 				transparentChunks.emplace_back(chunk.second);
 			}
-
-		
 		}
 		std::sort(transparentChunks.begin(), transparentChunks.end(),
 				[&](const auto& a, const auto& b) {
@@ -119,8 +117,6 @@ class ChunkManager
 
 	void clearChunks()
 	{
-		for (auto& [_, chunk] : chunks)
-			chunk->breakNeighborLinks();
 		chunks.clear();
 	}
 

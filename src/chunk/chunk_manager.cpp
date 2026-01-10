@@ -54,26 +54,6 @@ void ChunkManager::unloadChunk(glm::vec3 worldPos)
 	auto it = chunks.find(Chunk::worldToChunk(worldPos));
 	if (it == chunks.end())
 		return;
-
-	// Clear neighbor references in adjacent chunks
-	auto chunk = it->second;
-	if (auto left = chunk->leftChunk.lock()) {
-		left->rightChunk.reset();
-		left->updateMesh();
-	}
-	if (auto right = chunk->rightChunk.lock()) {
-		right->leftChunk.reset();
-		right->updateMesh();
-	}
-	if (auto front = chunk->frontChunk.lock()) {
-		front->backChunk.reset();
-		front->updateMesh();
-	}
-	if (auto back = chunk->backChunk.lock()) {
-		back->frontChunk.reset();
-		back->updateMesh();
-	}
-
 	chunks.erase(it);
 }
 
@@ -88,29 +68,6 @@ void ChunkManager::updateBlock(glm::vec3 worldPos, Block::blocks newType)
 
 	chunk->setBlockAt(localPos.x, localPos.y, localPos.z, newType);
 	chunk->updateMesh();
-
-	// Update neighbors if the block is on a boundary
-	if (localPos.x == 0) {
-		if (auto neighbor = chunk->leftChunk.lock()) {
-			neighbor->updateMesh();
-		}
-	}
-	if (localPos.x == CHUNK_SIZE.x - 1) {
-		if (auto neighbor = chunk->rightChunk.lock()) {
-			neighbor->updateMesh();
-		}
-	}
-	if (localPos.z == 0) {
-		if (auto neighbor = chunk->backChunk.lock()) {
-			neighbor->updateMesh();
-		}
-	}
-	if (localPos.z == CHUNK_SIZE.z - 1) {
-		if (auto neighbor = chunk->frontChunk.lock()) {
-			neighbor->updateMesh();
-		}
-	}
-	// Add y-boundary checks if needed
 }
 
 float ChunkManager::LayeredPerlin(float x, float z, int octaves, float baseFreq, float baseAmp, float lacunarity, float persistence)
@@ -129,11 +86,13 @@ float ChunkManager::LayeredPerlin(float x, float z, int octaves, float baseFreq,
 }
 bool ChunkManager::neighborsAreGenerated(Chunk* chunk)
 {
+	/*
 	return chunk &&
 	       chunk->leftChunk.lock() && chunk->leftChunk.lock()->state >= ChunkState::Generated &&
 	       chunk->rightChunk.lock() && chunk->rightChunk.lock()->state >= ChunkState::Generated &&
 	       chunk->frontChunk.lock() && chunk->frontChunk.lock()->state >= ChunkState::Generated &&
 	       chunk->backChunk.lock() && chunk->backChunk.lock()->state >= ChunkState::Generated;
+		   */
 }
 void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int renderDistance)
 {
@@ -209,88 +168,9 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 			if (chunk->state == ChunkState::Empty) {
 				Timer terrain_timer("Chunk terrain generation");
 				chunk->generate(std::span{noiseRegion}, region.x, offsetX, offsetZ);
+				chunk->updateMesh();
 				chunk->state = ChunkState::Generated;
 			}
-		}
-	}
-
-	// Pass 3: Link neighbors
-	/*
-	   for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
-	   for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
-	   glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
-	   glm::vec3 worldPos = Chunk::chunkToWorld(chunkPos);
-
-	   Chunk* chunk = getChunk(worldPos);
-	   if (!chunk) {
-	   log::system_error("ChunkManager", "chunk at {} not found for neighbor linking", glm::to_string(chunk->getPos()));
-	   continue;
-	   }
-
-	   auto getNeighbor = [&](int ndx, int ndz) -> std::shared_ptr<Chunk> {
-	   if (ndx < -renderDistance || ndx > renderDistance || ndz < -renderDistance || ndz > renderDistance)
-	   return nullptr;
-
-	   glm::ivec3 neighborChunkPos{playerChunkPos.x + ndx, 0, playerChunkPos.z + ndz};
-	   auto it = chunks.find(neighborChunkPos);
-	   if (it != chunks.end())
-	   return it->second;
-	   else
-	   return nullptr;
-	   };
-
-
-	   Timer timer3("Neighbor chunk linking");
-	   chunk->leftChunk  = getNeighbor(dx - 1, dz);
-	   chunk->rightChunk = getNeighbor(dx + 1, dz);
-	   chunk->backChunk  = getNeighbor(dx, dz - 1);
-	   chunk->frontChunk = getNeighbor(dx, dz + 1);
-	   }
-	   }
-	   */
-
-	for (auto& chunk : newChunks) {
-		glm::ivec3 pos = chunk->getPos();
-
-		auto linkNeighbor = [&](int dx, int dz,
-		                        std::weak_ptr<Chunk>& side,
-		                        auto                  setOtherSide) {
-			glm::ivec3 neighborPos = pos + glm::ivec3{dx, 0, dz};
-			auto       it          = chunks.find(neighborPos);
-			if (it != chunks.end()) {
-				side = it->second;               // weak_ptr assignment
-				setOtherSide(it->second, chunk); // pass shared_ptr
-			}
-		};
-
-		linkNeighbor(-1, 0, chunk->leftChunk, [](std::shared_ptr<Chunk> n, std::shared_ptr<Chunk> c) { n->rightChunk = c; });
-		linkNeighbor(1, 0, chunk->rightChunk, [](std::shared_ptr<Chunk> n, std::shared_ptr<Chunk> c) { n->leftChunk = c; });
-		linkNeighbor(0, -1, chunk->backChunk, [](std::shared_ptr<Chunk> n, std::shared_ptr<Chunk> c) { n->frontChunk = c; });
-		linkNeighbor(0, 1, chunk->frontChunk, [](std::shared_ptr<Chunk> n, std::shared_ptr<Chunk> c) { n->backChunk = c; });
-		chunk->state = ChunkState::Linked;
-	}
-
-	// Pass 4: Neighbor-dependent generation (trees, water, etc)
-	for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
-		for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
-			glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
-			glm::vec3  worldPos = Chunk::chunkToWorld(chunkPos);
-
-			Chunk* chunk   = getChunk(worldPos);
-			int    offsetX = (dx + renderDistance) * CHUNK_SIZE.x;
-			int    offsetZ = (dz + renderDistance) * CHUNK_SIZE.z;
-
-			Timer neighbor_timer("Neighboring chunks checks");
-			chunk->updateMesh();
-
-			/*
-			if (neighborsAreGenerated(chunk) && chunk->state == ChunkState::Linked) {
-				chunk->genWaterPlane(std::span{noiseRegion}, region.x, offsetX, offsetZ);
-				chunk->updateMesh();
-
-				chunk->updateNeighborMeshes();
-			}
-			*/
 		}
 	}
 }
@@ -327,13 +207,12 @@ Chunk* ChunkManager::getChunk(glm::vec3 worldPos) const
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-	glm::ivec3 localPos = Chunk::worldToChunk(worldPos);
-	auto       it       = chunks.find(localPos);
+	auto       it       = chunks.find(Chunk::worldToChunk(worldPos));
 	if (it != chunks.end()) {
 		return it->second.get(); // Return raw pointer (Chunk*)
 	} else {
 #if defined(DEBUG)
-		log::system_error("ChunkManager", "Chunk at {} not found!", glm::to_string(localPos));
+		log::system_error("ChunkManager", "Chunk at {} not found!", glm::to_string(worldPos));
 #endif
 		return nullptr;
 	}

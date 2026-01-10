@@ -19,7 +19,7 @@ void camera_controller_system(ECS& ecs, Entity player)
 #endif
 
 	ecs.for_each_components<CameraController, Camera, Transform, ActiveCamera>(
-	    [&](Entity e, CameraController& ctrl, Camera& cam, Transform& camTransform, ActiveCamera& ac) {
+	    [&](Entity e, CameraController& ctrl, Camera& cam, Transform& camTransform, ActiveCamera&) {
 		    if (ctrl.target.id == Entity{UINT32_MAX}.id)
 			    return;
 
@@ -65,24 +65,5 @@ void camera_controller_system(ECS& ecs, Entity player)
 			    camTransform.pos = targetPos;
 		    }
 		    camTransform.rot = glm::normalize(camTransform.rot);
-
-		    cam.forward = camTransform.rot * glm::vec3(0, 0, 1);
-		    cam.right   = camTransform.rot * glm::vec3(1, 0, 0);
-		    cam.up      = camTransform.rot * glm::vec3(0, 1, 0);
-
-		    cam.viewMatrix = glm::mat4_cast(glm::conjugate(camTransform.rot)) * glm::translate(glm::mat4(1.0f), -camTransform.pos);
-
-		    cam.projectionMatrix = glm::perspectiveRH_NO(
-		        glm::radians(cam.fov),
-		        cam.aspect_ratio,
-		        cam.far_plane,
-		        cam.near_plane);
-		    /*
-		    cam.projectionMatrix = glm::perspectiveRH_NO(
-		        glm::radians(cam.fov),
-		        cam.aspect_ratio,
-		        cam.near_plane,
-		        cam.far_plane);
-			*/
 	    });
 }

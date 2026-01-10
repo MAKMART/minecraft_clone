@@ -1,3 +1,6 @@
+#define GLM_ENABLE_EXPERIMENTAL
+#include "game/ecs/systems/debug_camera_system.hpp"
+#include "game/ecs/systems/camera_system.hpp"
 #include "game/ecs/systems/chunk_renderer_system.hpp"
 #include "game/ecs/systems/frustum_volume_system.hpp"
 #include <GL/gl.h>
@@ -50,10 +53,10 @@ void operator delete(void* ptr) noexcept
 #include "game/ecs/components/camera.hpp"
 #include "game/ecs/components/camera_controller.hpp"
 #include "game/ecs/components/active_camera.hpp"
-#include "game/ecs/systems/player_state_system.hpp"
+#include "game/ecs/systems/movement_intent_system.hpp"
 #include "game/ecs/systems/camera_controller_system.hpp"
 #include "game/ecs/systems/input_system.hpp"
-#include "game/ecs/systems/physics_system.hpp"
+#include "game/ecs/systems/movement_physics_system.hpp"
 #include "game/ecs/systems/frustum_volume_system.hpp"
 #include "game/ecs/systems/temporal_camera_system.hpp"
 
@@ -73,9 +76,27 @@ std::unique_ptr<WindowContext> context;
 	b8 debugRender = false;
 #endif
 float getFPS();
-void processInput(Player& player, Shader& playerShader, Shader& fb_shader, ChunkManager& chunkManager);
+void processInput(Player& player, Shader& playerShader, Shader& fb_shader, ChunkManager& chunkManager, Entity cam);
 void DrawBool(const char* label, bool value);
 //static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
+Entity get_active_camera(ECS& ecs)
+{
+    Entity active{UINT32_MAX};
+    int count = 0;
+
+    ecs.for_each_components<Camera, ActiveCamera>(
+        [&](Entity e, Camera&, ActiveCamera&) {
+            active = e;
+            ++count;
+        }
+    );
+
+    assert(count == 1 && "There must be exactly one ActiveCamera");
+
+    return active;
+}
+
 
 int main()
 {
@@ -113,17 +134,26 @@ int main()
 	log::info("Initializing Shaders...");
 	Shader playerShader("Player", PLAYER_VERTEX_SHADER_DIRECTORY, PLAYER_FRAGMENT_SHADER_DIRECTORY);
 	Shader fb_shader("Framebuffer", SHADERS_DIRECTORY / "fb_vert.glsl", SHADERS_DIRECTORY / "fb_frag.glsl");
-	ChunkManager chunkManager;
+	Shader shad("Test", SHADERS_DIRECTORY / "test_vert.glsl", SHADERS_DIRECTORY / "test_frag.glsl");
+	Entity debug_cam;
+	debug_cam = ecs.create_entity();
+	ecs.add_component(debug_cam, Camera{});
+	ecs.add_component(debug_cam, Transform{});
+	// Bro, you know that if you don't mark the debug_cam as "Active" it won't render a thing :)
+	ecs.add_component(debug_cam, ActiveCamera{});
+	ecs.add_component(debug_cam, InputComponent{});
+	ecs.add_component(debug_cam, Velocity{});
+	ecs.add_component(debug_cam, MovementIntent{});
+	ChunkManager manager;
 	Player player(ecs, glm::vec3{0.0f, (float)CHUNK_SIZE.y + 2.0f, 0.0f});
 	g_player = &player;
 	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(context->getWidth(), context->getHeight());
 
 
-	// TODO: Framebuffer implementation
 	framebuffer fb;
 	g_fb = &fb;
-
+	
 	std::array<framebuffer_attachment_desc, 2> gbuffer_desc = {{
 			{ framebuffer_attachment_type::color, GL_RGBA16F }, // albedo
 			//{ framebuffer_attachment_type::color, GL_RGBA16F }, // normal
@@ -142,10 +172,10 @@ int main()
 			// Don't recalculate the projection matrix, skip this frame's rendering, or log a warning
 			return;
 		}
-		ImGui::SetNextWindowPos(ImVec2(width - 300, 32), ImGuiCond_Always);
-		ecs.get_component<Camera>(g_player->getCamera())->aspect_ratio = float(static_cast<float>(width) / height);
-		ui->SetViewportSize(width, height);
+		ImGui::SetNextWindowPos(ImVec2(width/* - 300*/, height), ImGuiCond_Always);
 		g_fb->resize(width, height);
+		ecs.get_component<Camera>(get_active_camera(ecs))->aspect_ratio = float(static_cast<float>(width) / height);
+		ui->SetViewportSize(width, height);
 	};
 
 	glfwSetFramebufferSizeCallback(context->window, framebuffer_size_callback_lambda);
@@ -233,14 +263,24 @@ int main()
 
     Texture Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 
-	// Test ray
-	
-	glm::vec3 position{};
-	glm::vec3 direction{};
-	glm::vec3 color{};
-
 	GLuint dummy_vao;
 	glCreateVertexArrays(1, &dummy_vao);
+
+	GLuint VAO;
+	glCreateVertexArrays(1, &VAO);
+	// Position attribute (location 0)
+	glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, 0);
+	glVertexArrayAttribBinding(VAO, 0, 0);
+	glEnableVertexArrayAttrib(VAO, 0);
+
+	// UV attribute (location 1)
+	glVertexArrayAttribFormat(VAO, 1, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float));
+	glVertexArrayAttribBinding(VAO, 1, 0);
+	glEnableVertexArrayAttrib(VAO, 1);
+
+
+
+
 
 	while (!glfwWindowShouldClose(context->window)) {
 
@@ -253,22 +293,33 @@ int main()
 		// --- Input & Event Processing ---
 		glfwPollEvents();
 
-		processInput(player, playerShader, fb_shader, chunkManager);
+		Entity cammera = get_active_camera(ecs);
+		processInput(player, playerShader, fb_shader, manager, cammera);
+
+		if (InputManager::get().isPressed(GLFW_KEY_RIGHT)) {
+			ecs.remove_component<ActiveCamera>(get_active_camera(ecs));
+			ecs.add_component(player.getCamera(), ActiveCamera{});
+		}
+		if (InputManager::get().isPressed(GLFW_KEY_LEFT)) {
+			ecs.remove_component<ActiveCamera>(get_active_camera(ecs));
+			ecs.add_component(debug_cam, ActiveCamera{});
+		}
+
 		input_system(ecs);
 
-		player_state_system(ecs, player, deltaTime);
 
-		Camera*           cam  = ecs.get_component<Camera>(player.getCamera());
+		Camera*           cam  = ecs.get_component<Camera>(/*player.getCamera()*/cammera);
 		CameraController* ctrl = ecs.get_component<CameraController>(player.getCamera());
+		manager.generateChunks(player.getPos(), player.render_distance);
 
-		// --- Chunk Generation ---
-		chunkManager.generateChunks(player.getPos(), player.render_distance);
-
-		physics_system(ecs, chunkManager, deltaTime);
-		frustum_volume_system(ecs);
+		movement_intent_system(ecs, cammera);
+		movement_physics_system(ecs, manager, deltaTime);
 		camera_controller_system(ecs, player.getSelf());
+		debug_camera_system(ecs, deltaTime);
+		camera_system(ecs);
+		frustum_volume_system(ecs);
 
-		glm::mat4 curr_view_proj = ecs.get_component<Camera>(player.getCamera())->projectionMatrix * ecs.get_component<Camera>(player.getCamera())->viewMatrix;
+		glm::mat4 curr_view_proj = cam->projectionMatrix * cam->viewMatrix;
 		glm::mat4 prev_view_proj = ecs.get_component<CameraTemporal>(player.getCamera())->prev_view_proj;
 		glm::mat4 curr_inv_view_proj = glm::inverse(curr_view_proj);
 
@@ -283,19 +334,20 @@ int main()
 		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 		if (renderTerrain) {
-			chunkManager.getShader().checkAndReloadIfModified();
-			chunk_renderer_system(ecs, chunkManager, chunkManager.getShader(), deltaTime, Atlas);
+			manager.getShader().checkAndReloadIfModified();
+			chunk_renderer_system(ecs, manager, shad, deltaTime, Atlas, VAO, ecs.get_component<Camera>(cammera), *ecs.get_component<FrustumVolume>(player.getCamera()));
 		}
 
 #if defined(DEBUG)
 		if (debugRender) {
 			// Add player bounding box (with a nice greenish color)
 			getDebugDrawer().addAABB(player.getAABB(), glm::vec3(0.3f, 1.0f, 0.5f));
-			Camera* cam = ecs.get_component<Camera>(player.getCamera());
-			Transform* cam_trans = ecs.get_component<Transform>(player.getCamera());
-			glm::vec3 world_forward = glm::normalize(cam_trans->rot * cam->forward);
-			glm::vec3 world_up      = glm::normalize(cam_trans->rot * cam->up);
-			glm::vec3 world_right   = glm::normalize(cam_trans->rot * cam->right);
+			Camera* cam = ecs.get_component<Camera>(/*player.getCamera()*/cammera);
+			Camera* player_cam = ecs.get_component<Camera>(player.getCamera());
+			Transform* player_cam_trans = ecs.get_component<Transform>(player.getCamera());
+			glm::vec3 world_forward = glm::normalize(player_cam_trans->rot * player_cam->forward);
+			glm::vec3 world_up      = glm::normalize(player_cam_trans->rot * player_cam->up);
+			glm::vec3 world_right   = glm::normalize(player_cam_trans->rot * player_cam->right);
 			getDebugDrawer().addRay(player.getPos(), world_forward, {1.0f, 0.0f, 0.0f});
 			getDebugDrawer().addRay(player.getPos(), world_up, {0.0f, 1.0f, 0.0f});
 			getDebugDrawer().addRay(player.getPos(), world_right, {0.0, 0.0f, 1.0f});
@@ -303,19 +355,19 @@ int main()
 			float ndc_z = -1.0f; // near plane
 			glm::vec4 clip = glm::vec4(0.0f, 0.0f, ndc_z, 1.0f);
 
-			glm::vec4 view_space = glm::inverse(cam->projectionMatrix) * clip;
+			glm::vec4 view_space = glm::inverse(player_cam->projectionMatrix) * clip;
 			view_space.z = -1.0f; // forward direction
 			view_space.w = 0.0f;  // this is a direction, not a position
 
-			glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(cam->viewMatrix) * view_space));
-			glm::vec3 cam_pos   = cam_trans->pos + glm::vec3(0.1, 0.0, 0.1f);
+			glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(player_cam->viewMatrix) * view_space));
+			glm::vec3 cam_pos   = player_cam_trans->pos + glm::vec3(0.1, 0.0, 0.1f);
 			getDebugDrawer().addRay(cam_pos, ray_dir, {1.0f, 0.0f, 0.0f});
-			glm::vec3 cam_dir   = glm::normalize(cam_trans->rot * cam->forward);
+			glm::vec3 cam_dir   = glm::normalize(player_cam_trans->rot * cam->forward);
 			getDebugDrawer().addRay(cam_pos, cam_dir, {1.0f, 0.0f, 0.0f});
 
 
 			// Add all chunks' bounding boxes
-			for (const auto& [chunkKey, chunkPtr] : chunkManager.getChunks()) {
+			for (const auto& [chunkKey, chunkPtr] : manager.getChunks()) {
 				if (!chunkPtr)
 					continue; // safety
 
@@ -326,11 +378,11 @@ int main()
 
 				getDebugDrawer().addAABB(chunkBox, chunkColor);
 			}
-			//Test line
-			getDebugDrawer().addRay(position, glm::normalize(direction), color);
 			getDebugDrawer().addRay(player.getPos(), glm::normalize(player.getVelocity()), {1.0f, 1.0f, 0.0f});
 			getDebugDrawer().addRay(player.getPos(), glm::normalize(glm::vec3{0.0f, -GRAVITY, 0.0f}), glm::vec3(0.5f, 0.5f, 1.0f));
-			glm::mat4 pv = cam->projectionMatrix * cam->viewMatrix; // Render from the player's camera's prospective
+			// TODO: These have to be drawn with the matrices of the Entity that's currently looking at them (might be or might not be the player)
+			// so using active_cam is not the best idea because everything will be displaced according to the active_camera's matrices
+			glm::mat4 pv = cam->projectionMatrix * cam->viewMatrix; // Render from the active_camera's prospective
 			getDebugDrawer().draw(pv);
 		}
 #endif
@@ -345,7 +397,7 @@ int main()
 		*/
 		//Render everything to the framebuffer before the UI rendering that will be done on the default framebuffer, I believe!?!?
 		framebuffer::bind_default_draw();
-		glClear(GL_COLOR_BUFFER_BIT);
+		//glClear(GL_COLOR_BUFFER_BIT);
 		fb_shader.use();
 		glBindTextureUnit(0, fb.color_attachment(0));
 		glBindTextureUnit(1, fb.depth_attachment());
@@ -474,15 +526,15 @@ int main()
 			ImGui::PopFont();
 			ImGui::Indent();
 			// DrawBool("is Camera interpolating", player.getCameraController().isInterpolationEnabled());
-			glm::vec3& camPos = ecs.get_component<Transform>(player.getCamera())->pos;
+			glm::vec3& camPos = ecs.get_component<Transform>(/*player.getCamera()*/cammera)->pos;
 			ImGui::Text("Camera position: %f, %f, %f", camPos.x, camPos.y, camPos.z);
 			ImGui::Unindent();
 			if (renderUI && !InputManager::get().isMouseTrackingEnabled()) {
 				if (ImGui::CollapsingHeader("Settings")) {
 					if (ImGui::TreeNode("Player")) {
-						ImGui::SliderFloat("Player walking speed ", &player.walking_speed, 0.0f, 100.0f);
-						ImGui::SliderFloat("Player flying speed", &player.flying_speed, 0.0f, 100.0f);
-						ImGui::SliderFloat("Player running speed increment", &player.running_speed_increment, 0.0f, 100.0f);
+						auto* cfg = player.getMovementConfig();
+						ImGui::SliderFloat("Player walking speed ", &cfg->walk_speed, 0.0f, 100.0f);
+						ImGui::SliderFloat("Player flying speed", &cfg->fly_speed, 0.0f, 100.0f);
 						ImGui::SliderFloat("Max Interaction Distance", &player.max_interaction_distance, 0.0f, 100.0f);
 						ImGui::TreePop();
 					}
@@ -498,17 +550,12 @@ int main()
 						ImGui::SliderInt("Render distance", (int*)&player.render_distance, 0, 30);
 						ImGui::SliderFloat("GRAVITY", &GRAVITY, -30.0f, 20.0f);
 						ImGui::SliderFloat3("BACKGROUND COLOR", &backgroundColor.r, 0.0f, 1.0f);
-						// Test ray
-						ImGui::SliderFloat3("vector COLOR", &color.r, 0.0f, 1.0f);
-						ImGui::SliderFloat3("vector position", &position.x, -10.0f, 10.0f);
-						ImGui::SliderFloat3("vector direction", &direction.x, -10.0f, 10.0f);
-
 						ImGui::SliderFloat("LINE_WIDTH", &LINE_WIDTH, 0.001f, 9.0f);
 						ImGui::Checkbox("renderTerrain", &renderTerrain);
 						ImGui::Checkbox("renderPlayer", &player.renderSkin);
 						static bool debug = false;
 						ImGui::Checkbox("debug", &debug); // Updates the value
-						chunkManager.getShader().setBool("debug", debug);
+						manager.getShader().setBool("debug", debug);
 						ImGui::TreePop();
 					}
 				}
@@ -575,7 +622,7 @@ float getFPS()
 	return fps;
 	//}
 }
-void processInput(Player& player, Shader& playerShader, Shader& fb_shader, ChunkManager& chunkManager)
+void processInput(Player& player, Shader& playerShader, Shader& fb_shader, ChunkManager& chunkManager, Entity cam)
 {
 	// Poll keys, mouse buttons
 	auto& input = InputManager::get();
@@ -589,8 +636,8 @@ void processInput(Player& player, Shader& playerShader, Shader& fb_shader, Chunk
 	if (!input.isMouseTrackingEnabled())
 		glLineWidth(LINE_WIDTH);
 
-	float far_plane = ecs.get_component<Camera>(player.getCamera())->far_plane;
-	float near_plane = ecs.get_component<Camera>(player.getCamera())->near_plane;
+	float far_plane = ecs.get_component<Camera>(/*player.getCamera()*/cam)->far_plane;
+	float near_plane = ecs.get_component<Camera>(/*player.getCamera()*/cam)->near_plane;
 
 	fb_shader.setFloat("near_plane", near_plane);
 	fb_shader.setFloat("far_plane", far_plane);
@@ -610,6 +657,8 @@ void processInput(Player& player, Shader& playerShader, Shader& fb_shader, Chunk
 	}
 
 	was_pressed = pressed; // remember state for next frame
+
+
 
 
 

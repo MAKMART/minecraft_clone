@@ -31,6 +31,24 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos)
 	ecs.add_component(self, InputComponent{});
 	input_comp = ecs.get_component<InputComponent>(self);
 
+	ecs.add_component(self, MovementIntent{});
+	// Maybe add a local class reference here if you need
+
+	ecs.add_component(self, MovementConfig{
+			.can_jump = true,
+			.can_walk = true,
+			.can_run = true,
+			.can_crouch = true,
+			.can_fly = true,
+			.jump_height = 1.252f,
+			.walk_speed = 3.6f,
+			.run_speed = 7.8f,
+			.crouch_speed = 2.5f,
+			.fly_speed = 17.5f
+			});
+	move_config = ecs.get_component<MovementConfig>(self);
+
+
 	ecs.add_component(self, PlayerState{});
 	state = ecs.get_component<PlayerState>(self);
 
@@ -47,7 +65,7 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos)
 	ecs.add_component(camera, Camera{});
 	ecs.add_component(camera, CameraController{self, glm::vec3(0.0f, eyeHeight / 2.0f, 0.0f)});
 	// Bro, you know that if you don't mark the camera as "Active" it won't render a thing :)
-	ecs.add_component(camera, ActiveCamera{});
+	//ecs.add_component(camera, ActiveCamera{});
 	ecs.add_component(camera, FrustumVolume{});
 	ecs.add_component(camera, CameraTemporal{});
 
@@ -176,9 +194,9 @@ void Player::processMouseScroll(float yoffset)
 	CameraController* ctrl                    = ecs.get_component<CameraController>(camera);
 	float             scroll_speed_multiplier = 1.0f;
 	if (state->current == PlayerMovementState::Flying && mode->mode == Type::SPECTATOR) {
-		flying_speed += yoffset;
-		if (flying_speed <= 0)
-			flying_speed = 0;
+		//flying_speed += yoffset;
+		//if (flying_speed <= 0)
+			//flying_speed = 0;
 	} else if (ctrl->third_person) {
 		selectedBlock += (int)(yoffset * scroll_speed_multiplier);
 		if (selectedBlock < 1)

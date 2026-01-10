@@ -30,7 +30,7 @@ class ComponentManager
 	template <typename T>
 	void remove_component(Entity e)
 	{
-		get_storage<T>()->remove(e);
+		get_storage<T>()->remove_entity(e);
 	}
 
 	template <typename T, typename Func>

@@ -2,6 +2,9 @@
 #include <glm/glm.hpp>
 #include <optional>
 #include "chunk/chunk_manager.hpp"
+#if defined(DEBUG)
+#include "graphics/debug_drawer.hpp"
+#endif
 
 class raycast
 {
@@ -9,6 +12,9 @@ class raycast
 	// Return world-space voxel position
 	static std::optional<glm::ivec3> voxel(ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance)
 	{
+#if defined (DEBUG)
+		getDebugDrawer().addRay(rayOrigin, rayDirection, {1.0f, 0.0f, 0.0f});
+#endif
 		// Initialize voxel position (world-space)
 		glm::ivec3 worldResult(
 		    static_cast<int>(std::floor(rayOrigin.x)),
@@ -77,6 +83,9 @@ class raycast
 	static std::optional<std::pair<glm::ivec3, glm::ivec3>> voxel_normals(
 	    ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance)
 	{
+#if defined (DEBUG)
+		getDebugDrawer().addRay(rayOrigin, rayDirection, {0.0f, 1.0f, 0.0f});
+#endif
 		glm::ivec3 worldResult = glm::floor(rayOrigin);
 		glm::ivec3 step        = glm::sign(rayDirection); // Step direction (-1 or +1)
 

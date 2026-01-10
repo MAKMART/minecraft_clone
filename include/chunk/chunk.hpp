@@ -169,41 +169,8 @@ class Chunk
 
 	Block getBlockAt(int x, int y, int z) const
 	{
-		// 🌟 Fast path: in-bounds
 		int index = getBlockIndex(x, y, z);
-		if (index == -1) {
-			// 🧭 Out-of-bounds — determine neighbor and remap local position
-			const Chunk* neighbor = nullptr;
-			int          nx = x, ny = y, nz = z;
-
-			if (x < 0) {
-				neighbor = leftChunk.lock().get();
-				nx       = CHUNK_SIZE.x + x;
-			} else if (x >= CHUNK_SIZE.x) {
-				neighbor = rightChunk.lock().get();
-				nx       = x - CHUNK_SIZE.x;
-			} else if (z < 0) {
-				neighbor = backChunk.lock().get();
-				nz       = CHUNK_SIZE.z + z;
-			} else if (z >= CHUNK_SIZE.z) {
-				neighbor = frontChunk.lock().get();
-				nz       = z - CHUNK_SIZE.z;
-			} else {
-				// Y-axis out-of-bounds: no neighbor system for that
-				return Block(Block::blocks::AIR);
-			}
-
-			// 💨 If neighbor doesn't exist, treat as air
-			if (!neighbor) {
-				log::system_error("Chunk", "The neighbor was null for chunk at {}", glm::to_string(position));
-				return Block(Block::blocks::AIR);
-			}
-
-			// ✅ Recursively query neighbor (no further neighbor chaining)
-			return neighbor->getBlockAt(nx, ny, nz);
-
-		} else
-			return blocks[index];
+		return blocks[index];
 	}
 
 	bool setBlockAt(int x, int y, int z, Block::blocks type)
@@ -242,8 +209,6 @@ class Chunk
 	void renderOpaqueMesh(const Shader& shader);
 	void renderTransparentMesh(const Shader& shader);
 
-	void genWaterPlane(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ);
-
 	static glm::ivec3 worldToChunk(const glm::vec3& worldPos)
 	{
 		return glm::ivec3(static_cast<int>(std::floor(worldPos.x / CHUNK_SIZE.x)),
@@ -274,41 +239,6 @@ class Chunk
 	glm::mat4 getModelMatrix() const
 	{
 		return glm::translate(glm::mat4(1.0f), chunkToWorld(position));
-	}
-
-	// References to neighboring chunks
-	std::weak_ptr<Chunk> leftChunk;  // -x direction
-	std::weak_ptr<Chunk> rightChunk; // +x direction
-	std::weak_ptr<Chunk> frontChunk; // +z direction
-	std::weak_ptr<Chunk> backChunk;  // -z direction
-
-	void breakNeighborLinks()
-	{
-		if (auto left = leftChunk.lock())
-			left->rightChunk.reset();
-		if (auto right = rightChunk.lock())
-			right->leftChunk.reset();
-		if (auto front = frontChunk.lock())
-			front->backChunk.reset();
-		if (auto back = backChunk.lock())
-			back->frontChunk.reset();
-	}
-
-	void updateNeighborMeshes()
-	{
-		if (auto left = leftChunk.lock())
-			left->updateMesh();
-		if (auto right = rightChunk.lock())
-			right->updateMesh();
-		if (auto front = frontChunk.lock())
-			front->updateMesh();
-		if (auto back = backChunk.lock())
-			back->updateMesh();
-	}
-
-	bool hasNeighbors() const
-	{
-		return leftChunk.lock() || rightChunk.lock() || frontChunk.lock() || backChunk.lock();
 	}
 
 	private:
