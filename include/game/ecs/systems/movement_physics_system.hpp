@@ -38,10 +38,9 @@ void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
 			}
 
 
-			glm::vec3 horizontal_vel = intent.wish_dir * speed;
-			vel.value.x = horizontal_vel.x;
-			vel.value.z = horizontal_vel.z;
-			if (cfg.can_fly) {
+			vel.value.x = intent.wish_dir.x * speed;
+			vel.value.z = intent.wish_dir.z * speed;
+			if (ps.current == PlayerMovementState::Flying) {
 				vel.value.y = intent.wish_dir.y * cfg.fly_speed;
 			}
 
@@ -68,7 +67,7 @@ void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
 		    }
 
 
-		if(!col.is_on_ground || !cfg.can_fly) vel.value.y -= GRAVITY * dt;
+		if(!col.is_on_ground && !cfg.can_fly) vel.value.y -= GRAVITY * dt;
 
 		// Skip early-out only for completely stationary entities
 		if (glm::all(glm::epsilonEqual(vel.value, glm::vec3(0.0f), 1e-4f))) {

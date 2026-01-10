@@ -39,7 +39,7 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos)
 			.can_walk = true,
 			.can_run = true,
 			.can_crouch = true,
-			.can_fly = true,
+			.can_fly = false,
 			.jump_height = 1.252f,
 			.walk_speed = 3.6f,
 			.run_speed = 7.8f,
@@ -65,7 +65,7 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos)
 	ecs.add_component(camera, Camera{});
 	ecs.add_component(camera, CameraController{self, glm::vec3(0.0f, eyeHeight / 2.0f, 0.0f)});
 	// Bro, you know that if you don't mark the camera as "Active" it won't render a thing :)
-	//ecs.add_component(camera, ActiveCamera{});
+	ecs.add_component(camera, ActiveCamera{});
 	ecs.add_component(camera, FrustumVolume{});
 	ecs.add_component(camera, CameraTemporal{});
 

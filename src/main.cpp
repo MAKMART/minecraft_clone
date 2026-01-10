@@ -94,7 +94,7 @@ Entity get_active_camera(ECS& ecs)
 
     assert(count == 1 && "There must be exactly one ActiveCamera");
 
-    return active;
+   return active;
 }
 
 
@@ -138,9 +138,9 @@ int main()
 	Entity debug_cam;
 	debug_cam = ecs.create_entity();
 	ecs.add_component(debug_cam, Camera{});
-	ecs.add_component(debug_cam, Transform{});
+	ecs.add_component(debug_cam, Transform{{0.0f, 0.0f, 10.0f}});
 	// Bro, you know that if you don't mark the debug_cam as "Active" it won't render a thing :)
-	ecs.add_component(debug_cam, ActiveCamera{});
+	//ecs.add_component(debug_cam, ActiveCamera{});
 	ecs.add_component(debug_cam, InputComponent{});
 	ecs.add_component(debug_cam, Velocity{});
 	ecs.add_component(debug_cam, MovementIntent{});
@@ -296,15 +296,23 @@ int main()
 		Entity cammera = get_active_camera(ecs);
 		processInput(player, playerShader, fb_shader, manager, cammera);
 
+		/*
+		auto aa_cam = get_active_camera(ecs);
 		if (InputManager::get().isPressed(GLFW_KEY_RIGHT)) {
-			ecs.remove_component<ActiveCamera>(get_active_camera(ecs));
+			ecs.remove_component<ActiveCamera>(aa_cam);
+			ecs.remove_component<InputComponent>(aa_cam);
 			ecs.add_component(player.getCamera(), ActiveCamera{});
+			ecs.add_component(player.getCamera(), InputComponent{});
+			player.getMovementConfig()->can_walk = false;
 		}
 		if (InputManager::get().isPressed(GLFW_KEY_LEFT)) {
-			ecs.remove_component<ActiveCamera>(get_active_camera(ecs));
+			ecs.remove_component<ActiveCamera>(aa_cam);
+			ecs.remove_component<InputComponent>(aa_cam);
 			ecs.add_component(debug_cam, ActiveCamera{});
+			ecs.add_component(debug_cam, InputComponent{});
 		}
 
+		*/
 		input_system(ecs);
 
 
