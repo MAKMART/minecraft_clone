@@ -1,20 +1,9 @@
 #pragma once
 #include <glad/glad.h>
+#include "game/ecs/components/render_target.hpp"
 #include <assert.h>
 #include <vector>
 #include <span>
-
-
-enum class framebuffer_attachment_type {
-    color,
-    depth,
-    depth_stencil
-};
-
-struct framebuffer_attachment_desc {
-    framebuffer_attachment_type type;
-    GLenum internal_format;
-};
 
 struct framebuffer_attachment {
     GLuint id = 0;
@@ -46,9 +35,33 @@ public:
         release();
     }
 
+	bool valid() const {
+		return m_id != 0;
+	}
+
+	bool needs_resize(const RenderTarget& rt) const {
+		return m_width != rt.width || m_height != rt.height;
+	}
+
+	bool needs_rebuild(const RenderTarget& rt) const {
+		if (m_width != rt.width || m_height != rt.height)
+			return true;
+		if (m_desc_attachments.size() != rt.attachments.size())
+			return true;
+		for (size_t i = 0; i < rt.attachments.size(); ++i) {
+			if (m_desc_attachments[i].type != rt.attachments[i].type ||
+					m_desc_attachments[i].internal_format != rt.attachments[i].internal_format)
+				return true;
+		}
+		return false;
+	}
+
+
+
     void create(int width, int height, std::span<const framebuffer_attachment_desc> attachments)
     {
         assert(width > 0 && height > 0);
+		release();
         m_width  = width;
         m_height = height;
 		m_desc_attachments.assign(attachments.begin(), attachments.end());

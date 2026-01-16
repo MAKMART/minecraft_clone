@@ -23,7 +23,7 @@
 class Player
 {
       public:
-	Player(ECS& ecs, glm::vec3 spawnPos);
+	Player(ECS& ecs, glm::vec3 spawnPos, int width, int height);
 	~Player();
 
 	enum ACTION { BREAK_BLOCK,

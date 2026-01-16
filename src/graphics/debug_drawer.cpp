@@ -97,6 +97,7 @@ void DebugDrawer::draw(const glm::mat4& viewProj)
 	}
 
 	glDisable(GL_DEPTH_TEST);
+	glBindVertexArray(vao_lines);
 	for (auto& ray_tuple : rays) {
 		auto& [origin, direction, color] = ray_tuple;
 		shader->setVec3("debugColor", color);
@@ -119,9 +120,9 @@ void DebugDrawer::draw(const glm::mat4& viewProj)
 		glm::mat4 model = translation * rotation * scale;
 
 		shader->setMat4("model", model);
-		glBindVertexArray(vao_lines);
 		glDrawArrays(GL_LINES, 0, 2);
 	}
+	glBindVertexArray(0);
 
 	glEnable(GL_DEPTH_TEST);
 
@@ -151,6 +152,7 @@ void DebugDrawer::initGLResources()
 	glVertexArrayAttribFormat(vao_lines, 0, 3, GL_FLOAT, GL_FALSE, 0);
 	glEnableVertexArrayAttrib(vao_lines, 0);
 	checkGLError("AABBDebugDrawer::initGLResources");
+	glBindVertexArray(0);
 }
 
 void DebugDrawer::checkGLError(const std::string& operation)

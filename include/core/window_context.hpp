@@ -64,15 +64,27 @@ struct WindowContext {
 #if defined(DEBUG)
 		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #endif
+		const int platform = glfwGetPlatform();
+		// Platform-specific
+		if (platform == GLFW_PLATFORM_X11) {
+			// XWayland-safe
+			glfwWindowHint(GLFW_SAMPLES, 0);
+			glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
+		} else {
+			// Wayland / EGL
+			glfwWindowHint(GLFW_SAMPLES, MSAA_STRENGHT);
+		}
 
-		glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE); // !!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!
+		//glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE); // !!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!
 		glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
-		glfwWindowHint(GLFW_SAMPLES, MSAA_STRENGHT);
+		//glfwWindowHint(GLFW_SAMPLES, MSAA_STRENGHT);
 
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 		glfwWindowHint(GLFW_DEPTH_BITS, DEPTH_BITS);
 		glfwWindowHint(GLFW_STENCIL_BITS, STENCIL_BITS);
-		glfwWindowHint(GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET);
+		if (platform != GLFW_PLATFORM_X11) {
+			glfwWindowHint(GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET);
+		}
 		glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 
 		// Get primary monitor and its video mode

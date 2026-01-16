@@ -7,11 +7,12 @@
 #include "core/raycast.hpp"
 #include "game/ecs/components/active_camera.hpp"
 #include "game/ecs/components/temporal_camera.hpp"
+#include "game/ecs/components/render_target.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
 
-Player::Player(ECS& ecs, glm::vec3 spawnPos)
+Player::Player(ECS& ecs, glm::vec3 spawnPos, int width, int height)
     : ecs(ecs), playerHeight(1.8f), input(InputManager::get())
 {
 	log::info("Initializing Player...");
@@ -68,6 +69,12 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos)
 	ecs.add_component(camera, ActiveCamera{});
 	ecs.add_component(camera, FrustumVolume{});
 	ecs.add_component(camera, CameraTemporal{});
+	ecs.add_component(camera, RenderTarget{width, height, {
+			{ framebuffer_attachment_type::color, GL_RGBA16F }, // albedo
+			//{ framebuffer_attachment_type::color, GL_RGBA16F }, // normal
+			//{ framebuffer_attachment_type::color, GL_RG16F   }, // material
+			{ framebuffer_attachment_type::depth, GL_DEPTH_COMPONENT24 }
+			}});
 
 
 }

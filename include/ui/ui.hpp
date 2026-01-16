@@ -100,13 +100,13 @@ class UI : public Rml::RenderInterface
 
 	bool clip_mask_enabled = false;
 
+	Rml::ElementDocument*                                     doc        = nullptr;
       private:
 	struct Geometry {
 		GLuint  vao, vbo, ebo;
 		GLsizei index_count;
 	};
 
-	Rml::ElementDocument*                                     doc        = nullptr;
 	Shader*                                                   shader     = nullptr;
 	glm::mat4                                                 projection = glm::mat4(1.0f);
 	glm::mat4                                                 model      = glm::mat4(1.0f);

@@ -45,6 +45,7 @@ void camera_controller_system(ECS& ecs, Entity player)
 			    ctrl.yaw   = glm::mix(ctrl.yaw, targetYaw, smoothing);
 			    ctrl.pitch = glm::mix(ctrl.pitch, targetPitch, smoothing);
 			    ctrl.pitch = glm::clamp(ctrl.pitch, -89.0f, 89.0f);
+				camTransform.rot   = glm::normalize(targetYaw * camTransform.rot * targetPitch);
 		    }
 
 		    if (ctrl.third_person) {

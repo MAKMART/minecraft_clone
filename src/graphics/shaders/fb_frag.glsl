@@ -75,6 +75,7 @@ void main()
 	vec2 vis = clamp(velocity * scale, -1.0, 1.0) * 0.5 + 0.5;
 	float mag = clamp(length(velocity) * scale, 0.0, 1.0);
 	if(toggle == 0) {
+		//frag_color = vec4(1.0, 0.0, 0.0, 1.0);
 		frag_color = texture(color, v_uv);
 		//frag_color = mix(frag_color, vec4(vis, 0.0, 1.0), 0.8);
 		//frag_color = mix(frag_color, vec4(vec3(mag), 1.0), 0.5);
