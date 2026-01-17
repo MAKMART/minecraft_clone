@@ -42,8 +42,10 @@ void camera_controller_system(ECS& ecs, Entity player)
 			    float targetYaw   = ctrl.yaw - input->mouse_delta.x * ctrl.sensitivity;
 			    float targetPitch = ctrl.pitch - input->mouse_delta.y * ctrl.sensitivity;
 
-			    ctrl.yaw   = glm::mix(ctrl.yaw, targetYaw, smoothing);
-			    ctrl.pitch = glm::mix(ctrl.pitch, targetPitch, smoothing);
+			    //ctrl.yaw   = glm::mix(ctrl.yaw, targetYaw, smoothing);
+			    //ctrl.pitch = glm::mix(ctrl.pitch, targetPitch, smoothing);
+				ctrl.yaw = targetYaw;
+				ctrl.pitch = targetPitch;
 			    ctrl.pitch = glm::clamp(ctrl.pitch, -89.0f, 89.0f);
 				camTransform.rot   = glm::normalize(targetYaw * camTransform.rot * targetPitch);
 		    }

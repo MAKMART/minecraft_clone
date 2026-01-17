@@ -70,6 +70,7 @@ std::unique_ptr<UI>            ui;
 ECS                            ecs;
 Player *g_player = nullptr;
 FramebufferManager* g_fb_manager = nullptr;
+static float crosshair_size = 0.3f;
 std::unique_ptr<WindowContext> context;
 #if defined(DEBUG)
 	b8 debugRender = false;
@@ -217,15 +218,14 @@ int main()
 	// TODO: Fix crosshair rendering with the new framebuffer system
 	// --- CROSSHAIR STUFF ---
 	Shader crossHairshader("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
-	Texture crossHairTexture(ICONS_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
-	std::vector<float>            Crosshairvertices;
+	Texture crossHairTexture(ICONS_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST);
 	static constexpr unsigned int CrosshairIndices[6] = {
 	    0, 1, 2,
 	    2, 3, 0
 	};
 	float crosshairSize;
 	unsigned int crosshairVAO;
-	std::cout << crossHairTexture.getWidth() << " x " << crossHairTexture.getHeight() << "\n";
+	//std::cout << crossHairTexture.getWidth() << " x " << crossHairTexture.getHeight() << "\n";
 	const float textureWidth  = 512.0f;
 	const float textureHeight = 512.0f;
 	const float cellWidth     = 15.0f;
@@ -237,34 +237,17 @@ int main()
 	float vMin = 1.0f - ((row + 1) * cellHeight) / textureHeight;
 	float uMax = ((col + 1) * cellWidth) / textureWidth;
 	float vMax = 1.0f - (row * cellHeight) / textureHeight;
-	crosshairSize = 15.0f; // in pixels
-	float centerX = context->getWidth() / 2.0f;
-	float centerY = context->getHeight() / 2.0f;
-	Crosshairvertices = {
-	    centerX - crosshairSize,
-	    centerY - crosshairSize,
-	    1.0f,
-	    uMin,
-	    vMin, // Bottom-left
-	    centerX + crosshairSize,
-	    centerY - crosshairSize,
-	    1.0f,
-	    uMax,
-	    vMin, // Bottom-right
-	    centerX + crosshairSize,
-	    centerY + crosshairSize,
-	    1.0f,
-	    uMax,
-	    vMax, // Top-right
-	    centerX - crosshairSize,
-	    centerY + crosshairSize,
-	    1.0f,
-	    uMin,
-	    vMax // Top-left
+	crosshairSize = std::floor(cellWidth * 3.5f);
+	float verts[] = {
+		-crosshairSize, -crosshairSize, 0.0f, uMin, vMin,
+		crosshairSize, -crosshairSize, 0.0f, uMax, vMin,
+		crosshairSize,  crosshairSize, 0.0f, uMax, vMax,
+		-crosshairSize,  crosshairSize, 0.0f, uMin, vMax
 	};
 
+
 	glCreateVertexArrays(1, &crosshairVAO);
-	VB crosshairVBO(Crosshairvertices.data(), Crosshairvertices.size() * sizeof(float));
+	VB crosshairVBO(verts, sizeof(verts));
 	IB crosshairEBO(CrosshairIndices, sizeof(CrosshairIndices));
 
 	glVertexArrayVertexBuffer(crosshairVAO, 0, crosshairVBO.id(), 0, 5 * sizeof(float));
@@ -339,11 +322,6 @@ int main()
 		}
 		Entity camera = get_active_camera(ecs);
 
-		if (camera == debug_cam)
-			ui->doc->Hide();
-		else
-			ui->doc->Show();
-
 		Camera* cam = ecs.get_component<Camera>(camera);
 		if (!cam)
 			log::error("Couldn't find active cam for frame {}", nbFrames);
@@ -401,6 +379,13 @@ int main()
 			playerShader.reload();
 			crossHairshader.reload();
 		}
+
+		if (input.isHeld(GLFW_KEY_P))
+			crosshair_size += 0.1f;
+		if (input.isHeld(GLFW_KEY_M))
+			crosshair_size -= 0.1f;
+		
+		
 
 		// 2. UI
 		if (ui->context) {
@@ -488,8 +473,10 @@ int main()
 			getDebugDrawer().addRay(player.getPos(), world_forward, {1.0f, 0.0f, 0.0f});
 			getDebugDrawer().addRay(player.getPos(), world_up, {0.0f, 1.0f, 0.0f});
 			getDebugDrawer().addRay(player.getPos(), world_right, {0.0, 0.0f, 1.0f});
+
 			ecs.for_each_components<Camera, Transform>([](Entity e, Camera, Transform& trans){
-					getDebugDrawer().addAABB(AABB::fromCenterSize(trans.pos, {0.5f, 0.8f, 0.5f}), glm::vec3(1.0f, 0.0f, 1.0f));
+					if (!ecs.has_component<ActiveCamera>(e))
+						getDebugDrawer().addAABB(AABB::fromCenterSize(trans.pos, {0.5f, 0.8f, 0.5f}), glm::vec3(1.0f, 0.0f, 1.0f));
 					});
 
 			float ndc_z = -1.0f; // near plane
@@ -579,12 +566,14 @@ int main()
 
 
 		// --- UI Pass --- (now rendered BEFORE ImGui)
-		if (renderUI) {
+		if (renderUI && camera == player.getCamera()) {
 			glDisable(GL_DEPTH_TEST);
 			// -- Crosshair Pass ---
-			glm::mat4 orthoProj = glm::ortho(0.0f, static_cast<float>(cur_fb.height()), 0.0f, static_cast<float>(cur_fb.width()));
+				glm::mat4 orthoProj = glm::ortho(0.0f, static_cast<float>(cur_fb.width()), 0.0f, static_cast<float>(cur_fb.height()));
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 			crossHairshader.setMat4("uProjection", orthoProj);
+			crossHairshader.setVec2("uCenter", glm::vec2(cur_fb.width() * 0.5f, cur_fb.height() * 0.5f));
+			crossHairshader.setFloat("uSize", crosshair_size);
 
 			crossHairTexture.Bind(2); // INFO: MAKE SURE TO BIND IT TO THE CORRECT TEXTURE BINDING!!!
 			crossHairshader.use();
