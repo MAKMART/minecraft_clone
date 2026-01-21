@@ -40,6 +40,7 @@ public:
 	    }
 	    return *this;
     }
+
     ~SSBO() { release(); }
 
     GLuint id() const { return m_id; }

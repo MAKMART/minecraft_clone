@@ -20,22 +20,17 @@ class Shader
 	std::string                                    s_name;
 	std::filesystem::path                          vertexShaderPath;
 	std::filesystem::path                          fragmentShaderPath;
+	std::filesystem::path                          computeShaderPath;
 	mutable std::unordered_map<std::string, GLint> uniformCache;
 	mutable std::mutex                             uniformCacheMutex;
 
 	std::filesystem::file_time_type lastVertexWriteTime;
 	std::filesystem::file_time_type lastFragmentWriteTime;
+	std::filesystem::file_time_type lastComputeWriteTime;
 
-      public:
-	unsigned int getProgramID() const
-	{
-		return ID;
-	}
-
-	std::string getName() const
-	{
-		return s_name;
-	}
+	  public:
+	unsigned int getProgramID() const { return ID; }
+	std::string getName() const { return s_name; }
 
 	Shader(const std::string& _name, const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath)
 	    : s_name(_name), vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath)
@@ -46,14 +41,13 @@ class Shader
 		lastFragmentWriteTime = std::filesystem::last_write_time(fragmentShaderPath);
 	}
 
-	Shader(std::string _name, std::string vertexPath, std::string fragmentPath)
-	    : s_name(_name), vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath)
-	{
-		ID = loadAndCompile(vertexShaderPath, fragmentShaderPath);
-		reflectUniforms();
-		lastVertexWriteTime   = std::filesystem::last_write_time(vertexShaderPath);
-		lastFragmentWriteTime = std::filesystem::last_write_time(fragmentShaderPath);
-	}
+	Shader(const std::string& _name, const std::filesystem::path& computePath)
+        : s_name(_name), computeShaderPath(computePath)
+    {
+        ID = loadAndCompile(computePath, ShaderType::Compute);
+        reflectUniforms();
+        lastComputeWriteTime = std::filesystem::last_write_time(computeShaderPath);
+    }
 
 	Shader(const Shader&)            = delete;
 	Shader& operator=(const Shader&) = delete;
@@ -212,6 +206,27 @@ class Shader
 		glProgramUniform3fv(ID, location, 1, glm::value_ptr(value));
 	}
 
+	void setUVec3(const std::string& name, const glm::uvec3& value) const
+	{
+		if (ID == 0) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Attempting to set uniform '{}' on invalid shader program!", s_name, name);
+#endif
+			return;
+		}
+
+		GLint location = getUniformLocation(name);
+		if (location == -1) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", s_name, name);
+#endif
+			return;
+		}
+
+		glProgramUniform3uiv(ID, location, 1, glm::value_ptr(value));
+	}
+
+
 	void setVec4(const std::string& name, const glm::vec4& value) const
 	{
 		if (ID == 0) {
@@ -252,6 +267,7 @@ class Shader
 	}
 
       private:
+	enum class ShaderType { VertexFragment, Compute };
 	void reflectUniforms()
 	{
 
@@ -295,53 +311,44 @@ class Shader
 		return location;
 	}
 
+	void readShaderFile(const std::filesystem::path& path, std::string& outCode)
+    {
+        std::ifstream shaderFile(path);
+        if (!shaderFile.is_open())
+            throw std::runtime_error("Failed to open shader file: " + path.string());
+
+        std::stringstream ss;
+        ss << shaderFile.rdbuf();
+        outCode = ss.str();
+        if (outCode.empty())
+            throw std::runtime_error("Shader file is empty: " + path.string());
+    }
+
+	unsigned int compileSingleShader(const std::string& code, GLenum shaderType)
+    {
+        const char* cCode = code.c_str();
+        unsigned int shader = glCreateShader(shaderType);
+        glShaderSource(shader, 1, &cCode, nullptr);
+        glCompileShader(shader);
+        checkCompileErrors(shader, shaderType == GL_COMPUTE_SHADER ? "COMPUTE" : (shaderType == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT"));
+        return shader;
+    }
+
 	unsigned int loadAndCompile(const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath)
 	{
-		std::string vertexCode;
-		std::string fragmentCode;
+		std::string vertexCode, fragmentCode;
 
-		std::ifstream vShaderFile;
-		std::ifstream fShaderFile;
-		vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-		fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+		readShaderFile(vertexPath, vertexCode);
+        readShaderFile(fragmentPath, fragmentCode);
 
-		try {
-			vShaderFile.open(vertexPath);
-			fShaderFile.open(fragmentPath);
-			std::stringstream vShaderStream, fShaderStream;
-			vShaderStream << vShaderFile.rdbuf();
-			fShaderStream << fShaderFile.rdbuf();
-			vShaderFile.close();
-			fShaderFile.close();
-			vertexCode   = vShaderStream.str();
-			fragmentCode = fShaderStream.str();
-
-			if (vertexCode.empty() || fragmentCode.empty()) {
-				log::system_error("Shader", "[{}] Shader source code is empty.", s_name);
-			}
-		} catch (std::ifstream::failure& e) {
-			log::system_error("Shader", "[{}] Failed to read shader files: {}", s_name, std::string(e.what()));
-		}
-
-		const GLchar* vShaderCode = vertexCode.c_str();
-		const GLchar* fShaderCode = fragmentCode.c_str();
-
-		unsigned int vertex = glCreateShader(GL_VERTEX_SHADER);
-		glShaderSource(vertex, 1, &vShaderCode, nullptr);
-		glCompileShader(vertex);
-		checkCompileErrors(vertex, "VERTEX");
-
-		unsigned int fragment = glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(fragment, 1, &fShaderCode, nullptr);
-		glCompileShader(fragment);
-		checkCompileErrors(fragment, "FRAGMENT");
+		unsigned int vertex = compileSingleShader(vertexCode, GL_VERTEX_SHADER);
+		unsigned int fragment = compileSingleShader(fragmentCode, GL_FRAGMENT_SHADER);
 
 		unsigned int program = glCreateProgram();
 		glAttachShader(program, vertex);
 		glAttachShader(program, fragment);
 		glLinkProgram(program);
 		checkCompileErrors(program, "PROGRAM");
-
 		glValidateProgram(program);
 		GLint programSuccess;
 		glGetProgramiv(program, GL_VALIDATE_STATUS, &programSuccess);
@@ -353,6 +360,24 @@ class Shader
 
 		glDeleteShader(vertex);
 		glDeleteShader(fragment);
+		return program;
+	}
+
+	unsigned int loadAndCompile(const std::filesystem::path& computePath, ShaderType type)
+	{
+		if (type != ShaderType::Compute)
+			log::system_error("Shader", "[{}]Invalid shader type for this overload", s_name);
+
+		std::string computeCode;
+		readShaderFile(computePath, computeCode);
+
+		unsigned int computeShader = compileSingleShader(computeCode, GL_COMPUTE_SHADER);
+		unsigned int program = glCreateProgram();
+		glAttachShader(program, computeShader);
+		glLinkProgram(program);
+		checkCompileErrors(program, "PROGRAM");
+		glDeleteShader(computeShader);
+
 		return program;
 	}
 

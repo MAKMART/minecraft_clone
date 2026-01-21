@@ -19,6 +19,7 @@
 #include "game/ecs/components/transform.hpp"
 #include "game/ecs/components/frustum_volume.hpp"
 #include <functional>
+#include <future>
 
 struct ivec3_hash {
 	std::size_t operator()(const glm::ivec3& v) const noexcept
@@ -73,7 +74,7 @@ class ChunkManager
 	{
 		std::vector<std::shared_ptr<Chunk>> opaqueChunks;
 		for (const auto& chunk : chunks) {
-		if (isAABBInsideFrustum(chunk.second->getAABB(), fv) && chunk.second->hasOpaqueMesh()) {
+		if (isAABBInsideFrustum(chunk.second->getAABB(), fv)) {
 			opaqueChunks.emplace_back(chunk.second);
 		}
 		}
@@ -84,7 +85,7 @@ class ChunkManager
 	{
 		std::vector<std::shared_ptr<Chunk>> transparentChunks;
 		for (const auto& chunk : chunks) {
-			if (isAABBInsideFrustum(chunk.second->getAABB(), fv) && chunk.second->hasTransparentMesh()) {
+			if (isAABBInsideFrustum(chunk.second->getAABB(), fv)) {
 				transparentChunks.emplace_back(chunk.second);
 			}
 		}
@@ -97,11 +98,11 @@ class ChunkManager
 		return transparentChunks;
 	}
 
-	void updateBlock(glm::vec3 worldPos, Block::blocks newType);
+	bool updateBlock(glm::vec3 world_pos, Block::blocks newType);
 
-	void updateChunk(glm::vec3 worldPos)
+	void updateChunk(glm::vec3 world_pos)
 	{
-		if (auto chunk = getChunk(worldPos))
+		if (auto chunk = getChunk(world_pos))
 			chunk->updateMesh();
 		else
 			return;
@@ -113,7 +114,7 @@ class ChunkManager
 
 	bool getorCreateChunk(glm::vec3 worldPos);
 
-	void unloadChunk(glm::vec3 worldPos);
+	void unloadChunk(glm::vec3 world_pos);
 
 	void clearChunks()
 	{
@@ -149,6 +150,7 @@ class ChunkManager
 	Shader           shader;
 	Shader           waterShader;
 
+	// TODO: Use an octree to store the chunks
 	std::unordered_map<glm::ivec3, std::shared_ptr<Chunk>, ivec3_hash> chunks;
 
 	bool neighborsAreGenerated(Chunk* chunk);

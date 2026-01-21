@@ -7,21 +7,6 @@
 #if defined(TRACY_ENABLE)
 #include "tracy/Tracy.hpp"
 #endif
-#if defined(TRACY_ENABLE)
-#include <new>
-void* operator new(std::size_t size)
-{
-	void* ptr = malloc(size);
-	TracyAlloc(ptr, size);
-	return ptr;
-}
-void operator delete(void* ptr) noexcept
-{
-	TracyFree(ptr);
-	free(ptr);
-}
-#endif
-
 #include "core/defines.hpp"
 #include "core/window_context.hpp"
 #include "game/player.hpp"
@@ -77,6 +62,7 @@ std::unique_ptr<WindowContext> context;
 #endif
 float getFPS();
 void DrawBool(const char* label, bool value);
+
 Entity get_active_camera(ECS& ecs)
 {
     Entity active{UINT32_MAX};
@@ -136,7 +122,7 @@ int main()
 	};
 	glfwSetFramebufferSizeCallback(context->window, framebuffer_size_callback_lambda);
 
-	// First thing you have to do is fix the damn stencil buffer to allow cropping in RmlUI
+	// TODO: fix the damn stencil buffer to allow cropping in RmlUI
 
 	// TODO:    FIX THE CAMERA CONTROLLER TO WORK WITH INTERPOLATION
 
@@ -215,7 +201,6 @@ int main()
 			*/
 
 	});
-	// TODO: Fix crosshair rendering with the new framebuffer system
 	// --- CROSSHAIR STUFF ---
 	Shader crossHairshader("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
 	Texture crossHairTexture(ICONS_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST);
@@ -313,12 +298,20 @@ int main()
 			ecs.remove_component<ActiveCamera>(old_camera);
 			ecs.add_component(player.getCamera(), ActiveCamera{});
 			ecs.add_component(player.getSelf(), InputComponent{});
+			// Recalculate aspect ratio cuz user might have changed to fullscreen while other cameras were active
+			int fb_w, fb_h;
+			glfwGetFramebufferSize(context->window, &fb_w, &fb_h);
+			framebuffer_size_callback_lambda(context->window, fb_w, fb_h);
 		}
 		if (input.isPressed(GLFW_KEY_LEFT)) {
 			ecs.remove_component<ActiveCamera>(old_camera);
 			ecs.remove_component<InputComponent>(player.getSelf());
 			ecs.add_component(debug_cam, ActiveCamera{});
 			ecs.add_component(debug_cam, InputComponent{});
+			// Recalculate aspect ratio cuz user might have changed to fullscreen while other cameras were active
+			int fb_w, fb_h;
+			glfwGetFramebufferSize(context->window, &fb_w, &fb_h);
+			framebuffer_size_callback_lambda(context->window, fb_w, fb_h);
 		}
 		Entity camera = get_active_camera(ecs);
 
@@ -544,10 +537,12 @@ int main()
 		shad.setMat4("projection", cam->projectionMatrix);
 		shad.setMat4("model", temp_model);
 		shad.setMat4("view", cam->viewMatrix);
+
+		Atlas.Bind(0);
 		shad.use();
 		glBindVertexArray(VAO);
 		DrawArraysWrapper(GL_TRIANGLES, 0, 3);
-
+		Atlas.Unbind(0);
 
 		framebuffer::bind_default_draw();
 		glViewport(0, 0, context->getWidth(), context->getHeight());

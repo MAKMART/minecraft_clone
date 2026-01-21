@@ -18,6 +18,7 @@ To build this project, you’ll need:
 * [Ninja](https://github.com/ninja-build/ninja)
 * [A C++ compiler](https://isocpp.org/get-started)
 * [sccache](https://github.com/mozilla/sccache)
+* [mold](https://github.com/rui314/mold)
 
 Make sure all four are installed and added to your system's `PATH` if you're on Windows.
 

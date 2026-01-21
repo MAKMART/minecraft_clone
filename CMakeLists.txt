@@ -1,10 +1,8 @@
 cmake_minimum_required(VERSION 3.30...4.0.1)
 set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1)
 
-
-set(CMAKE_CXX_COMPILER_LAUNCHER sccache)
+#set(CMAKE_CXX_COMPILER_LAUNCHER sccache)
 project("game" VERSION 0.2.0 LANGUAGES C CXX)
-
 
 # Include configuration
 include(cmake/options.cmake)
@@ -23,8 +21,71 @@ if(NOT OpenGL_FOUND)
     message(FATAL_ERROR "OpenGL package not found!")
 endif()
 
+# ==== Tracy Integration ====
+if(ENABLE_TRACY)
+    add_library(tracy_client STATIC
+        ${tracy_SOURCE_DIR}/public/TracyClient.cpp
+    )
+
+    target_include_directories(tracy_client PUBLIC
+        ${tracy_SOURCE_DIR}/public
+    )
+
+    target_compile_definitions(tracy_client PUBLIC
+        TRACY_ENABLE
+        TRACY_GPU_CONTEXT
+        TRACY_CALLSTACK
+        $<$<BOOL:${CMAKE_INTERPROCEDURAL_OPTIMIZATION}>:TRACY_LTO>
+    )
+
+    target_compile_options(tracy_client PRIVATE
+        $<$<CXX_COMPILER_ID:GNU>:-fno-omit-frame-pointer>
+        $<$<CXX_COMPILER_ID:Clang>:-fno-omit-frame-pointer>
+        $<$<CXX_COMPILER_ID:MSVC>:/Oy->
+    )
+
+    if(WIN32)
+        target_link_libraries(tracy_client PRIVATE ws2_32 dbghelp)
+    endif()
+endif()
+
 # ==== Source Files ====
-file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE GAME_CORE_SOURCES
+    src/core/*.cpp src/graphics/*.cpp src/chunk/*.cpp src/ui/*.cpp src/game/*.cpp
+)
+
+add_library(game_core STATIC ${GAME_CORE_SOURCES})
+target_precompile_headers(game_core PRIVATE
+	${PROJECT_SOURCE_DIR}/include/pch_wrapper.hpp
+)
+set_source_files_properties(src/main.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+target_include_directories(game_core 
+	PUBLIC
+    ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/include/external/vendor
+    $<$<CONFIG:Debug>:${PROJECT_SOURCE_DIR}/include/external/glad-debug/>
+    $<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/include/external/glad-release/>
+	${IMGUI_INCLUDE_DIRS}
+	#SYSTEM PRIVATE ${IMGUI_INCLUDE_DIRS}
+    ${glm_SOURCE_DIR}
+)
+
+set_target_properties(game_core PROPERTIES
+    UNITY_BUILD ${ENABLE_UNITY_BUILD}
+)
+# ==== Common Libraries ====
+set(COMMON_LIBS
+    glfw
+    freetype
+    RmlUi::Core
+    RmlUi::Debugger
+    imgui
+    game_c
+)
+target_link_libraries(game_core 
+	PUBLIC tracy_client
+	PUBLIC ${COMMON_LIBS}
+)
 
 
 set_source_files_properties(${GLAD_SOURCES} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
@@ -35,55 +96,27 @@ target_include_directories(game_c PRIVATE
 )
 disable_debug_symbols(glfw)
 disable_debug_symbols(freetype)
-disable_debug_symbols(RmlCore)
-disable_debug_symbols(RmlDebugger)
 
 # ==== Main Executable ====
-add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
+add_executable(${PROJECT_NAME} src/main.cpp src/tracy_overrides.cpp)
 
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    OUTPUT_NAME ${EXECUTABLE_OUTPUT_NAME}
-    UNITY_BUILD ${ENABLE_UNITY_BUILD}
-    CXX_STANDARD 20
-    CXX_STANDARD_REQUIRED YES
-    LINKER_LANGUAGE CXX
-)
+
 # ==== Include compiler flags ====
 include(cmake/compiler_flags.cmake)
 
 
 # ==== Include Paths ====
+#[[
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/include/external
+    ${PROJECT_SOURCE_DIR}/include/external/vendor
     $<$<CONFIG:Debug>:${PROJECT_SOURCE_DIR}/include/external/glad-debug/>
     $<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/include/external/glad-release/>
     SYSTEM PRIVATE ${IMGUI_INCLUDE_DIRS}
     ${glm_SOURCE_DIR}
 )
+]]
 
-target_precompile_headers(${PROJECT_NAME} PRIVATE
-	${PROJECT_SOURCE_DIR}/include/pch_wrapper.hpp
-)
-
-
-
-
-
-
-
-
-
-
-# ==== Common Libraries ====
-set(COMMON_LIBS
-    glfw
-    freetype
-    RmlUi::Core
-    RmlUi::Debugger
-    imgui
-    game_c
-)
 
 # ==== Platform-Specific Libraries ====
 if(WIN32)
@@ -103,41 +136,7 @@ elseif(UNIX)
 endif()
 
 # ==== Link Everything ====
-target_link_libraries(${PROJECT_NAME} PRIVATE ${COMMON_LIBS} ${PLATFORM_LIBS})
-
-# ==== Tracy Integration ====
-if(ENABLE_TRACY)
-    target_sources(${PROJECT_NAME} PRIVATE
-        ${tracy_SOURCE_DIR}/public/TracyClient.cpp
-    )
-    target_include_directories(${PROJECT_NAME} PRIVATE
-        ${tracy_SOURCE_DIR}/public
-    )
-
-    target_compile_options(${PROJECT_NAME} PRIVATE
-        $<$<CXX_COMPILER_ID:GNU>:-fno-omit-frame-pointer>
-        $<$<CXX_COMPILER_ID:Clang>:-fno-omit-frame-pointer>
-        $<$<CXX_COMPILER_ID:MSVC>:/Oy->
-    )
-
-    target_compile_definitions(${PROJECT_NAME} PRIVATE
-        TRACY_ENABLE
-        TRACY_GPU_CONTEXT
-        TRACY_CALLSTACK
-        $<$<BOOL:${CMAKE_INTERPROCEDURAL_OPTIMIZATION}>:TRACY_LTO>
-    )
-
-    if(WIN32)
-        target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32 dbghelp)
-    endif()
-endif()
-
-
-
-
-
-
-
+target_link_libraries(${PROJECT_NAME} PUBLIC game_core ${PLATFORM_LIBS})
 
 
 

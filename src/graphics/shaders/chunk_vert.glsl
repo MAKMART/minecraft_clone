@@ -15,10 +15,15 @@ const vec3 debugColor[6] = vec3[6](
     vec3(1, 0, 1)  // bottom
 );
 
+struct FaceGPU {
+	uvec3 pos;
+	uint face_id;
+	uint block_type;
+};
 
-layout(std430, binding = 0) readonly buffer vertexPullBuffer
+layout(std430, binding = 2) readonly buffer vertexPullBuffer
 {
-	uvec2 packedMeshData[];
+	FaceGPU faces[];
 };
 
 uniform mat4 projection;
@@ -27,42 +32,42 @@ uniform mat4 model;
 uniform float time;
 
 const vec3 facePositions[6][4] = vec3[6][4](
-    // FRONT (+Z)
+    // FRONT (+Z) face_id = 0
     vec3[4](
         vec3(0, 0, 1),
         vec3(1, 0, 1),
         vec3(1, 1, 1),
         vec3(0, 1, 1)
     ),
-    // BACK (-Z)
+    // BACK (-Z) face_id = 1
     vec3[4](
         vec3(1, 0, 0),
         vec3(0, 0, 0),
         vec3(0, 1, 0),
         vec3(1, 1, 0)
     ),
-    // LEFT (-X)
+    // LEFT (-X) face_id = 2
     vec3[4](
         vec3(0, 0, 0),
         vec3(0, 0, 1),
         vec3(0, 1, 1),
         vec3(0, 1, 0)
     ),
-    // RIGHT (+X)
+    // RIGHT (+X) face_id = 3
     vec3[4](
         vec3(1, 0, 1),
         vec3(1, 0, 0),
         vec3(1, 1, 0),
         vec3(1, 1, 1)
     ),
-    // TOP (+Y)
+    // TOP (+Y) face_id = 4
     vec3[4](
         vec3(0, 1, 1),
         vec3(1, 1, 1),
         vec3(1, 1, 0),
         vec3(0, 1, 0)
     ),
-    // BOTTOM (-Y)
+    // BOTTOM (-Y) face_id = 5
     vec3[4](
         vec3(0, 0, 0),
         vec3(1, 0, 0),
@@ -77,20 +82,10 @@ void main()
 {
   const int currVertexID = gl_VertexID % 6;
   const int index = gl_VertexID / 6;
-  const uint packedPosition = packedMeshData[index].x;
-  const uint packedTexCoord = packedMeshData[index].y;
- 
-  uint x = packedPosition & 0x3FFu;
-  uint y = (packedPosition >> 10) & 0x3FFu;
-  uint z = (packedPosition >> 20) & 0x3FFu;
 
-  uint u = packedTexCoord & 0x3FFu;
-  uint v = (packedTexCoord >> 10) & 0x3FFu;
-  uint face_id = (packedTexCoord >> 20) & 0x7u;
-  uint block_type = (packedTexCoord >> 23) & 0x1FFu; // 9 bits
-  u = min(u, 15u);
-  v = min(v, 15u);
-  face_id = min(face_id, 5u);
+  FaceGPU f = faces[index];
+  uint face_id = min(f.face_id, 5u);
+  uint block_type = f.block_type;
 
   DebugColor = debugColor[face_id];
   //DebugColor = mix(debugColor[face_id], vec3(float(gl_VertexID % 6) / 6.0, 0.0, 1.0), 0.5);
@@ -105,19 +100,19 @@ void main()
     case 4: DebugColor = vec3(1f, 0.4f, 0f); break;
     case 5: DebugColor = vec3(0.14f, 0.54f, 0.85f); break;
     case 6: DebugColor = vec3(0.63f, 0.46f, 0.29f); break;
-  }*/
+  }
+  */
 
-  ivec3 blockPos = ivec3(x, y, z);
+  vec3 position = vec3(f.pos) + facePositions[face_id][triangleCornerIndices[currVertexID]];
 
-  vec3 position = vec3(blockPos) + facePositions[face_id][triangleCornerIndices[currVertexID]];
+  //DebugColor = vec3(f.pos) / 16.0;
 
   
-
   // EFFECTS
   vec4 worldPos = model * vec4(position, 1.0);
 
   // WATER EFFECTS
-  if (block_type == 5 || block_type == 4) {
+  if (block_type == 5u || block_type == 4u) {
       // Wobble parameters
       float wobbleStrength = 0.1;
       float wobbleSpeed = 2.0;
@@ -130,12 +125,10 @@ void main()
 
   // END
 
-
-
   const vec2 cellSize = vec2(16, 16);	//Size of each texture in the atlas
 
   // Compute local UV within the tile, based on gl_VertexID % 6
-  vec2 localUV;
+  vec2 localUV = vec2(0, 0);
 
   switch (currVertexID) {
       case 0: localUV = vec2(0.0, 0.0); break;
@@ -145,6 +138,33 @@ void main()
       case 4: localUV = vec2(1.0, 1.0); break;
       case 5: localUV = vec2(0.0, 1.0); break;
   }
+
+  uint u = 15;
+  uint v = 15;
+
+  switch (block_type) {
+	  //case 0u: u = 0, v = 0; break;	//AIR
+	  case 1u: u = 0, v = 0; break;	//DIRT
+	  case 2u: 
+			   switch (face_id) {
+				   case 0u: u = 1, v = 0; break; // + Z
+				   case 1u: u = 1, v = 0; break; // - Z
+				   case 2u: u = 1, v = 0; break; // - X
+				   case 3u: u = 1, v = 0; break; // + X
+				   case 4u: u = 1, v = 1; break; // + Y
+				   case 5u: u = 0, v = 0; break; // - Y
+			   }
+			   break;	//GRASS
+	  case 3u: u = 0, v = 1; break;	//STONE
+	  case 4u: u = 5, v = 0; break;	//LAVA
+	  case 5u: u = 0, v = 4; break;	//WATER
+	  case 6u: u = 2, v = 0; break;	//WOOD
+	  case 7u: u = 0, v = 2; break;	//LEAVES
+	  case 8u: u = 4, v = 0; break;	//SAND
+	  case 9u: u = 6, v = 0; break;	//PLANKS
+  }
+  
   TexCoord = vec2(u, v) / cellSize + localUV / cellSize;
+  //TexCoord = localUV / cellSize;
   gl_Position = projection * view * worldPos;
 }

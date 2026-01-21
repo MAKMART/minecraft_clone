@@ -37,37 +37,34 @@ ChunkManager::ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed)
 		log::system_info("ChunkManager", "initialized with random seed: {}", random_seed);
 	}
 
+
 	glCreateVertexArrays(1, &VAO);
 }
 ChunkManager::~ChunkManager()
 {
 	clearChunks();
-	if (VAO) {
-		glDeleteBuffers(1, &VAO);
-	
-	}
-
+	if (VAO)
+		glDeleteVertexArrays(1, &VAO);
 }
 
-void ChunkManager::unloadChunk(glm::vec3 worldPos)
+void ChunkManager::unloadChunk(glm::vec3 world_pos)
 {
-	auto it = chunks.find(Chunk::worldToChunk(worldPos));
+	auto it = chunks.find(Chunk::worldToChunk(world_pos));
 	if (it == chunks.end())
 		return;
 	chunks.erase(it);
 }
 
-void ChunkManager::updateBlock(glm::vec3 worldPos, Block::blocks newType)
+bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType)
 {
-	Chunk* chunk = getChunk(worldPos);
-
+	Chunk* chunk = getChunk(world_pos);
 	if (!chunk)
-		return;
-
-	glm::ivec3 localPos = Chunk::worldToLocal(worldPos);
+		return false;
+	glm::ivec3 localPos = Chunk::worldToLocal(world_pos);
 
 	chunk->setBlockAt(localPos.x, localPos.y, localPos.z, newType);
 	chunk->updateMesh();
+	return true;
 }
 
 float ChunkManager::LayeredPerlin(float x, float z, int octaves, float baseFreq, float baseAmp, float lacunarity, float persistence)
@@ -81,8 +78,7 @@ float ChunkManager::LayeredPerlin(float x, float z, int octaves, float baseFreq,
 		frequency *= lacunarity;
 		amplitude *= persistence;
 	}
-
-	return total; // raw value, unnormalized
+	return std::pow(std::abs(total), 1.3f) * glm::sign(total);
 }
 bool ChunkManager::neighborsAreGenerated(Chunk* chunk)
 {
@@ -93,6 +89,7 @@ bool ChunkManager::neighborsAreGenerated(Chunk* chunk)
 	       chunk->frontChunk.lock() && chunk->frontChunk.lock()->state >= ChunkState::Generated &&
 	       chunk->backChunk.lock() && chunk->backChunk.lock()->state >= ChunkState::Generated;
 		   */
+	return false;
 }
 void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int renderDistance)
 {
@@ -119,7 +116,6 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 	    0,
 	    (playerChunkPos.z - renderDistance) * CHUNK_SIZE.z};
 
-	// Pass 1: generate the noise map for all the chunks in the current region that we want to render
 	{
 		Timer noiseTimer("Noise precomputation");
 		if (lastRegionSize != region || lastNoiseOrigin != noiseOrigin) {
@@ -128,8 +124,7 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 				for (int x = 0; x < region.x; ++x) {
 					float wx                            = float((playerChunkPos.x - renderDistance) * CHUNK_SIZE.x + x);
 					float wz                            = float((playerChunkPos.z - renderDistance) * CHUNK_SIZE.z + y);
-					float rawNoise                      = LayeredPerlin(wx, wz, 7, 0.003f, 1.2f);
-					cachedNoiseRegion[y * region.x + x] = std::pow(std::abs(rawNoise), 1.3f) * glm::sign(rawNoise);
+					cachedNoiseRegion[y * region.x + x] = LayeredPerlin(wx, wz, 3, 0.003f, 1.2f);
 				}
 			}
 			lastRegionSize  = region;
@@ -139,37 +134,23 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 
 	std::vector<float> noiseRegion = cachedNoiseRegion;
 
-	std::vector<std::shared_ptr<Chunk>> newChunks;
-	// Pass 1: Construct chunks (doesn't generate 'em)
 	for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
 		for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
 			glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
-			// Make sure to not overrwrite the chunk if it already exists
-			// chunks.try_emplace(chunkPos, std::make_shared<Chunk>(chunkPos));
 			auto [it, inserted] = chunks.try_emplace(chunkPos, std::make_shared<Chunk>(chunkPos));
 			if (inserted) {
-				newChunks.push_back(it->second);
-			}
-		}
-	}
+				glm::vec3  worldPos = Chunk::chunkToWorld(chunkPos);
 
-	// Pass 2: Generate the block data from the noise for all the chunks
-	for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
-		for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
+				int offsetX = worldPos.x - noiseOrigin.x;
+				int offsetZ = worldPos.z - noiseOrigin.z;
 
-			glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
-			glm::vec3  worldPos = Chunk::chunkToWorld(chunkPos);
-
-			int offsetX = worldPos.x - noiseOrigin.x;
-			int offsetZ = worldPos.z - noiseOrigin.z;
-
-			Chunk* chunk = getChunk(worldPos);
-
-			if (chunk->state == ChunkState::Empty) {
-				Timer terrain_timer("Chunk terrain generation");
-				chunk->generate(std::span{noiseRegion}, region.x, offsetX, offsetZ);
-				chunk->updateMesh();
-				chunk->state = ChunkState::Generated;
+				auto& chunk = it->second;
+				if (chunk->state == ChunkState::Empty) {
+					Timer terrain_timer("Chunk terrain generation");
+					chunk->generate(std::span{noiseRegion}, region.x, offsetX, offsetZ);
+					chunk->updateMesh();
+					chunk->state = ChunkState::Generated;
+				}
 			}
 		}
 	}

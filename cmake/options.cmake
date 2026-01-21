@@ -28,6 +28,9 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
+# ==== Linking ====
+set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold")
+
 # ==== IPO for release ====
 if(CMAKE_BUILD_TYPE MATCHES "Release|RelWithDebInfo")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)

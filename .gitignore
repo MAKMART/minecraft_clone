@@ -1,7 +1,5 @@
 build/
 .cache/
-Commands.txt
-TODO.md
 imgui.ini
 .rignore
 .clangd

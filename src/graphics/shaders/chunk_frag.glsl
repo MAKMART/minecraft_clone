@@ -15,18 +15,19 @@ void main() {
     // Set the fragment color to the sampled texture color
     vec4 texColor = texture(myTexture, TexCoord);
 
-    //FragColor = texColor;
+	//FragColor = vec4(mix(texColor.rgb, DebugColor, 0.3), texColor.a);
+	FragColor = texColor;
     //FragColor = vec4(TexCoord, 0.0, 1.0);
     // show inner tile
     //vec2 pixelUV = fract(TexCoord * 16.0); 
     //if (any(lessThan(pixelUV, vec2(0.0001))) || any(greaterThan(pixelUV, vec2(0.95))))
     //    FragColor = vec4(1, 0, 0, 1); // red tile border
     //else
-    if (debug != 0) {
-        FragColor = vec4(DebugColor, 1.0);
-    } else {
-        if (texColor.a < 0.1)
-            discard;
-        FragColor = texColor;
-    }
+    //if (debug != 0) {
+        //FragColor = vec4(DebugColor, 1.0);
+    //} else {
+        //if (texColor.a < 0.1)
+            //discard;
+        //FragColor = texColor;
+    //}
 }

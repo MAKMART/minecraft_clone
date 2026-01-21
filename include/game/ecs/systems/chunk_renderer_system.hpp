@@ -29,16 +29,16 @@ void chunk_renderer_system(ECS& ecs, const ChunkManager& cm, Camera* cam, Frustu
 		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 		for(auto& chunk : cm.getOpaqueChunks(wanted_fv))
-			chunk->renderOpaqueMesh(shader);
+			chunk->renderOpaqueMesh(shader, cm.getVAO());
 
 
-		glDisable(GL_CULL_FACE);
+		//glDisable(GL_CULL_FACE);
 
-		for(auto& chunk : cm.getTransparentChunks(wanted_fv, ts))
-			chunk->renderTransparentMesh(shader);
+		//for(auto& chunk : cm.getTransparentChunks(wanted_fv, ts))
+			//chunk->renderTransparentMesh(shader);
 
-		if (FACE_CULLING)
-			glEnable(GL_CULL_FACE);
+		//if (FACE_CULLING)
+			//glEnable(GL_CULL_FACE);
 
 	    });
 }

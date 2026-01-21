@@ -15,7 +15,7 @@
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
 				"ENABLE_TRACY": "ON",
-				"ENABLE_UNITY_BUILD": "ON",
+				"ENABLE_UNITY_BUILD": "OFF",
 				"CMAKE_C_COMPILER_LAUNCHER": "sccache",
 				"CMAKE_CXX_COMPILER_LAUNCHER": "sccache"
 			}

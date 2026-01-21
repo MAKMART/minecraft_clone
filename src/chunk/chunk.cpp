@@ -16,10 +16,20 @@ Chunk::Chunk(const glm::ivec3& chunkPos)
 	glm::vec3 worldOrigin = chunkToWorld(position);
 	glm::vec3 worldMax    = worldOrigin + glm::vec3(CHUNK_SIZE);
 	aabb                  = AABB(worldOrigin, worldMax);
+	constexpr uint32_t max_faces = SIZE * 6;
+
+	comp = new Shader("Chunk-compute", SHADERS_DIRECTORY / "chunk.comp");
+	face_ssbo = SSBO(nullptr, max_faces * sizeof(face_gpu), SSBO::usage::dynamic_draw);
+	counter_ssbo = SSBO(nullptr, sizeof(uint), SSBO::usage::dynamic_draw);
+	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
+	indirect_ssbo = SSBO(&cmd, sizeof(DrawArraysIndirectCommand), SSBO::usage::dynamic_draw);
+
+
 	srand(static_cast<unsigned int>(position.x ^ position.y ^ position.z));
 }
 Chunk::~Chunk()
 {
+	if (comp) delete comp;
 }
 void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ)
 {
@@ -28,21 +38,22 @@ void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int nois
 #endif
 	Timer generation_timer("Chunk::generate");
 
+
 	constexpr int dirtDepth  = 3;
 	constexpr int beachDepth = 1; // How wide the beach is vertically
 
 	for (int z = 0; z < CHUNK_SIZE.z; ++z) {
 		for (int y = 0; y < CHUNK_SIZE.y; ++y) {
 			for (int x = 0; x < CHUNK_SIZE.x; ++x) {
-			int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
+				int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
 #if defined(DEBUG)
-			if (noiseIndex < 0 || noiseIndex >= static_cast<int>(fullNoise.size())) {
-				log::system_warn("Chunk", "Noise index out of bounds: {}", noiseIndex);
-				continue;
-			}
+				if (noiseIndex < 0 || noiseIndex >= static_cast<int>(fullNoise.size())) {
+					log::system_warn("Chunk", "Noise index out of bounds: {}", noiseIndex);
+					continue;
+				}
 #endif
-			int height = static_cast<int>(fullNoise[noiseIndex] * CHUNK_SIZE.y);
-			height     = std::clamp(height, 0, CHUNK_SIZE.y - 1);
+				int height = static_cast<int>(fullNoise[noiseIndex] * CHUNK_SIZE.y);
+				height     = std::clamp(height, 0, CHUNK_SIZE.y - 1);
 
 				int index = getBlockIndex(x, y, z);
 #if defined (DEBUG)
@@ -50,197 +61,68 @@ void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int nois
 					continue;
 #endif
 
-				if (y > height) {
-					blocks[index].type = Block::blocks::AIR;
-					continue;
-				}
+				Block::blocks block_type;
 
-				if (y == height) {
-					if (height <= seaLevel + beachDepth) {
-						blocks[index].type = Block::blocks::SAND; // Beach top
-					} else {
-						blocks[index].type = Block::blocks::GRASS;
-					}
+				if (y > height) {
+					block_type = Block::blocks::AIR;
+				} else if (y == height) {
+					block_type = (height <= seaLevel + beachDepth) ? Block::blocks::SAND : Block::blocks::GRASS;
 				} else if (y >= height - dirtDepth) {
-					if (height <= seaLevel + beachDepth) {
-						blocks[index].type = Block::blocks::SAND; // Beach body
-					} else {
-						blocks[index].type = Block::blocks::DIRT;
-					}
+					block_type = (height <= seaLevel + beachDepth) ? Block::blocks::SAND : Block::blocks::DIRT;
 				} else {
-					blocks[index].type = Block::blocks::STONE;
+					block_type = Block::blocks::STONE;
 				}
+				blocks[index].type = block_type;
+				uint32_t b = static_cast<uint8_t>(block_type);
+				packed_blocks[index / 4] |= b << ((index % 4) * 8);
 			}
 		}
 	}
+	block_ssbo = SSBO(packed_blocks, sizeof(packed_blocks), SSBO::usage::dynamic_draw);
 }
-void Chunk::uploadData()
-{
-	if (faces.empty() && waterFaces.empty()) {
-		log::system_error("Chunk", "Empty combined face buffer for chunk ({}, {}, {})", position.x, position.y, position.z);
-		return;
-	}
-
-	opaqueFaceCount      = static_cast<GLuint>(faces.size());
-	transparentFaceCount = static_cast<GLuint>(waterFaces.size());
-
-	std::vector<Face> combinedFaces;
-	combinedFaces.reserve(faces.size() + waterFaces.size());
-	combinedFaces.insert(combinedFaces.end(), faces.begin(), faces.end());
-	combinedFaces.insert(combinedFaces.end(), waterFaces.begin(), waterFaces.end());
-
-	ssbo = SSBO(combinedFaces.data(), combinedFaces.size() * sizeof(Face), SSBO::usage::dynamic_draw);
-}
-
 void Chunk::updateMesh()
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-	faces.clear();
-	for (int z = 0; z < CHUNK_SIZE.z; ++z) {
-		for (int y = 0; y < CHUNK_SIZE.y; ++y) {
-			for (int x = 0; x < CHUNK_SIZE.x; ++x) {
-				int index = getBlockIndex(x, y, z);
-				if (index == -1)
-					continue;
+	uint zero = 0;
+	counter_ssbo.update_data(&zero, sizeof(uint));
 
-				const Block& block = blocks[index];
+	if (block_ssbo.id())
+		block_ssbo.update_data(packed_blocks, sizeof(packed_blocks));
 
-				if (block.type == Block::blocks::AIR)
-					continue;
-				generateBlockFace(block, x, y, z);
-			}
-		}
-	}
-	uploadData();
+	/*
+	size_t max_faces = 6 * SIZE;
+	std::vector<face_gpu> zero_faces(max_faces);
+	face_ssbo.update_data(zero_faces.data(),
+			zero_faces.size() * sizeof(face_gpu));
+
+
+	DrawArraysIndirectCommand zero_cmd{0, 1, 0, 0};
+	indirect_ssbo.update_data(&zero_cmd, sizeof(zero_cmd));
+
+	*/
+
+	block_ssbo.bind_to_slot(1);
+	face_ssbo.bind_to_slot(2);
+	counter_ssbo.bind_to_slot(3);
+	indirect_ssbo.bind_to_slot(4);
+	comp->use();
+	glDispatchCompute(CHUNK_SIZE.x/8, CHUNK_SIZE.y/8, CHUNK_SIZE.z/8);
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_DRAW_INDIRECT_BUFFER | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
+
 }
-bool Chunk::isFaceVisible(int x, int y, int z)
-{
-	if (x > CHUNK_SIZE.x || y > CHUNK_SIZE.y || z > CHUNK_SIZE.z) 
-		return true;
-	else
-		return Block::isTransparent(getBlockAt(x, y, z).type);
-}
-void Chunk::generateBlockFace(const Block& block, int x, int y, int z)
-{
-#if defined(TRACY_ENABLE)
-	ZoneScoped;
-#endif
-
-	auto pushFace = [this](int x, int y, int z, int u, int v, int face, int block_type) {
-		this->faces.emplace_back(Face(x, y, z, u, v, face, block_type));
-	};
-
-	auto pushWaterFace = [this](int x, int y, int z, int u, int v, int face, int block_type) {
-		this->waterFaces.emplace_back(Face(x, y, z, u, v, face, block_type));
-	};
-
-	        uint8_t visibilityMask =
-	                (isFaceVisible(x, y, z + 1) << 0) | // Front Face
-	                (isFaceVisible(x, y, z - 1) << 1) | // Back Face
-	                (isFaceVisible(x - 1, y, z) << 2) | // Left Face
-	                (isFaceVisible(x + 1, y, z) << 3) | // Right Face
-	                (isFaceVisible(x, y + 1, z) << 4) | // Top Face
-	                (isFaceVisible(x, y - 1, z) << 5);  // Bottom Face
-
-	auto pushBlock = [pushFace, pushWaterFace , visibilityMask](int x, int y, int z, int topX, int topY, int sideX, int sideY, int botX, int botY, int block_type) {
-		if (block_type == Block::toInt(Block::blocks::WATER)) {
-			 if (visibilityMask & (1 << 0))
-			pushWaterFace(x, y, z, sideX, sideY, 0, block_type);
-			 if (visibilityMask & (1 << 1))
-			pushWaterFace(x, y, z, sideX, sideY, 1, block_type);
-			 if (visibilityMask & (1 << 2))
-			pushWaterFace(x, y, z, sideX, sideY, 2, block_type);
-			 if (visibilityMask & (1 << 3))
-			pushWaterFace(x, y, z, sideX, sideY, 3, block_type);
-			 if (visibilityMask & (1 << 4))
-			pushWaterFace(x, y, z, topX, topY, 4, block_type);
-			 if (visibilityMask & (1 << 5))
-			pushWaterFace(x, y, z, botX, botY, 5, block_type);
-
-		} else {
-			 if (visibilityMask & (1 << 0))
-			pushFace(x, y, z, sideX, sideY, 0, block_type);
-			 if (visibilityMask & (1 << 1))
-			pushFace(x, y, z, sideX, sideY, 1, block_type);
-			 if (visibilityMask & (1 << 2))
-			pushFace(x, y, z, sideX, sideY, 2, block_type);
-			 if (visibilityMask & (1 << 3))
-			pushFace(x, y, z, sideX, sideY, 3, block_type);
-			 if (visibilityMask & (1 << 4))
-			pushFace(x, y, z, topX, topY, 4, block_type);
-			 if (visibilityMask & (1 << 5))
-			pushFace(x, y, z, botX, botY, 5, block_type);
-		}
-	};
-
-	int topX, topY, botX, botY, X, Y, topandBotX, topandBotY;
-	switch (block.type) {
-	case Block::blocks::AIR:
-		return; // No geometry for AIR
-	case Block::blocks::DIRT:
-		X = 0, Y = 0;
-		pushBlock(x, y, z, X, Y, X, Y, X, Y, block.toInt());
-		break;
-	case Block::blocks::GRASS:
-		topX = 1;
-		topY = 1;
-		X    = 1;
-		Y    = 0;
-		botX = 0;
-		botY = 0;
-
-		pushBlock(x, y, z, topX, topY, X, Y, botX, botY, block.toInt());
-		break;
-	case Block::blocks::STONE:
-		X = 0, Y = 1;
-		pushBlock(x, y, z, X, Y, X, Y, X, Y, block.toInt());
-		break;
-	case Block::blocks::LAVA:
-		X = 5, Y = 0;
-		pushBlock(x, y, z, X, Y, X, Y, X, Y, block.toInt());
-		break;
-	case Block::blocks::WATER:
-		X = 0, Y = 4;
-		pushBlock(x, y, z, X, Y, X, Y, X, Y, block.toInt());
-		break;
-	case Block::blocks::WOOD:
-		X          = 2;
-		Y          = 0;
-		topandBotX = 2;
-		topandBotY = 1;
-		pushBlock(x, y, z, topandBotX, topandBotY, X, Y, topandBotX, topandBotY, block.toInt());
-		break;
-	case Block::blocks::LEAVES:
-		X = 0, Y = 2;
-		pushBlock(x, y, z, X, Y, X, Y, X, Y, block.toInt());
-		break;
-	case Block::blocks::SAND:
-		X = 4, Y = 0;
-		pushBlock(x, y, z, X, Y, X, Y, X, Y, block.toInt());
-		break;
-	case Block::blocks::PLANKS:
-		X = 6, Y = 0;
-		pushBlock(x, y, z, X, Y, X, Y, X, Y, block.toInt());
-	default:
-		log::system_error("Chunk", "UNHANDLED BLOCK CASE: {} # {}", block.toString(), block.toInt());
-		break;
-	}
-}
-void Chunk::renderOpaqueMesh(const Shader& shader)
+void Chunk::renderOpaqueMesh(const Shader& shader, GLuint vao)
 {
 	shader.setMat4("model", getModelMatrix());
-	if (!faces.empty()) {
-		ssbo.bind_to_slot(0);
-		DrawArraysWrapper(GL_TRIANGLES, 0, opaqueFaceCount * 6);
-	}
+
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirect_ssbo.id());
+	face_ssbo.bind_to_slot(2);
+
+	glDrawArraysIndirect(GL_TRIANGLES, nullptr);
+	g_drawCallCount++;
 }
 void Chunk::renderTransparentMesh(const Shader& shader)
 {
 	shader.setMat4("model", getModelMatrix());
-	if (!waterFaces.empty()) {
-		ssbo.bind_to_slot(0);
-		DrawArraysWrapper(GL_TRIANGLES, opaqueFaceCount * 6, transparentFaceCount * 6);
-	}
 }

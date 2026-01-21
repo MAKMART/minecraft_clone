@@ -1,5 +1,7 @@
 #pragma once
 #include <cstdint>
+#include <cstddef>
+#include <functional>
 using entity_id = std::uint32_t;
 struct Entity {
 	entity_id id;
