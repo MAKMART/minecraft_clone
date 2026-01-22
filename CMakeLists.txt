@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.30...4.0.1)
 set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1)
 
-#set(CMAKE_CXX_COMPILER_LAUNCHER sccache)
-project("game" VERSION 0.2.0 LANGUAGES C CXX)
+set(CMAKE_CXX_COMPILER_LAUNCHER sccache)
+project("game" VERSION 1.0.0 LANGUAGES C CXX)
 
 # Include configuration
 include(cmake/options.cmake)
