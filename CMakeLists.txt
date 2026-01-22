@@ -105,6 +105,10 @@ disable_debug_symbols(freetype)
 # ==== Main Executable ====
 add_executable(${PROJECT_NAME} src/main.cpp $<$<BOOL:${ENABLE_TRACY}>:src/tracy_overrides.cpp>)
 
+set_target_properties(${PROJECT_NAME}
+    PROPERTIES
+        OUTPUT_NAME "${EXECUTABLE_OUTPUT_NAME}"
+)
 
 # ==== Include compiler flags ====
 include(cmake/compiler_flags.cmake)
