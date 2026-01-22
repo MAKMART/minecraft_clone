@@ -152,6 +152,7 @@ int main()
 	Shader fb_shader("Framebuffer", SHADERS_DIRECTORY / "fb_vert.glsl", SHADERS_DIRECTORY / "fb_frag.glsl");
 	Shader shad("Test", SHADERS_DIRECTORY / "test_vert.glsl", SHADERS_DIRECTORY / "test_frag.glsl");
 
+#if defined(DEBUG)
 	Entity debug_cam;
 	debug_cam = ecs.create_entity();
 	ecs.add_component(debug_cam, Camera{});
@@ -169,6 +170,7 @@ int main()
 			{ framebuffer_attachment_type::color, GL_RG16F   }, // material
 			{ framebuffer_attachment_type::depth, GL_DEPTH_COMPONENT24 }
 			}});
+#endif
 	ChunkManager manager;
     Texture Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 	FramebufferManager fb_manager;
@@ -306,8 +308,10 @@ int main()
 		if (input.isPressed(GLFW_KEY_LEFT)) {
 			ecs.remove_component<ActiveCamera>(old_camera);
 			ecs.remove_component<InputComponent>(player.getSelf());
+#if defined(DEBUG)
 			ecs.add_component(debug_cam, ActiveCamera{});
 			ecs.add_component(debug_cam, InputComponent{});
+#endif
 			// Recalculate aspect ratio cuz user might have changed to fullscreen while other cameras were active
 			int fb_w, fb_h;
 			glfwGetFramebufferSize(context->window, &fb_w, &fb_h);
@@ -526,10 +530,14 @@ int main()
 		}
 
 		// Debug render
-		ecs.for_each_components<Camera, Transform, RenderTarget, ActiveCamera>([](Entity e, Camera& cam, Transform, RenderTarget, ActiveCamera){
-				glm::mat4 pv = cam.projectionMatrix * cam.viewMatrix;
-				getDebugDrawer().draw(pv);
-				});
+#if defined(DEBUG)
+		if (debugRender) {
+			ecs.for_each_components<Camera, Transform, RenderTarget, ActiveCamera>([](Entity e, Camera& cam, Transform, RenderTarget, ActiveCamera){
+					glm::mat4 pv = cam.projectionMatrix * cam.viewMatrix;
+					getDebugDrawer().draw(pv);
+					});
+		}
+#endif
 
 		glm::mat4 temp_model = glm::mat4(1.0f);
 		temp_model = glm::translate(temp_model, glm::vec3(-0.5f, 9.5f, 0.0f));

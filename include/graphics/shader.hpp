@@ -291,8 +291,9 @@ class Shader
 				uniformCache[uni_name] = location;
 			}
 		}
+		if (!uniformCache.empty())
+			log::system_info("Shader", "[{}] Reflected and cached {} active uniforms.", s_name, uniformCache.size());
 
-		log::system_info("Shader", "[{}] Reflected and cached {} active uniforms.", s_name, uniformCache.size());
 	}
 
 	GLint getUniformLocation(const std::string& uni_name) const

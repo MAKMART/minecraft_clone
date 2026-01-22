@@ -69,6 +69,10 @@ target_include_directories(game_core
 	#SYSTEM PRIVATE ${IMGUI_INCLUDE_DIRS}
     ${glm_SOURCE_DIR}
 )
+target_compile_definitions(game_core
+    PUBLIC
+        $<$<BOOL:${ENABLE_TRACY}>:TRACY_ENABLE>
+)
 
 set_target_properties(game_core PROPERTIES
     UNITY_BUILD ${ENABLE_UNITY_BUILD}
@@ -83,8 +87,9 @@ set(COMMON_LIBS
     game_c
 )
 target_link_libraries(game_core 
-	PUBLIC tracy_client
-	PUBLIC ${COMMON_LIBS}
+	PUBLIC 
+	$<$<BOOL:${ENABLE_TRACY}>:tracy_client>
+	${COMMON_LIBS}
 )
 
 
@@ -98,7 +103,7 @@ disable_debug_symbols(glfw)
 disable_debug_symbols(freetype)
 
 # ==== Main Executable ====
-add_executable(${PROJECT_NAME} src/main.cpp src/tracy_overrides.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp $<$<BOOL:${ENABLE_TRACY}>:src/tracy_overrides.cpp>)
 
 
 # ==== Include compiler flags ====
