@@ -9,27 +9,19 @@
 #endif
 
 Chunk::Chunk(const glm::ivec3& chunkPos)
-    : position(chunkPos), logSizeX(std::log2(CHUNK_SIZE.x)), logSizeY(std::log2(CHUNK_SIZE.y))
+    : position(chunkPos)
 {
-
-	// Construct AABB
-	glm::vec3 worldOrigin = chunkToWorld(position);
+	glm::vec3 worldOrigin = chunk_to_world(position);
 	glm::vec3 worldMax    = worldOrigin + glm::vec3(CHUNK_SIZE);
 	aabb                  = AABB(worldOrigin, worldMax);
 	constexpr uint32_t max_faces = SIZE * 6;
 
-	comp = new Shader("Chunk-compute", SHADERS_DIRECTORY / "chunk.comp");
 	face_ssbo = SSBO(nullptr, max_faces * sizeof(face_gpu), SSBO::usage::dynamic_draw);
 	counter_ssbo = SSBO(nullptr, sizeof(uint), SSBO::usage::dynamic_draw);
 	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
 	indirect_ssbo = SSBO(&cmd, sizeof(DrawArraysIndirectCommand), SSBO::usage::dynamic_draw);
 
-
 	srand(static_cast<unsigned int>(position.x ^ position.y ^ position.z));
-}
-Chunk::~Chunk()
-{
-	if (comp) delete comp;
 }
 void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ)
 {
@@ -90,7 +82,6 @@ void Chunk::updateMesh()
 
 	if (block_ssbo.id())
 		block_ssbo.update_data(packed_blocks, sizeof(packed_blocks));
-
 	/*
 	size_t max_faces = 6 * SIZE;
 	std::vector<face_gpu> zero_faces(max_faces);
@@ -107,10 +98,8 @@ void Chunk::updateMesh()
 	face_ssbo.bind_to_slot(2);
 	counter_ssbo.bind_to_slot(3);
 	indirect_ssbo.bind_to_slot(4);
-	comp->use();
-	glDispatchCompute(CHUNK_SIZE.x/8, CHUNK_SIZE.y/8, CHUNK_SIZE.z/8);
+	glDispatchCompute(CHUNK_SIZE.x/8, CHUNK_SIZE.y/8, CHUNK_SIZE.z/4);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_DRAW_INDIRECT_BUFFER | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
-
 }
 void Chunk::renderOpaqueMesh(const Shader& shader, GLuint vao)
 {
@@ -118,7 +107,6 @@ void Chunk::renderOpaqueMesh(const Shader& shader, GLuint vao)
 
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirect_ssbo.id());
 	face_ssbo.bind_to_slot(2);
-
 	glDrawArraysIndirect(GL_TRIANGLES, nullptr);
 	g_drawCallCount++;
 }

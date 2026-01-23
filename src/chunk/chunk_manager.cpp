@@ -11,7 +11,8 @@
 
 ChunkManager::ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed)
     : shader("Chunk", CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY),
-      waterShader("Water", WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY)
+      waterShader("Water", WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY),
+	  compute("Chunk_compute", SHADERS_DIRECTORY / "chunk.comp")
 {
 
 	log::info("Loading texture atlas from {} with working dir = {}", BLOCK_ATLAS_TEXTURE_DIRECTORY.string(), WORKING_DIRECTORY.string());
@@ -36,7 +37,7 @@ ChunkManager::ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed)
 		perlin                                         = siv::PerlinNoise(/*random_seed*/116896);
 		log::system_info("ChunkManager", "initialized with random seed: {}", random_seed);
 	}
-
+	compute.setIVec3("CHUNK_SIZE", CHUNK_SIZE);
 
 	glCreateVertexArrays(1, &VAO);
 }
@@ -49,7 +50,7 @@ ChunkManager::~ChunkManager()
 
 void ChunkManager::unloadChunk(glm::vec3 world_pos)
 {
-	auto it = chunks.find(Chunk::worldToChunk(world_pos));
+	auto it = chunks.find(Chunk::world_to_chunk(world_pos));
 	if (it == chunks.end())
 		return;
 	chunks.erase(it);
@@ -60,9 +61,10 @@ bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType)
 	Chunk* chunk = getChunk(world_pos);
 	if (!chunk)
 		return false;
-	glm::ivec3 localPos = Chunk::worldToLocal(world_pos);
+	glm::ivec3 localPos = Chunk::world_to_local(world_pos);
 
 	chunk->setBlockAt(localPos.x, localPos.y, localPos.z, newType);
+	compute.use();
 	chunk->updateMesh();
 	return true;
 }
@@ -97,6 +99,7 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
+	chunks.reserve((2*renderDistance + 1)*(2*renderDistance + 1));
 
 	if (renderDistance <= 0)
 		return;
@@ -132,22 +135,23 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 		}
 	}
 
-	std::vector<float> noiseRegion = cachedNoiseRegion;
+	auto& noiseRegion = cachedNoiseRegion;
 
 	for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
 		for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
 			glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
 			auto [it, inserted] = chunks.try_emplace(chunkPos, std::make_shared<Chunk>(chunkPos));
 			if (inserted) {
-				glm::vec3  worldPos = Chunk::chunkToWorld(chunkPos);
+				glm::vec3  worldPos = Chunk::chunk_to_world(chunkPos);
 
 				int offsetX = worldPos.x - noiseOrigin.x;
 				int offsetZ = worldPos.z - noiseOrigin.z;
 
 				auto& chunk = it->second;
 				if (chunk->state == ChunkState::Empty) {
-					Timer terrain_timer("Chunk terrain generation");
+					//Timer terrain_timer("Chunk terrain generation");
 					chunk->generate(std::span{noiseRegion}, region.x, offsetX, offsetZ);
+					compute.use();
 					chunk->updateMesh();
 					chunk->state = ChunkState::Generated;
 				}
@@ -173,7 +177,7 @@ void ChunkManager::unloadDistantChunks(const glm::ivec3& playerChunkPos, int unl
 }
 std::shared_ptr<Chunk> ChunkManager::getOrCreateChunk(glm::vec3 worldPos)
 {
-	glm::ivec3 chunkPos = Chunk::worldToChunk(worldPos);
+	glm::ivec3 chunkPos = Chunk::world_to_chunk(worldPos);
 	auto       it       = chunks.find(chunkPos);
 	if (it != chunks.end() && it->second)
 		return it->second;
@@ -188,7 +192,7 @@ Chunk* ChunkManager::getChunk(glm::vec3 worldPos) const
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-	auto       it       = chunks.find(Chunk::worldToChunk(worldPos));
+	auto it = chunks.find(Chunk::world_to_chunk(worldPos));
 	if (it != chunks.end()) {
 		return it->second.get(); // Return raw pointer (Chunk*)
 	} else {
@@ -203,7 +207,7 @@ void ChunkManager::generateChunks(glm::vec3 playerPos, unsigned int renderDistan
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-	glm::ivec3 playerChunk{Chunk::worldToChunk(playerPos)};
+	glm::ivec3 playerChunk{Chunk::world_to_chunk(playerPos)};
 
 	if (playerChunk.x != last_player_chunk_pos.x || playerChunk.z != last_player_chunk_pos.z) {
 		if (renderDistance > 0)

@@ -147,7 +147,7 @@ inline bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManage
 				if (!chunk)
 					return true;
 
-				glm::ivec3   local = blockWorldPos - Chunk::worldToChunk(blockWorldPos) * CHUNK_SIZE;
+				glm::ivec3   local = blockWorldPos - glm::ivec3(Chunk::chunk_to_world(glm::ivec3(Chunk::world_to_chunk(blockWorldPos))));
 				const Block& block = chunk->getBlockAt(local.x, local.y, local.z);
 
 				if (block.type != Block::blocks::AIR &&

@@ -42,57 +42,45 @@ class ChunkManager
 	ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed = std::nullopt);
 	~ChunkManager();
 
-	Shader& getShader()
-	{
-		return shader;
-	}
-	const GLuint& getVAO() const {
-		return VAO;
-	}
+	Shader& getShader() { return shader; }
 
-	Shader& getWaterShader()
-	{
-		return waterShader;
-	}
+	Shader& getWaterShader(){ return waterShader; }
 
-	const Shader& getShader() const
-	{
-		return shader;
-	}
+	Shader& getCompute() { return compute; }
 
-	const Shader& getWaterShader() const
-	{
-		return waterShader;
-	}
+	const Shader& getShader() const { return shader; }
 
-	const std::unordered_map<glm::ivec3, std::shared_ptr<Chunk>, ivec3_hash>& getChunks() const
-	{
-		return chunks;
-	}
+	const Shader& getWaterShader() const { return waterShader; }
 
-	std::vector<std::shared_ptr<Chunk>> getOpaqueChunks(const FrustumVolume& fv) const
+	const Shader& getCompute() const { return compute; }
+
+	const GLuint& getVAO() const { return VAO; }
+
+	const std::unordered_map<glm::ivec3, std::shared_ptr<Chunk>, ivec3_hash>& getChunks() const { return chunks; }
+
+	std::vector<Chunk*> getOpaqueChunks(const FrustumVolume& fv) const
 	{
-		std::vector<std::shared_ptr<Chunk>> opaqueChunks;
+		std::vector<Chunk*> opaqueChunks;
 		for (const auto& chunk : chunks) {
 		if (isAABBInsideFrustum(chunk.second->getAABB(), fv)) {
-			opaqueChunks.emplace_back(chunk.second);
+			opaqueChunks.emplace_back(chunk.second.get());
 		}
 		}
 		return opaqueChunks;
 	}
 
-	std::vector<std::shared_ptr<Chunk>> getTransparentChunks(const FrustumVolume& fv, const Transform& ts) const
+	std::vector<Chunk*> getTransparentChunks(const FrustumVolume& fv, const Transform& ts) const
 	{
-		std::vector<std::shared_ptr<Chunk>> transparentChunks;
+		std::vector<Chunk*> transparentChunks;
 		for (const auto& chunk : chunks) {
 			if (isAABBInsideFrustum(chunk.second->getAABB(), fv)) {
-				transparentChunks.emplace_back(chunk.second);
+				transparentChunks.emplace_back(chunk.second.get());
 			}
 		}
 		std::sort(transparentChunks.begin(), transparentChunks.end(),
 				[&](const auto& a, const auto& b) {
-				float distA = glm::distance(ts.pos, a->getCenter());
-				float distB = glm::distance(ts.pos, b->getCenter());
+				float distA = glm::distance(ts.pos, a->getAABB().center());
+				float distB = glm::distance(ts.pos, b->getAABB().center());
 				return distA > distB; // farthest first
 				});
 		return transparentChunks;
@@ -149,6 +137,7 @@ class ChunkManager
 	GLuint           VAO;
 	Shader           shader;
 	Shader           waterShader;
+	Shader			 compute;
 
 	// TODO: Use an octree to store the chunks
 	std::unordered_map<glm::ivec3, std::shared_ptr<Chunk>, ivec3_hash> chunks;

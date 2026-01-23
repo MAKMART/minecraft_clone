@@ -19,7 +19,6 @@ void chunk_renderer_system(ECS& ecs, const ChunkManager& cm, Camera* cam, Frustu
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-
 	const Shader& shader = cm.getShader();
 	ecs.for_each_components<Transform, RenderTarget, ActiveCamera>(
 	    [&](Entity e, Transform& ts, RenderTarget& rt, ActiveCamera) {
@@ -28,7 +27,7 @@ void chunk_renderer_system(ECS& ecs, const ChunkManager& cm, Camera* cam, Frustu
 		glViewport(0, 0, cur_fb.width(), cur_fb.height());
 		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-		for(auto& chunk : cm.getOpaqueChunks(wanted_fv))
+		for(auto* chunk : cm.getOpaqueChunks(wanted_fv))
 			chunk->renderOpaqueMesh(shader, cm.getVAO());
 
 

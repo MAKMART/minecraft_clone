@@ -44,7 +44,7 @@ class raycast
 			Chunk* chunk = chunkManager.getChunk(worldResult);
 
 			if (chunk) {
-				glm::ivec3 localVoxelPos = Chunk::worldToLocal(worldResult);
+				glm::ivec3 localVoxelPos = Chunk::world_to_local(worldResult);
 				int        blockIndex    = chunk->getBlockIndex(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
 
 				if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < Chunk::SIZE &&
@@ -109,7 +109,7 @@ class raycast
 			Chunk* chunk = chunkManager.getChunk({worldResult.x, 0, worldResult.z});
 
 			if (chunk) {
-				glm::ivec3 localVoxelPos = Chunk::worldToLocal(worldResult);
+				glm::ivec3 localVoxelPos = Chunk::world_to_local(worldResult);
 				int        blockIndex    = chunk->getBlockIndex(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
 
 				if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < Chunk::SIZE &&

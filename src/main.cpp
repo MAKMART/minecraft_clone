@@ -149,7 +149,8 @@ int main()
 
 	log::info("Initializing Shaders...");
 	Shader playerShader("Player", PLAYER_VERTEX_SHADER_DIRECTORY, PLAYER_FRAGMENT_SHADER_DIRECTORY);
-	Shader fb_shader("Framebuffer", SHADERS_DIRECTORY / "fb_vert.glsl", SHADERS_DIRECTORY / "fb_frag.glsl");
+	Shader fb_debug("FB_DEBUG", SHADERS_DIRECTORY / "fb_vert.glsl", SHADERS_DIRECTORY / "fb_debug_frag.glsl");
+	Shader fb_player("FB_PLAYER", SHADERS_DIRECTORY / "fb_vert.glsl", SHADERS_DIRECTORY / "fb_player_frag.glsl");
 	Shader shad("Test", SHADERS_DIRECTORY / "test_vert.glsl", SHADERS_DIRECTORY / "test_frag.glsl");
 
 #if defined(DEBUG)
@@ -336,10 +337,15 @@ int main()
 		if (!input.isMouseTrackingEnabled())
 			glLineWidth(LINE_WIDTH);
 
-		fb_shader.setFloat("near_plane", cam->near_plane);
-		fb_shader.setFloat("far_plane", cam->far_plane);
 		static float scale = 0.01f;
-		fb_shader.setFloat("scale", scale);
+		if (camera == player.getCamera()) {
+			fb_player.setFloat("near_plane", cam->near_plane);
+			fb_player.setFloat("far_plane", cam->far_plane);
+			fb_player.setFloat("scale", scale);
+		} else if (camera == debug_cam) {
+			fb_debug.setFloat("near_plane", cam->near_plane);
+			fb_debug.setFloat("far_plane", cam->far_plane);
+		}
 		if (input.isPressed(GLFW_KEY_UP))
 			scale+=0.01f;
 		if (input.isPressed(GLFW_KEY_DOWN))
@@ -352,7 +358,11 @@ int main()
 
 		if (pressed && !was_pressed) { // only trigger on key-down edge
 			toggle = !toggle;          // flip toggle
-			fb_shader.setInt("toggle", toggle ? 1 : 0);
+			if (camera == player.getCamera()) {
+				fb_player.setInt("toggle", toggle ? 1 : 0);
+			} else if (camera == debug_cam) {
+				fb_debug.setInt("toggle", toggle ? 1 : 0);
+			}
 		}
 
 		was_pressed = pressed; // remember state for next frame
@@ -371,7 +381,8 @@ int main()
 		if (input.isPressed(GLFW_KEY_H)) {
 			manager.getShader().reload();
 			playerShader.reload();
-			fb_shader.reload();
+			fb_debug.reload();
+			fb_player.reload();
 			shad.reload();
 			playerShader.reload();
 			crossHairshader.reload();
@@ -445,12 +456,6 @@ int main()
 		camera_system(ecs);
 		frustum_volume_system(ecs);
 
-		glm::mat4 curr_view_proj = cam->projectionMatrix * cam->viewMatrix;
-		glm::mat4 prev_view_proj = ecs.get_component<CameraTemporal>(player.getCamera())->prev_view_proj;
-		glm::mat4 curr_inv_view_proj = glm::inverse(curr_view_proj);
-
-		fb_shader.setMat4("curr_inv_view_proj", curr_inv_view_proj);
-		fb_shader.setMat4("prev_view_proj", prev_view_proj);
 
 		player.update(deltaTime);
 
@@ -559,9 +564,23 @@ int main()
 		glViewport(0, 0, cur_fb.width(), cur_fb.height());
 		glBindTextureUnit(0, cur_fb.color_attachment(0));
 		glBindTextureUnit(1, cur_fb.depth_attachment());
-		fb_shader.setInt("color", 0);
-		fb_shader.setInt("depth", 1);
-		fb_shader.use();
+
+		glm::mat4 curr_view_proj = cam->projectionMatrix * cam->viewMatrix;
+		glm::mat4 curr_inv_view_proj = glm::inverse(curr_view_proj);
+
+		if (camera == player.getCamera()) {
+			glm::mat4 prev_view_proj = ecs.get_component<CameraTemporal>(player.getCamera())->prev_view_proj;
+			fb_player.setMat4("curr_inv_view_proj", curr_inv_view_proj);
+			fb_player.setMat4("prev_view_proj", prev_view_proj);
+			fb_player.setInt("color", 0);
+			fb_player.setInt("depth", 1);
+			fb_player.use();
+		} else if (camera == debug_cam) {
+			fb_debug.setInt("color", 0);
+			fb_debug.setInt("depth", 1);
+			fb_debug.use();
+		}
+
 		// NOTE: Make sure to have a VAO bound when making this draw call!!
 		DrawArraysWrapper(GL_TRIANGLES, 0, 3);
 		glBindVertexArray(0);
@@ -616,8 +635,8 @@ int main()
 			ImGui_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
-			glm::ivec3 chunkCoords = Chunk::worldToChunk(player.getPos());
-			glm::ivec3 localCoords = Chunk::worldToLocal(player.getPos());
+			glm::ivec3 chunkCoords = Chunk::world_to_chunk(player.getPos());
+			glm::ivec3 localCoords = Chunk::world_to_local(player.getPos());
 			ImGui::Begin("DEBUG", NULL,
 			             ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize |
 			                 ImGuiWindowFlags_::ImGuiWindowFlags_NoMove |

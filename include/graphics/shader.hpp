@@ -206,6 +206,27 @@ class Shader
 		glProgramUniform3fv(ID, location, 1, glm::value_ptr(value));
 	}
 
+	void setIVec3(const std::string& name, const glm::ivec3& value) const
+	{
+		if (ID == 0) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Attempting to set uniform '{}' on invalid shader program!", s_name, name);
+#endif
+			return;
+		}
+
+		GLint location = getUniformLocation(name);
+		if (location == -1) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", s_name, name);
+#endif
+			return;
+		}
+
+		glProgramUniform3iv(ID, location, 1, glm::value_ptr(value));
+	}
+
+
 	void setUVec3(const std::string& name, const glm::uvec3& value) const
 	{
 		if (ID == 0) {

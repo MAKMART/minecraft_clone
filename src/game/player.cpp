@@ -43,7 +43,7 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos, int width, int height)
 			.can_fly = false,
 			.jump_height = 1.252f,
 			.walk_speed = 3.6f,
-			.run_speed = 7.8f,
+			.run_speed = 77.8f,
 			.crouch_speed = 2.5f,
 			.fly_speed = 17.5f
 			});
@@ -185,7 +185,7 @@ void Player::placeBlock(ChunkManager& chunkManager)
 		if (isInsidePlayerBoundingBox(placePos))
 			return;
 
-		glm::ivec3 localBlockPos = Chunk::worldToLocal(placePos);
+		glm::ivec3 localBlockPos = Chunk::world_to_local(placePos);
 
 		if (chunkManager.getChunk(placePos)->getBlockAt(localBlockPos.x, localBlockPos.y, localBlockPos.z).type != Block::blocks::AIR) {
 			log::system_info("Player", "❌ Target block is NOT air! It's type: {}", Block::toString(chunkManager.getChunk(placePos)->getBlockAt(localBlockPos.x, localBlockPos.y, localBlockPos.z).type));

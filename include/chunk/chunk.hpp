@@ -7,16 +7,12 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <system_error>
 #define GLM_ENABLE_EXPERIMENTAL
 #include "core/logger.hpp"
 #include "graphics/shader.hpp"
 #include <glm/gtx/string_cast.hpp>
-#include <memory>
 #include <span>
-#include <vector>
-
-// class Shader;
+#include <bit>
 
 enum class ChunkState { Empty, Generated, Linked, TreesPlaced, Meshed };
 
@@ -109,21 +105,6 @@ struct Block {
   constexpr int toInt() const { return toInt(type); }
 };
 
-struct Face {
-  std::uint32_t position;
-  std::uint32_t tex_coord; // Bits:
-                           // 0-9: u,
-                           // 10-19: v,
-                           // 20-22: face_id,
-                           // 23-31: block_type
-
-  Face(int vx, int vy, int vz, int tex_u, int tex_v, int face, int block_type) {
-    position = (vx & 0x3FF) | ((vy & 0x3FF) << 10) | ((vz & 0x3FF) << 20);
-    tex_coord = (tex_u & 0x3FF) | ((tex_v & 0x3FF) << 10) |
-                ((face & 0x7) << 20) | ((block_type & 0x1FF) << 23);
-  }
-};
-
 struct face_gpu {
   glm::uvec3 position; // 12 bytes
   uint32_t face_id;    // 4
@@ -135,28 +116,17 @@ static_assert(sizeof(face_gpu) == 24);
 class Chunk {
 public:
   explicit Chunk(const glm::ivec3 &chunkPos);
-  ~Chunk();
-
-  const Block *getChunkData() { return blocks; }
-
-  const glm::ivec3 getPos() const { return position; }
-
-  glm::vec3 getCenter() const {
-    return glm::vec3(position) * glm::vec3(CHUNK_SIZE) +
-           glm::vec3(CHUNK_SIZE) * 0.5f;
-  }
+  ~Chunk() = default;
 
   Block getBlockAt(int x, int y, int z) const {
     int index = getBlockIndex(x, y, z);
-    return blocks[index];
+	return blocks[index];
   }
 
   bool setBlockAt(int x, int y, int z, Block::blocks type) {
     int index = getBlockIndex(x, y, z);
     if (index == -1) {
-      log::system_error("Chunk",
-                        "tried to set block out-of-bounds for chunk at {}",
-                        glm::to_string(position));
+      log::system_error("Chunk", "tried to set block out-of-bounds for chunk at {}", glm::to_string(position));
       return false;
     }
     blocks[index].type = type;
@@ -168,17 +138,19 @@ public:
     return true;
   }
 
-  void generate(std::span<const float> fullNoise, int regionWidth,
-                int noiseOffsetX, int noiseOffsetZ);
-
+  const Block *getChunkData() { return blocks; }
+  const glm::ivec3 getPos() const { return position; }
+  AABB getAABB() const { return aabb; }
+  void generate(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ);
   void updateMesh();
+  void renderOpaqueMesh(const Shader &shader, GLuint vao);
+  void renderTransparentMesh(const Shader &shader);
 
   inline int getBlockIndex(int x, int y, int z) const noexcept {
 #if defined(DEBUG)
     if (x < 0 || x >= CHUNK_SIZE.x || y < 0 || y >= CHUNK_SIZE.y || z < 0 ||
         z >= CHUNK_SIZE.z) {
-      log::system_error("Chunk", "Invalid index for block at {}!",
-                        glm::to_string(glm::ivec3(x, y, z)));
+      log::system_error("Chunk", "Invalid index for block at {}!", glm::to_string(glm::ivec3(x, y, z)));
       return -1;
     }
 #endif
@@ -186,30 +158,22 @@ public:
   }
 
   ChunkState state = ChunkState::Empty;
+
   constexpr static int SIZE = CHUNK_SIZE.x * CHUNK_SIZE.y * CHUNK_SIZE.z;
 
-  AABB getAABB() const { return aabb; }
-
-  void renderOpaqueMesh(const Shader &shader, GLuint vao);
-  void renderTransparentMesh(const Shader &shader);
-
-  static glm::ivec3 worldToChunk(const glm::vec3 &worldPos) {
-    return glm::ivec3(static_cast<int>(std::floor(worldPos.x / CHUNK_SIZE.x)),
-                      0, // no vertical chunking
-                      static_cast<int>(std::floor(worldPos.z / CHUNK_SIZE.z)));
+  static inline glm::ivec3 world_to_chunk(const glm::vec3 &world_pos) {
+	  glm::ivec3 chunk = glm::ivec3(glm::floor(world_pos / glm::vec3(CHUNK_SIZE)));
+	  chunk.y = 0; // No vertical chunking for now
+	  return chunk;
   }
 
-  static glm::ivec3 worldToLocal(const glm::vec3 &worldPos) {
-    glm::ivec3 chunkPos = worldToChunk(worldPos);
-    glm::vec3 chunkOrigin = chunkToWorld(chunkPos);
-
-    return glm::ivec3(static_cast<int>(std::floor(worldPos.x - chunkOrigin.x)),
-                      static_cast<int>(std::floor(worldPos.y - chunkOrigin.y)),
-                      static_cast<int>(std::floor(worldPos.z - chunkOrigin.z)));
+  static inline glm::ivec3 world_to_local(const glm::vec3 &world_pos) {
+	glm::vec3 chunk_origin = chunk_to_world(world_to_chunk(world_pos));
+	return glm::ivec3(glm::floor(world_pos - chunk_origin));
   }
 
-  static glm::vec3 chunkToWorld(const glm::ivec3 &chunkPos) {
-    return glm::vec3(chunkPos * CHUNK_SIZE);
+  static inline glm::vec3 chunk_to_world(const glm::ivec3 &chunk_pos) {
+    return glm::vec3(chunk_pos * CHUNK_SIZE);
   }
 
   bool isAir(int x, int y, int z) const {
@@ -217,13 +181,12 @@ public:
   }
 
   glm::mat4 getModelMatrix() const {
-    return glm::translate(glm::mat4(1.0f), chunkToWorld(position));
+    return glm::translate(glm::mat4(1.0f), chunk_to_world(position));
   }
 
 private:
   // Chunk-space position
   glm::ivec3 position;
-  Shader *comp;
   AABB aabb;
   const int seaLevel = 5;
   SSBO block_ssbo;   // blocks[]
@@ -231,9 +194,8 @@ private:
   SSBO counter_ssbo; // uint face_count
   SSBO indirect_ssbo;
 
-  int logSizeX;
-  int logSizeY;
+  constexpr static int logSizeX = std::countr_zero(static_cast<unsigned>(CHUNK_SIZE.x));
+  constexpr static int logSizeY = std::countr_zero(static_cast<unsigned>(CHUNK_SIZE.y));
   Block blocks[SIZE];
   uint32_t packed_blocks[(SIZE + 3) / 4] = {};
-  glm::mat4 modelMat; // TODO: actually use this model matrix in the class
 };
