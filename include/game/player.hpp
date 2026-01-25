@@ -1,4 +1,5 @@
 #pragma once
+#include <cassert>
 #include <memory>
 #include <optional>
 #include <glad/glad.h>
@@ -25,96 +26,51 @@ class Player
       public:
 	Player(ECS& ecs, glm::vec3 spawnPos, int width, int height);
 	~Player();
-
-	enum ACTION { BREAK_BLOCK,
-		      PLACE_BLOCK };
-
+	enum ACTION { BREAK_BLOCK, PLACE_BLOCK };
 	const glm::vec3& getPos() const
 	{
-		return transform->pos;
+		auto* t = ecs.get_component<Transform>(self);
+		assert(t && "Player entity missing Transform component");
+		return t->pos;
 	}
-	const Entity& getCamera() const
+	const glm::vec3& getVelocity() const
 	{
-		return camera;
+		auto* v = ecs.get_component<Velocity>(self);
+        assert(v && "Player entity missing Velocity component");
+        return v->value;
 	}
-	const Entity& getSelf() const
-	{
-		return self;
-	}
-	const glm::mat4& getModelMatrix() const
-	{
-		return modelMat;
-	}
-
+	const Entity& getCamera() const { return camera; }
+	const Entity& getSelf() const { return self; }
+	const glm::mat4& getModelMatrix() const { return modelMat; }
 	void update(float deltaTime);
 
 	bool is_on_ground() const
+    {
+        auto* c = ecs.get_component<Collider>(self);
+        assert(c && "Player entity missing Collider component");
+        return c->is_on_ground;
+    }
+
+	AABB getAABB() const 
 	{
-		return collider->is_on_ground;
+		auto* c = ecs.get_component<Collider>(self);
+        assert(c && "Player entity missing Collider component");
+		return c->getBoundingBoxAt(getPos());
 	}
 
-	bool isRunning() const
+	bool isInsidePlayerBoundingBox(const glm::vec3& checkPos) const
 	{
-		return state->current == PlayerMovementState::Running;
+		auto* c = ecs.get_component<Collider>(self);
+        assert(c && "Player entity missing Collider component");
+		return c->aabb.intersects({checkPos, checkPos + glm::vec3(1.0f)});
 	}
-
-	bool isWalking() const
-	{
-		return state->current == PlayerMovementState::Walking;
-	}
-
-	bool isIdling() const
-	{
-		return state->current == PlayerMovementState::Idle;
-	}
-
-	bool isCrouching() const
-	{
-		return state->current == PlayerMovementState::Crouching;
-	}
-
-	bool isFlying() const
-	{
-		return state->current == PlayerMovementState::Flying;
-	}
-
-	bool isJumping() const
-	{
-		return state->current == PlayerMovementState::Jumping;
-	}
-
-	bool isSwimming() const
-	{
-		return state->current == PlayerMovementState::Swimming;
-	}
-
-	bool isFalling() const
-	{
-		return state->current == PlayerMovementState::Falling;
-	}
-
-	void processMouseInput(ChunkManager& chunkManager);
-	void processKeyInput();
-	void processMouseScroll(float yoffset);
-
-	void setPos(glm::vec3 newPos);
-
-	const glm::vec3& getVelocity() const
-	{
-		return velocity->value;
-	}
-
-	AABB getAABB() const
-	{
-		return collider->getBoundingBoxAt(getPos());
-	}
-
-	bool isInsidePlayerBoundingBox(const glm::vec3& checkPos) const;
 	void breakBlock(ChunkManager& chunkManager);
 	void placeBlock(ChunkManager& chunkManager);
 
 	const char* getMode() const
 	{
+		PlayerMode* mode = ecs.get_component<PlayerMode>(self);
+		assert(mode && "Player entity missing PlayerMode component");
 		switch (mode->mode) {
 		case Type::SURVIVAL:
 			return "SURVIVAL";
@@ -132,6 +88,8 @@ class Player
 
 	const char* getMovementState() const
 	{
+		PlayerState* state = ecs.get_component<PlayerState>(self);
+		assert(state && "Player entity missing PlayerState component");
 		switch (state->current) {
 		case PlayerMovementState::Idle:
 			return "IDLE";
@@ -179,26 +137,14 @@ class Player
 
 	bool hasInfiniteBlocks = false;
 
-	MovementConfig* getMovementConfig() const {
-		return move_config;
-	}
-
       private:
 	ECS&   ecs;
 	Entity self;
 	Entity camera;
+
 	glm::mat4 modelMat;
-
-	MovementConfig* move_config;
-	Transform*      transform;
-	Velocity*       velocity;
-	Collider*       collider;
-	InputComponent* input_comp;
-	PlayerState*    state;
-	PlayerMode*     mode;
-
-	float ExtentX = 0.4f;
-	float ExtentY = 0.4f;
+	float ExtentX = 0.3f;
+	float ExtentY = 0.3f;
 
 	InputManager& input;
 

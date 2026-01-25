@@ -15,27 +15,13 @@
 Player::Player(ECS& ecs, glm::vec3 spawnPos, int width, int height)
     : ecs(ecs), playerHeight(1.8f), input(InputManager::get())
 {
-	log::info("Initializing Player...");
-
-	// Create the player entity
 	self = ecs.create_entity();
-
-	ecs.add_component(self, Transform{spawnPos});
-	transform = ecs.get_component<Transform>(self);
-
-	ecs.add_component(self, Velocity{});
-	velocity = ecs.get_component<Velocity>(self);
-
-	ecs.add_component(self, Collider{glm::vec3(ExtentX, playerHeight / 2.0f, ExtentY)});
-	collider = ecs.get_component<Collider>(self);
-
-	ecs.add_component(self, InputComponent{});
-	input_comp = ecs.get_component<InputComponent>(self);
-
-	ecs.add_component(self, MovementIntent{});
-	// Maybe add a local class reference here if you need
-
-	ecs.add_component(self, MovementConfig{
+	ecs.emplace_component<Transform>(self, spawnPos);
+	ecs.emplace_component<Velocity>(self);
+	ecs.emplace_component<Collider>(self, glm::vec3(ExtentX, playerHeight / 2.0f, ExtentY));
+	ecs.emplace_component<InputComponent>(self);
+	ecs.emplace_component<MovementIntent>(self);
+	ecs.emplace_component<MovementConfig>(self, MovementConfig{
 			.can_jump = true,
 			.can_walk = true,
 			.can_run = true,
@@ -47,44 +33,27 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos, int width, int height)
 			.crouch_speed = 2.5f,
 			.fly_speed = 17.5f
 			});
-	move_config = ecs.get_component<MovementConfig>(self);
+	ecs.emplace_component<PlayerState>(self);
+	ecs.emplace_component<PlayerMode>(self);
 
-
-	ecs.add_component(self, PlayerState{});
-	state = ecs.get_component<PlayerState>(self);
-
-	ecs.add_component(self, PlayerMode{});
-	mode = ecs.get_component<PlayerMode>(self);
-
-	// Other init stuff
-	eyeHeight       = playerHeight * 0.9f;
-
-
-	// Create the camera entity
+	eyeHeight = playerHeight * 0.9f;
 	camera = ecs.create_entity();
-	ecs.add_component(camera, Transform{});
-	ecs.add_component(camera, Camera{});
-	ecs.add_component(camera, CameraController{self, glm::vec3(0.0f, eyeHeight / 2.0f, 0.0f)});
+	ecs.emplace_component<Transform>(camera);
+	ecs.emplace_component<Camera>(camera);
+	ecs.emplace_component<CameraController>(camera, CameraController(self, glm::vec3(0.0f, eyeHeight / 2.0f, 0.0f)));
 	// Bro, you know that if you don't mark the camera as "Active" it won't render a thing :)
-	ecs.add_component(camera, ActiveCamera{});
-	ecs.add_component(camera, FrustumVolume{});
-	ecs.add_component(camera, CameraTemporal{});
-	ecs.add_component(camera, RenderTarget{width, height, {
+	ecs.emplace_component<ActiveCamera>(camera);
+	ecs.emplace_component<FrustumVolume>(camera);
+	ecs.emplace_component<CameraTemporal>(camera);
+	ecs.emplace_component<RenderTarget>(camera, RenderTarget(width, height, {
 			{ framebuffer_attachment_type::color, GL_RGBA16F }, // albedo
 			//{ framebuffer_attachment_type::color, GL_RGBA16F }, // normal
 			//{ framebuffer_attachment_type::color, GL_RG16F   }, // material
 			{ framebuffer_attachment_type::depth, GL_DEPTH_COMPONENT24 }
-			}});
+			}));
 
-
 }
-Player::~Player()
-{
-}
-bool Player::isInsidePlayerBoundingBox(const glm::vec3& checkPos) const
-{
-	return collider->aabb.intersects({checkPos, checkPos + glm::vec3(1.0f)});
-}
+Player::~Player() {}
 void Player::update(float deltaTime)
 {
 #if defined(TRACY_ENABLE)
@@ -96,39 +65,6 @@ void Player::update(float deltaTime)
 		modelMat = glm::translate(glm::mat4(1.0f), getPos() + eyeHeight);
 	else
 		modelMat = glm::translate(glm::mat4(1.0f), getPos());
-}
-void Player::setPos(glm::vec3 newPos)
-{
-	transform->pos = newPos;
-}
-
-void Player::processMouseInput(ChunkManager& chunkManager)
-{
-	if (input.isMousePressed(ATTACK_BUTTON) && this->canBreakBlocks) {
-		breakBlock(chunkManager);
-	}
-	if (input.isMousePressed(DEFENSE_BUTTON) && this->canPlaceBlocks) {
-		placeBlock(chunkManager);
-	}
-}
-void Player::processKeyInput()
-{
-
-	if (input.isPressed(CAMERA_SWITCH_KEY)) {
-		ecs.get_component<CameraController>(camera)->third_person = !ecs.get_component<CameraController>(camera)->third_person;
-	}
-
-	if (input.isPressed(SURVIVAL_MODE_KEY)) {
-		state->current = PlayerMovementState::Walking;
-	}
-
-	if (input.isPressed(CREATIVE_MODE_KEY)) {
-		state->current = PlayerMovementState::Flying;
-	}
-
-	if (input.isPressed(SPECTATOR_MODE_KEY)) {
-		mode->mode = Type::SPECTATOR;
-	}
 }
 void Player::breakBlock(ChunkManager& chunkManager)
 {
@@ -195,23 +131,4 @@ void Player::placeBlock(ChunkManager& chunkManager)
 		//log::system_info("Player", "Placing block at: {}, {}, {}", placePos.x, placePos.y, placePos.z);
 		chunkManager.updateBlock(placePos, static_cast<Block::blocks>(selectedBlock));
 	}
-}
-void Player::processMouseScroll(float yoffset)
-{
-	CameraController* ctrl                    = ecs.get_component<CameraController>(camera);
-	float             scroll_speed_multiplier = 1.0f;
-	if (state->current == PlayerMovementState::Flying && mode->mode == Type::SPECTATOR) {
-		//flying_speed += yoffset;
-		//if (flying_speed <= 0)
-			//flying_speed = 0;
-	} else if (ctrl->third_person) {
-		selectedBlock += (int)(yoffset * scroll_speed_multiplier);
-		if (selectedBlock < 1)
-			selectedBlock = 1;
-		if (selectedBlock >= Block::toInt(Block::blocks::MAX_BLOCKS))
-			selectedBlock = Block::toInt(Block::blocks::MAX_BLOCKS) - 1;
-	}
-
-	// To change FOV
-	// camCtrl.processMouseScroll(yoffset);
 }

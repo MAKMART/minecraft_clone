@@ -140,7 +140,7 @@ public:
 
   const Block *getChunkData() { return blocks; }
   const glm::ivec3 getPos() const { return position; }
-  AABB getAABB() const { return aabb; }
+  const AABB& getAABB() const { return aabb; }
   void generate(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ);
   void updateMesh();
   void renderOpaqueMesh(const Shader &shader, GLuint vao);

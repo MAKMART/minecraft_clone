@@ -1,110 +1,92 @@
 #pragma once
 #include "component_storage.hpp"
 #include "entity.hpp"
+#include <vector>
 #include <memory>
-#include <unordered_map>
 #include <tuple>
-#include <typeindex>
+#include <cstddef>
 
-class ComponentManager
-{
-      public:
-	template <typename T>
-	void add_component(Entity e, const T& component)
-	{
-		get_storage<T>()->add(e, component);
-	}
+class ComponentManager {
+public:
+    template <typename T>
+    void add_component(Entity e, T comp) {
+        get_storage<T>()->add(e, std::move(comp));
+    }
 
-	template <typename T>
-	T* get_component(Entity e)
-	{
-		return get_storage<T>()->get(e);
-	}
+    template <typename T>
+    T* get_component(Entity e) {
+        return get_storage<T>()->get(e);
+    }
 
-	template <typename T>
-	bool has_component(Entity e)
-	{
-		return get_storage<T>()->has(e);
-	}
+    template <typename T>
+    bool has_component(Entity e) {
+        return get_storage<T>()->has(e);
+    }
 
-	template <typename T>
-	void remove_component(Entity e)
-	{
-		get_storage<T>()->remove_entity(e);
-	}
+    template <typename T>
+    void remove_component(Entity e) {
+        get_storage<T>()->remove_entity(e);
+    }
 
-	template <typename T, typename Func>
-	void for_each_component(Func&& func)
-	{
-		auto* storage = get_storage<T>();
-		for (Entity e : storage->all_entities()) {
-			T* comp = storage->get(e);
-			if (comp)
-				func(e, *comp);
-		}
-	}
+    // Single-component iteration – uses packed dense arrays for optimal cache performance
+    template <typename T, typename Func>
+    void for_each_component(Func&& func) {
+        get_storage<T>()->iterate(std::forward<Func>(func));
+    }
 
-	// Iterate over multiple components (basic runtime filtering)
-	template <typename... Components, typename Func>
-	void for_each_components(Func&& func)
-	{
-		if constexpr (sizeof...(Components) == 0)
-			return;
+    // Multi-component iteration – uses first component type as base (put the most restrictive/rarest first for best perf)
+    template <typename... Components, typename Func>
+    void for_each_components(Func&& func) {
+        static_assert(sizeof...(Components) > 0, "At least one component required");
 
-		// 1) Create & cache all storages up-front.
-		//    This expands get_storage<...>() once for each component type, creating any missing storages
-		//    before we take any pointers so the unordered_map won't rehash during the loop.
-		auto storages_tuple = std::make_tuple(get_storage<Components>()...);
+        // Create tuple of all storages (lazy-creates any missing ones)
+        auto storages_tuple = std::make_tuple(get_storage<Components>()...);
 
-		// 2) Determine first storage (iteration base)
-		using FirstT       = std::tuple_element_t<0, std::tuple<Components...>>;
-		auto* firstStorage = std::get<ComponentStorage<FirstT>*>(storages_tuple);
+        // Use the first component's storage as iteration base
+        using First = std::tuple_element_t<0, std::tuple<Components...>>;
+        auto* base_storage = std::get<ComponentStorage<First>*>(storages_tuple);
 
-		if (!firstStorage) // defensive (shouldn't be null because get_storage creates it)
-			return;
+        for (Entity e : base_storage->all_entities()) {
+            // Fold-expression check: all required components present?
+            if ((std::get<ComponentStorage<Components>*>(storages_tuple)->has(e) && ...)) {
+                // Fold-expression unpack: call func with all components
+                func(e, *std::get<ComponentStorage<Components>*>(storages_tuple)->get(e)...);
+            }
+        }
+    }
 
-		// 3) Iterate
-		for (Entity e : firstStorage->all_entities()) {
-			// Check that all components exist for this entity
-			if ((std::get<ComponentStorage<Components>*>(storages_tuple)->has(e) && ...)) {
-				// NOTE: entity is passed first; lambdas should accept (Entity, Comp&...)
-				func(e, *std::get<ComponentStorage<Components>*>(storages_tuple)->get(e)...);
-			}
-		}
-	}
+    void remove_entity(Entity e) {
+        for (auto& storage : typed_storages) {
+            if (storage) storage->remove_entity(e);
+        }
+    }
 
-	void remove_entity(Entity e)
-	{
-		for (auto& [_, storage] : storages) {
-			storage->remove_entity(e);
-		}
-	}
+    void clear() {
+        for (auto& storage : typed_storages) {
+            if (storage) storage->clear();
+        }
+    }
 
-	void clear()
-	{
-		storages.clear(); // destroys all ComponentStorage<T>, frees memory
-	}
+private:
+    template <typename T>
+    ComponentStorage<T>* get_storage() {
+        const std::size_t type_id = ComponentTypeID<T>();  // <-- changed 'constexpr' to 'const'
+        if (type_id >= typed_storages.size()) {
+            typed_storages.resize(type_id + 1);
+        }
+        if (!typed_storages[type_id]) {
+            typed_storages[type_id] = std::make_unique<ComponentStorage<T>>();
+        }
+        return static_cast<ComponentStorage<T>*>(typed_storages[type_id].get());
+    }
 
-	void reset_components()
-	{
-		for (auto& [_, storage] : storages)
-			storage->clear(); // just clears component data, keeps storage alive
-	}
+    template <typename T>
+    static std::size_t ComponentTypeID() {
+        static std::size_t id = counter++;
+        return id;
+    }
 
-      private:
-	std::unordered_map<std::type_index, std::unique_ptr<IComponentStorage>> storages;
+    static inline std::size_t counter = 0;
 
-	template <typename T>
-	ComponentStorage<T>* get_storage()
-	{
-		auto type = std::type_index(typeid(T));
-		auto it   = storages.find(type);
-		if (it == storages.end()) {
-			auto storage   = std::make_unique<ComponentStorage<T>>();
-			auto ptr       = storage.get();
-			storages[type] = std::move(storage);
-			return ptr;
-		}
-		return static_cast<ComponentStorage<T>*>(it->second.get());
-	}
+    std::vector<std::unique_ptr<IComponentStorage>> typed_storages;
 };

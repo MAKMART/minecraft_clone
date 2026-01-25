@@ -1,3 +1,5 @@
+#include "game/ecs/components/debug_camera_controller.hpp"
+#include "game/ecs/components/movement_config.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include "game/ecs/systems/debug_camera_system.hpp"
 #include "game/ecs/systems/camera_system.hpp"
@@ -156,21 +158,21 @@ int main()
 #if defined(DEBUG)
 	Entity debug_cam;
 	debug_cam = ecs.create_entity();
-	ecs.add_component(debug_cam, Camera{});
-	ecs.add_component(debug_cam, Transform{{0.0f, 10.0f, 0.0f}});
+	ecs.emplace_component<Camera>(debug_cam);
+	ecs.emplace_component<Transform>(debug_cam, glm::vec3(0.0f, 10.0f, 0.0f));
 	// At the start we do not need to add these componets since they will change at runtime when the player will switch to the debug camera
 	//ecs.add_component(debug_cam, ActiveCamera{});
 	//ecs.add_component(debug_cam, InputComponent{});
-	ecs.add_component(debug_cam, Velocity{});
-	ecs.add_component(debug_cam, MovementIntent{});
-	ecs.add_component(debug_cam, DebugCamera{});
-	ecs.add_component(debug_cam, DebugCameraController{});
-	ecs.add_component(debug_cam, RenderTarget{context->getWidth(), context->getHeight(), {
+	ecs.emplace_component<Velocity>(debug_cam);
+	ecs.emplace_component<MovementIntent>(debug_cam);
+	ecs.emplace_component<DebugCamera>(debug_cam);
+	ecs.emplace_component<DebugCameraController>(debug_cam);
+	ecs.emplace_component<RenderTarget>(debug_cam, RenderTarget(context->getWidth(), context->getHeight(), {
 			{ framebuffer_attachment_type::color, GL_RGBA16F }, // albedo
 			//{ framebuffer_attachment_type::color, GL_RGBA16F }, // normal
 			{ framebuffer_attachment_type::color, GL_RG16F   }, // material
 			{ framebuffer_attachment_type::depth, GL_DEPTH_COMPONENT24 }
-			}});
+			}));
 #endif
 	ChunkManager manager;
     Texture Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
@@ -369,13 +371,56 @@ int main()
 
 		// 1. Player
 		if (input.isMouseTrackingEnabled()) {
-			player.processMouseInput(manager);
+			if (input.isMousePressed(ATTACK_BUTTON) && player.canBreakBlocks) {
+				player.breakBlock(manager);
+			}
+			if (input.isMousePressed(DEFENSE_BUTTON) && player.canPlaceBlocks) {
+				player.placeBlock(manager);
+			}
+
 			float scrollY = input.getScroll().y;
-			if (scrollY != 0.0f)
-				player.processMouseScroll(scrollY);
+			if (scrollY != 0.0f) {
+
+				CameraController* ctrl = ecs.get_component<CameraController>(camera);
+				PlayerState* state = ecs.get_component<PlayerState>(player.getSelf());
+				PlayerMode* mode = ecs.get_component<PlayerMode>(player.getSelf());
+				float             scroll_speed_multiplier = 1.0f;
+				if (state->current == PlayerMovementState::Flying && mode->mode == Type::SPECTATOR) {
+					//flying_speed += yoffset;
+					//if (flying_speed <= 0)
+					//flying_speed = 0;
+				} else if (ctrl->third_person) {
+					player.selectedBlock += (int)(scrollY * scroll_speed_multiplier);
+					if (player.selectedBlock < 1)
+						player.selectedBlock = 1;
+					if (player.selectedBlock >= Block::toInt(Block::blocks::MAX_BLOCKS))
+						player.selectedBlock = Block::toInt(Block::blocks::MAX_BLOCKS) - 1;
+				}
+
+				// To change FOV
+				// camCtrl.processMouseScroll(scrollY);
+
+
+			}
 		}
 
-		player.processKeyInput();
+		PlayerMode* mode = ecs.get_component<PlayerMode>(player.getSelf());
+		PlayerState* state = ecs.get_component<PlayerState>(player.getSelf());
+		if (input.isPressed(CAMERA_SWITCH_KEY)) {
+			ecs.get_component<CameraController>(camera)->third_person = !ecs.get_component<CameraController>(camera)->third_person;
+		}
+
+		if (input.isPressed(SURVIVAL_MODE_KEY)) {
+			state->current = PlayerMovementState::Walking;
+		}
+
+		if (input.isPressed(CREATIVE_MODE_KEY)) {
+			state->current = PlayerMovementState::Flying;
+		}
+
+		if (input.isPressed(SPECTATOR_MODE_KEY)) {
+			mode->mode = Type::SPECTATOR;
+		}
 
 		// Reload shaders
 		if (input.isPressed(GLFW_KEY_H)) {
@@ -684,11 +729,11 @@ int main()
 			ImGui::Indent();
 			DrawBool("is OnGround", player.is_on_ground());
 			DrawBool("is Damageable", player.isDamageable);
-			DrawBool("is Running", player.isRunning());
-			DrawBool("is Flying", player.isFlying());
-			DrawBool("is Swimming", player.isSwimming());
-			DrawBool("is Walking", player.isWalking());
-			DrawBool("is Crouched", player.isCrouching());
+			DrawBool("is Running", state->current == PlayerMovementState::Running);
+			DrawBool("is Flying", state->current == PlayerMovementState::Flying);
+			DrawBool("is Swimming", state->current == PlayerMovementState::Swimming);
+			DrawBool("is Walking", state->current == PlayerMovementState::Walking);
+			DrawBool("is Crouched", state->current == PlayerMovementState::Crouching);
 			DrawBool("is third-person", ctrl->third_person);
 			DrawBool("Player can place blocks", player.canPlaceBlocks);
 			DrawBool("Player can break blocks", player.canBreakBlocks);
@@ -708,7 +753,7 @@ int main()
 			if (renderUI && !input.isMouseTrackingEnabled()) {
 				if (ImGui::CollapsingHeader("Settings")) {
 					if (ImGui::TreeNode("Player")) {
-						auto* cfg = player.getMovementConfig();
+						auto* cfg = ecs.get_component<MovementConfig>(player.getSelf());
 						ImGui::SliderFloat("Player walking speed ", &cfg->walk_speed, 0.0f, 100.0f);
 						ImGui::SliderFloat("Player flying speed", &cfg->fly_speed, 0.0f, 100.0f);
 						ImGui::SliderFloat("Max Interaction Distance", &player.max_interaction_distance, 0.0f, 100.0f);
