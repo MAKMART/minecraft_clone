@@ -32,7 +32,6 @@ else()
     # Release/RelWithDebInfo: thin LTO
     set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold -static-libgcc -static-libstdc++")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto=thin")
 endif()
 
 # ==== Tracy warnings ====

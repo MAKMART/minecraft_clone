@@ -50,7 +50,7 @@
 #include "game/ecs/systems/temporal_camera_system.hpp"
 #include "graphics/renderer/framebuffer_manager.hpp"
 
-u8  nbFrames  = 0;
+std::uint64_t  nbFrames  = 0;
 f32 deltaTime = 0.0f;
 f32 lastFrame = 0.0f;
 b8 renderUI      = true;
@@ -343,10 +343,13 @@ int main()
 			fb_player.setFloat("near_plane", cam->near_plane);
 			fb_player.setFloat("far_plane", cam->far_plane);
 			fb_player.setFloat("scale", scale);
-		} else if (camera == debug_cam) {
+		} 
+#if defined(DEBUG)
+		else if (camera == debug_cam) {
 			fb_debug.setFloat("near_plane", cam->near_plane);
 			fb_debug.setFloat("far_plane", cam->far_plane);
 		}
+#endif
 		if (input.isPressed(GLFW_KEY_UP))
 			scale+=0.01f;
 		if (input.isPressed(GLFW_KEY_DOWN))
@@ -361,9 +364,12 @@ int main()
 			toggle = !toggle;          // flip toggle
 			if (camera == player.getCamera()) {
 				fb_player.setInt("toggle", toggle ? 1 : 0);
-			} else if (camera == debug_cam) {
+			} 
+#if defined(DEBUG)
+			else if (camera == debug_cam) {
 				fb_debug.setInt("toggle", toggle ? 1 : 0);
 			}
+#endif
 		}
 
 		was_pressed = pressed; // remember state for next frame
@@ -489,7 +495,9 @@ int main()
 		movement_intent_system(ecs, camera);
 		movement_physics_system(ecs, manager, deltaTime);
 		camera_controller_system(ecs, player.getSelf());
+#if defined(DEBUG)
 		debug_camera_system(ecs, deltaTime);
+#endif
 		camera_system(ecs);
 		frustum_volume_system(ecs);
 
@@ -612,11 +620,14 @@ int main()
 			fb_player.setInt("color", 0);
 			fb_player.setInt("depth", 1);
 			fb_player.use();
-		} else if (camera == debug_cam) {
+		} 
+#if defined(DEBUG)
+		else if (camera == debug_cam) {
 			fb_debug.setInt("color", 0);
 			fb_debug.setInt("depth", 1);
 			fb_debug.use();
 		}
+#endif
 
 		// NOTE: Make sure to have a VAO bound when making this draw call!!
 		DrawArraysWrapper(GL_TRIANGLES, 0, 3);
@@ -796,6 +807,7 @@ int main()
 #if defined(TRACY_ENABLE)
 		FrameMark;
 #endif
+		nbFrames++;
 	}
 
 
