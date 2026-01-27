@@ -11,7 +11,7 @@
 #include "graphics/texture.hpp"
 #include "chunk/chunk.hpp"
 #include "core/defines.hpp"
-#include <PerlinNoise.hpp>
+#include <FastNoise/FastNoise.h>
 #include <optional>
 #include "glm/ext/vector_int3.hpp"
 #include "core/logger.hpp"
@@ -39,7 +39,7 @@ struct ivec3_hash {
 class ChunkManager
 {
       public:
-	ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed = std::nullopt);
+	ChunkManager(std::optional<int> seed = std::nullopt);
 	~ChunkManager();
 
 	Shader& getShader() { return shader; }
@@ -88,7 +88,7 @@ class ChunkManager
 
 	bool updateBlock(glm::vec3 world_pos, Block::blocks newType);
 
-	void updateChunk(glm::vec3 world_pos)
+	void updateChunk(glm::vec3 world_pos) noexcept
 	{
 		if (auto chunk = getChunk(world_pos))
 			chunk->updateMesh();
@@ -104,13 +104,12 @@ class ChunkManager
 
 	void unloadChunk(glm::vec3 world_pos);
 
-	void clearChunks()
+	void clearChunks() noexcept
 	{
 		chunks.clear();
 	}
 
     private:
-
 
 	//TODO: Maybe move this into a utils namespace or smth
 	static bool isAABBInsideFrustum(const AABB& aabb, const FrustumVolume& fv) {
@@ -132,17 +131,20 @@ class ChunkManager
 	}
 
 
-
-	siv::PerlinNoise perlin;
+	FastNoise::SmartNode<FastNoise::Perlin> perlin_node;
+	FastNoise::SmartNode<FastNoise::FractalFBm> fractal_node;
+	static constexpr int SEED = 1337;
 	GLuint           VAO;
 	Shader           shader;
 	Shader           waterShader;
 	Shader			 compute;
 
+	std::vector<float> cachedNoiseRegion;
+	glm::ivec2         lastRegionSize  = {-1, -1};
+	glm::ivec3         lastNoiseOrigin = {-999999, 0, -999999};
+
 	// TODO: Use an octree to store the chunks
 	std::unordered_map<glm::ivec3, std::shared_ptr<Chunk>, ivec3_hash> chunks;
-
-	bool neighborsAreGenerated(Chunk* chunk);
 
 	// initialize with a value that's != to any reasonable spawn chunk position
 	glm::ivec3 last_player_chunk_pos{INT_MIN};
@@ -153,5 +155,4 @@ class ChunkManager
 
 	void unloadDistantChunks(const glm::ivec3& playerChunkPos, int unloadDistance);
 
-	float LayeredPerlin(float x, float z, int octaves, float baseFreq, float baseAmp, float lacunarity = 2.0f, float persistence = 0.5f);
 };

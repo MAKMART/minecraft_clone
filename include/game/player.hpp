@@ -121,11 +121,11 @@ class Player
 	}
 
 	// --- Player Settings ---
-	float        max_interaction_distance = 10.0f;
-	unsigned int render_distance          = 1;
+	float max_interaction_distance = 10.0f;
+	unsigned int render_distance = 5;
 
-	float        playerHeight;
-	float        eyeHeight;
+	float playerHeight;
+	float eyeHeight;
 	std::uint8_t selectedBlock = 1;
 
 	// --- Player Flags ---
@@ -147,5 +147,4 @@ class Player
 	float ExtentY = 0.3f;
 
 	InputManager& input;
-
 };

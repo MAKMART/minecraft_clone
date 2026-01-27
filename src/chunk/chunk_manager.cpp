@@ -1,7 +1,5 @@
 #include "chunk/chunk_manager.hpp"
 #include <cmath>
-#include <cstdint>
-#include <stdexcept>
 #include "chunk/chunk.hpp"
 #include "core/defines.hpp"
 #include "core/timer.hpp"
@@ -9,7 +7,7 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-ChunkManager::ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed)
+ChunkManager::ChunkManager(std::optional<int> seed)
     : shader("Chunk", CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY),
       waterShader("Water", WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY),
 	  compute("Chunk_compute", SHADERS_DIRECTORY / "chunk.comp")
@@ -26,19 +24,14 @@ ChunkManager::ChunkManager(std::optional<siv::PerlinNoise::seed_type> seed)
 		log::system_error("ChunkManager", "CHUNK_SIZE must be a power of 2");
 		std::exit(1);
 	}
-
-	if (seed.has_value()) {
-		perlin = siv::PerlinNoise(seed.value());
-		log::system_info("ChunkManager", "initialized with seed: {}", seed.value());
-	} else {
-		std::mt19937                       engine((std::random_device())());
-		std::uniform_int_distribution<int> distribution(1, 999999);
-		siv::PerlinNoise::seed_type        random_seed = distribution(engine);
-		perlin                                         = siv::PerlinNoise(/*random_seed*/116896);
-		log::system_info("ChunkManager", "initialized with random seed: {}", random_seed);
-	}
+	perlin_node = FastNoise::New<FastNoise::Perlin>();
+	fractal_node = FastNoise::New<FastNoise::FractalFBm>();
+	fractal_node->SetSource(perlin_node);
+	fractal_node->SetOctaveCount(4);
+	fractal_node->SetLacunarity(4.48f);
+	fractal_node->SetGain(0.440f);
+	fractal_node->SetWeightedStrength(-0.32f);
 	compute.setIVec3("CHUNK_SIZE", CHUNK_SIZE);
-
 	glCreateVertexArrays(1, &VAO);
 }
 ChunkManager::~ChunkManager()
@@ -69,30 +62,6 @@ bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType)
 	return true;
 }
 
-float ChunkManager::LayeredPerlin(float x, float z, int octaves, float baseFreq, float baseAmp, float lacunarity, float persistence)
-{
-	float total     = 0.0f;
-	float frequency = baseFreq;
-	float amplitude = baseAmp;
-
-	for (int i = 0; i < octaves; ++i) {
-		total += (perlin.noise2D(x * frequency, z * frequency)) * amplitude; // Not the _01 variant, so it's in [-1, 1]
-		frequency *= lacunarity;
-		amplitude *= persistence;
-	}
-	return std::pow(std::abs(total), 1.3f) * glm::sign(total);
-}
-bool ChunkManager::neighborsAreGenerated(Chunk* chunk)
-{
-	/*
-	return chunk &&
-	       chunk->leftChunk.lock() && chunk->leftChunk.lock()->state >= ChunkState::Generated &&
-	       chunk->rightChunk.lock() && chunk->rightChunk.lock()->state >= ChunkState::Generated &&
-	       chunk->frontChunk.lock() && chunk->frontChunk.lock()->state >= ChunkState::Generated &&
-	       chunk->backChunk.lock() && chunk->backChunk.lock()->state >= ChunkState::Generated;
-		   */
-	return false;
-}
 void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int renderDistance)
 {
 
@@ -110,10 +79,6 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 	glm::ivec2 region = {side * CHUNK_SIZE.x, side * CHUNK_SIZE.z};
 
 	// Precomputed noise for the full region
-	static std::vector<float> cachedNoiseRegion;
-	static glm::ivec2         lastRegionSize  = {-1, -1};
-	static glm::ivec3         lastNoiseOrigin = {-999999, 0, -999999};
-
 	const glm::ivec3 noiseOrigin = {
 	    (playerChunkPos.x - renderDistance) * CHUNK_SIZE.x,
 	    0,
@@ -121,37 +86,45 @@ void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int ren
 
 	{
 		Timer noiseTimer("Noise precomputation");
-		if (lastRegionSize != region || lastNoiseOrigin != noiseOrigin) {
+		if (lastRegionSize != region || lastNoiseOrigin != noiseOrigin)
+		{
 			cachedNoiseRegion.resize(region.x * region.y);
-			for (int y = 0; y < region.y; ++y) {
-				for (int x = 0; x < region.x; ++x) {
-					float wx                            = float((playerChunkPos.x - renderDistance) * CHUNK_SIZE.x + x);
-					float wz                            = float((playerChunkPos.z - renderDistance) * CHUNK_SIZE.z + y);
-					cachedNoiseRegion[y * region.x + x] = LayeredPerlin(wx, wz, 3, 0.003f, 1.2f);
-				}
-			}
+
+			constexpr float step = 0.4f;
+
+			// FastNoise2 fills row-major: [y * width + x]
+			fractal_node->GenUniformGrid2D(
+					cachedNoiseRegion.data(),
+					static_cast<float>(noiseOrigin.x),
+					static_cast<float>(noiseOrigin.z),
+					region.x,
+					region.y,
+					step,
+					step,
+					SEED
+					);
+
 			lastRegionSize  = region;
 			lastNoiseOrigin = noiseOrigin;
 		}
 	}
 
+
 	auto& noiseRegion = cachedNoiseRegion;
 
-	for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
-		for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
+	compute.use();
+	for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
+		for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
 			glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
 			auto [it, inserted] = chunks.try_emplace(chunkPos, std::make_shared<Chunk>(chunkPos));
 			if (inserted) {
-				glm::vec3  worldPos = Chunk::chunk_to_world(chunkPos);
-
-				int offsetX = worldPos.x - noiseOrigin.x;
-				int offsetZ = worldPos.z - noiseOrigin.z;
+				int offsetX = (dx + renderDistance) * CHUNK_SIZE.x;
+				int offsetZ = (dz + renderDistance) * CHUNK_SIZE.z;
 
 				auto& chunk = it->second;
 				if (chunk->state == ChunkState::Empty) {
 					//Timer terrain_timer("Chunk terrain generation");
 					chunk->generate(std::span{noiseRegion}, region.x, offsetX, offsetZ);
-					compute.use();
 					chunk->updateMesh();
 					chunk->state = ChunkState::Generated;
 				}

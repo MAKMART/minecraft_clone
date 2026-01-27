@@ -1,25 +1,20 @@
 #include "chunk/chunk.hpp"
-#include <cstdlib>
-#include "core/timer.hpp"
-#include "graphics/renderer/shader_storage_buffer.hpp"
-#include "graphics/shader.hpp"
-#include "core/defines.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
 
-Chunk::Chunk(const glm::ivec3& chunkPos)
-    : position(chunkPos)
+Chunk::Chunk(const glm::ivec3& pos)
+    : position(pos)
 {
-	glm::vec3 worldOrigin = chunk_to_world(position);
-	glm::vec3 worldMax    = worldOrigin + glm::vec3(CHUNK_SIZE);
-	aabb                  = AABB(worldOrigin, worldMax);
-	constexpr uint32_t max_faces = SIZE * 6;
+	glm::vec3 world = chunk_to_world(position);
+	aabb = AABB(world, world + glm::vec3(CHUNK_SIZE));
 
-	face_ssbo = SSBO(nullptr, max_faces * sizeof(face_gpu), SSBO::usage::dynamic_draw);
+	// Fill face_ssbo with max possible faces (SIZE * 6)
+	face_ssbo = SSBO(nullptr, SIZE * 6 * sizeof(face_gpu), SSBO::usage::dynamic_draw);
 	counter_ssbo = SSBO(nullptr, sizeof(uint), SSBO::usage::dynamic_draw);
 	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
 	indirect_ssbo = SSBO(&cmd, sizeof(DrawArraysIndirectCommand), SSBO::usage::dynamic_draw);
+	block_ssbo = SSBO(nullptr, sizeof(packed_blocks), SSBO::usage::dynamic_draw);
 
 	srand(static_cast<unsigned int>(position.x ^ position.y ^ position.z));
 }
@@ -28,33 +23,17 @@ void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int nois
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-	Timer generation_timer("Chunk::generate");
-
-
 	constexpr int dirtDepth  = 3;
 	constexpr int beachDepth = 1; // How wide the beach is vertically
 
 	for (int z = 0; z < CHUNK_SIZE.z; ++z) {
-		for (int y = 0; y < CHUNK_SIZE.y; ++y) {
-			for (int x = 0; x < CHUNK_SIZE.x; ++x) {
-				int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
-#if defined(DEBUG)
-				if (noiseIndex < 0 || noiseIndex >= static_cast<int>(fullNoise.size())) {
-					log::system_warn("Chunk", "Noise index out of bounds: {}", noiseIndex);
-					continue;
-				}
-#endif
-				int height = static_cast<int>(fullNoise[noiseIndex] * CHUNK_SIZE.y);
-				height     = std::clamp(height, 0, CHUNK_SIZE.y - 1);
-
+		for (int x = 0; x < CHUNK_SIZE.x; ++x) {
+			int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
+			int height = static_cast<int>(fullNoise[noiseIndex] * CHUNK_SIZE.y);
+			height     = std::clamp(height, 0, CHUNK_SIZE.y - 1);
+			for (int y = 0; y < CHUNK_SIZE.y; ++y) {
 				int index = getBlockIndex(x, y, z);
-#if defined (DEBUG)
-				if (index == -1)
-					continue;
-#endif
-
 				Block::blocks block_type;
-
 				if (y > height) {
 					block_type = Block::blocks::AIR;
 				} else if (y == height) {
@@ -70,7 +49,7 @@ void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int nois
 			}
 		}
 	}
-	block_ssbo = SSBO(packed_blocks, sizeof(packed_blocks), SSBO::usage::dynamic_draw);
+	block_ssbo.update_data(packed_blocks, sizeof(packed_blocks));
 }
 void Chunk::updateMesh()
 {
@@ -80,28 +59,18 @@ void Chunk::updateMesh()
 	uint zero = 0;
 	counter_ssbo.update_data(&zero, sizeof(uint));
 
-	if (block_ssbo.id())
+	if (block_ssbo.id() && dirty)
 		block_ssbo.update_data(packed_blocks, sizeof(packed_blocks));
-	/*
-	size_t max_faces = 6 * SIZE;
-	std::vector<face_gpu> zero_faces(max_faces);
-	face_ssbo.update_data(zero_faces.data(),
-			zero_faces.size() * sizeof(face_gpu));
-
-
-	DrawArraysIndirectCommand zero_cmd{0, 1, 0, 0};
-	indirect_ssbo.update_data(&zero_cmd, sizeof(zero_cmd));
-
-	*/
 
 	block_ssbo.bind_to_slot(1);
 	face_ssbo.bind_to_slot(2);
 	counter_ssbo.bind_to_slot(3);
 	indirect_ssbo.bind_to_slot(4);
 	glDispatchCompute(CHUNK_SIZE.x/8, CHUNK_SIZE.y/8, CHUNK_SIZE.z/4);
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_DRAW_INDIRECT_BUFFER | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_DRAW_INDIRECT_BUFFER);
+	dirty = false;
 }
-void Chunk::renderOpaqueMesh(const Shader& shader, GLuint vao)
+void Chunk::renderOpaqueMesh(const Shader& shader, GLuint vao) const noexcept
 {
 	shader.setMat4("model", getModelMatrix());
 
@@ -110,7 +79,7 @@ void Chunk::renderOpaqueMesh(const Shader& shader, GLuint vao)
 	glDrawArraysIndirect(GL_TRIANGLES, nullptr);
 	g_drawCallCount++;
 }
-void Chunk::renderTransparentMesh(const Shader& shader)
+void Chunk::renderTransparentMesh(const Shader& shader) const noexcept
 {
 	shader.setMat4("model", getModelMatrix());
 }

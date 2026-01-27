@@ -74,7 +74,7 @@ extern std::filesystem::path MAIN_DOC_DIRECTORY;
 
 // World Attributes
 extern float     GRAVITY;
-constexpr static glm::ivec3 CHUNK_SIZE{16, 16, 16};
+constexpr static glm::ivec3 CHUNK_SIZE{16};
 #define MAX_ENTITIES 10000
 
 // Utils for rendering

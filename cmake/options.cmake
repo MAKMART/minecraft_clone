@@ -3,11 +3,6 @@ option(ENABLE_TRACY "Enable Tracy profiler (Debug only)" ON)
 set(ENABLE_DOCS "Enable building documentation with Doxygen" OFF)
 option(ENABLE_UNITY_BUILD "Enable unity build" ON)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build everything statically" FORCE)
-if(MSVC)
-    # MSVC usually handles runtime linking automatically
-else()
-    string(APPEND CMAKE_EXE_LINKER_FLAGS " -static-libgcc -static-libstdc++")
-endif()
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 set(CMAKE_POLICY_WARNING_CMPNNNN OFF) # for specific CMP warnings
@@ -28,12 +23,16 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-# ==== Linking ====
-set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold")
-
-# ==== IPO for release ====
-if(CMAKE_BUILD_TYPE MATCHES "Release|RelWithDebInfo")
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+# ==== Linking & LTO/Incremental ====
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    # Incremental linking with mold, static runtime
+    set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold -static-libgcc -static-libstdc++")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")  # keep debug info
+else()
+    # Release/RelWithDebInfo: thin LTO
+    set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold -static-libgcc -static-libstdc++")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto=thin")
 endif()
 
 # ==== Tracy warnings ====
@@ -78,6 +77,11 @@ set(RMLUI_BUILD_LIBRMLDEBUGGER ON CACHE BOOL "" FORCE)
 set(RMLUI_FONT_ENGINE "freetype" CACHE STRING "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(RMLUI_SHELL OFF CACHE BOOL "" FORCE)
+
+# ==== FastNoise2 ====
+set(FASTNOISE2_NOISETOOL OFF CACHE BOOL "" FORCE)
+set(FASTNOISE2_TESTS OFF CACHE BOOL "" FORCE)
+
 
 # ==== Tracy (optional) ====
 if(ENABLE_TRACY)

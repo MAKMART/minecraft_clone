@@ -53,6 +53,8 @@
 u8  nbFrames  = 0;
 f32 deltaTime = 0.0f;
 f32 lastFrame = 0.0f;
+b8 renderUI      = true;
+b8 renderTerrain = true;
 std::unique_ptr<UI>            ui;
 ECS                            ecs;
 Player *g_player = nullptr;
@@ -98,8 +100,6 @@ int main()
 	context = std::make_unique<WindowContext>(1920, 1080, std::string(PROJECT_NAME) + std::string(" ") + std::string(PROJECT_VERSION));
 	InputManager::get().setContext(context.get());
 	InputManager::get().setMouseTrackingEnabled(true);
-	b8 renderUI      = true;
-	b8 renderTerrain = true;
 	auto framebuffer_size_callback_lambda = [](GLFWwindow* window, int width, int height) {
 		// Don't recalculate the projection matrix, skip this frame's rendering, or log a warning
 		if (width <= 0 || height <= 0) return;
@@ -183,9 +183,9 @@ int main()
 	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(context->getWidth(), context->getHeight());
 
+	// Initialize framebuffers for render targets
 	ecs.for_each_component<RenderTarget>([&](Entity e, RenderTarget& rt) {
 			fb_manager.ensure(e, rt);
-
 			/*
 			for(size_t i = 0; i < rt.attachments.size(); i++) {
 			unsigned int e = (unsigned int)rt.attachments[i].internal_format;
@@ -204,7 +204,6 @@ int main()
 			}
 			std::cout << "\n";
 			*/
-
 	});
 	// --- CROSSHAIR STUFF ---
 	Shader crossHairshader("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
@@ -380,17 +379,10 @@ int main()
 
 			float scrollY = input.getScroll().y;
 			if (scrollY != 0.0f) {
-
 				CameraController* ctrl = ecs.get_component<CameraController>(camera);
-				PlayerState* state = ecs.get_component<PlayerState>(player.getSelf());
-				PlayerMode* mode = ecs.get_component<PlayerMode>(player.getSelf());
-				float             scroll_speed_multiplier = 1.0f;
-				if (state->current == PlayerMovementState::Flying && mode->mode == Type::SPECTATOR) {
-					//flying_speed += yoffset;
-					//if (flying_speed <= 0)
-					//flying_speed = 0;
-				} else if (ctrl->third_person) {
-					player.selectedBlock += (int)(scrollY * scroll_speed_multiplier);
+				float scroll_speed_multiplier = 1.0f;
+				if (!ctrl->third_person) {
+					player.selectedBlock += static_cast<int>(scrollY * scroll_speed_multiplier);
 					if (player.selectedBlock < 1)
 						player.selectedBlock = 1;
 					if (player.selectedBlock >= Block::toInt(Block::blocks::MAX_BLOCKS))

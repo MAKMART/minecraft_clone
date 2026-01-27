@@ -3,7 +3,6 @@
 #include "core/defines.hpp"
 #include "graphics/renderer/shader_storage_buffer.hpp"
 #include <GLFW/glfw3.h>
-#include <PerlinNoise.hpp>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -40,7 +39,7 @@ struct Block {
   blocks type = blocks::AIR;
 
   // Compile-time function for converting enum to string
-  static constexpr const char *toString(blocks type) {
+  static constexpr const char *toString(blocks type) noexcept {
     switch (type) {
     case blocks::AIR:
       return "AIR";
@@ -66,7 +65,7 @@ struct Block {
       return "UNKNOWN BLOCK TYPE";
     }
   }
-  static constexpr const char *toString(int type) {
+  static constexpr const char *toString(int type) noexcept {
     switch (type) {
     case 0:
       return "AIR";
@@ -93,9 +92,8 @@ struct Block {
     }
   }
 
-  static constexpr bool isTransparent(blocks type) {
-    return type == Block::blocks::AIR || type == Block::blocks::LEAVES ||
-           type == Block::blocks::WATER;
+  static inline constexpr bool isTransparent(blocks type) noexcept {
+    return type == Block::blocks::AIR || type == Block::blocks::LEAVES || type == Block::blocks::WATER;
   }
 
   constexpr const char *toString() const { return toString(type); }
@@ -118,33 +116,34 @@ public:
   explicit Chunk(const glm::ivec3 &chunkPos);
   ~Chunk() = default;
 
-  Block getBlockAt(int x, int y, int z) const {
-    int index = getBlockIndex(x, y, z);
-	return blocks[index];
-  }
+  inline Block get_block(int x, int y, int z) const noexcept { return blocks[getBlockIndex(x, y, z)]; }
 
-  bool setBlockAt(int x, int y, int z, Block::blocks type) {
+  bool setBlockAt(int x, int y, int z, Block::blocks type) noexcept {
     int index = getBlockIndex(x, y, z);
     if (index == -1) {
       log::system_error("Chunk", "tried to set block out-of-bounds for chunk at {}", glm::to_string(position));
       return false;
     }
-    blocks[index].type = type;
-	// Update the packed blocks array
-	uint32_t& packed = packed_blocks[index / 4];           // find the correct uint32_t
-	uint32_t shift  = (index % 4) * 8;                    // calculate shift for this block
-	packed &= ~(0xFFu << shift);                          // clear the old block type
-	packed |= (static_cast<uint32_t>(type) << shift);     // set the new block typ
-    return true;
+	if (blocks[index].type != type) {
+		blocks[index].type = type;
+		// Update the packed blocks array
+		uint32_t& packed = packed_blocks[index / 4];           // find the correct uint32_t
+		uint32_t shift  = (index % 4) * 8;                    // calculate shift for this block
+		packed &= ~(0xFFu << shift);                          // clear the old block type
+		packed |= (static_cast<uint32_t>(type) << shift);     // set the new block typ
+		dirty = true;
+		return true;
+	}
+	return false;
   }
 
-  const Block *getChunkData() { return blocks; }
-  const glm::ivec3 getPos() const { return position; }
-  const AABB& getAABB() const { return aabb; }
+  const inline Block *getChunkData() const noexcept { return blocks; }
+  const inline glm::ivec3 getPos() const noexcept{ return position; }
+  const inline AABB& getAABB() const noexcept { return aabb; }
   void generate(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ);
   void updateMesh();
-  void renderOpaqueMesh(const Shader &shader, GLuint vao);
-  void renderTransparentMesh(const Shader &shader);
+  void renderOpaqueMesh(const Shader &shader, GLuint vao) const noexcept;
+  void renderTransparentMesh(const Shader &shader) const noexcept;
 
   inline int getBlockIndex(int x, int y, int z) const noexcept {
 #if defined(DEBUG)
@@ -183,6 +182,8 @@ public:
   glm::mat4 getModelMatrix() const {
     return glm::translate(glm::mat4(1.0f), chunk_to_world(position));
   }
+
+  bool dirty = true;
 
 private:
   // Chunk-space position

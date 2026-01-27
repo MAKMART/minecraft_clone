@@ -18,7 +18,7 @@ public:
     }
 
     // ❌ no copying
-    SSBO(const SSBO&)            = delete;
+    SSBO(const SSBO&) = delete;
     SSBO& operator=(const SSBO&) = delete;
 
     // ✅ move constructor
@@ -43,16 +43,16 @@ public:
 
     ~SSBO() { release(); }
 
-    GLuint id() const { return m_id; }
-    size_t size() const { return m_size; }
+    GLuint id() const noexcept { return m_id; }
+    size_t size() const noexcept { return m_size; }
 
     // Bind the SSBO to a specific binding point for shaders
-    void bind_to_slot(GLuint slot) const {
+    void bind_to_slot(GLuint slot) const noexcept {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, slot, m_id);
     }
 
     // Update contents (DSA)
-    void update_data(const void* data, size_t size, size_t offset = 0) {
+    void update_data(const void* data, size_t size, size_t offset = 0) noexcept {
 		assert(offset + size <= m_size);
         glNamedBufferSubData(m_id, offset, size, data);
     }
@@ -62,14 +62,14 @@ private:
     size_t m_size = 0;
 
 
-    void release() {
+    void release() noexcept {
 	    if (m_id != 0) {
 		    glDeleteBuffers(1, &m_id);
 		    m_id = 0;
 	    }
     }
 
-    static GLenum to_gl_usage(usage u) {
+    constexpr static GLenum to_gl_usage(usage u) {
         switch (u) {
             case usage::static_draw:  return GL_STATIC_DRAW;
             case usage::dynamic_draw: return GL_DYNAMIC_DRAW;

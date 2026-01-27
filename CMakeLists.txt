@@ -90,6 +90,7 @@ target_link_libraries(game_core
 	PUBLIC 
 	$<$<BOOL:${ENABLE_TRACY}>:tracy_client>
 	${COMMON_LIBS}
+	FastNoise2
 )
 
 
@@ -110,22 +111,7 @@ set_target_properties(${PROJECT_NAME}
         OUTPUT_NAME "${EXECUTABLE_OUTPUT_NAME}"
 )
 
-# ==== Include compiler flags ====
 include(cmake/compiler_flags.cmake)
-
-
-# ==== Include Paths ====
-#[[
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/include/external/vendor
-    $<$<CONFIG:Debug>:${PROJECT_SOURCE_DIR}/include/external/glad-debug/>
-    $<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/include/external/glad-release/>
-    SYSTEM PRIVATE ${IMGUI_INCLUDE_DIRS}
-    ${glm_SOURCE_DIR}
-)
-]]
-
 
 # ==== Platform-Specific Libraries ====
 if(WIN32)

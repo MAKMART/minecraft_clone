@@ -42,7 +42,7 @@ inline bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManage
                 }
 
                 const glm::ivec3 local = Chunk::world_to_local(blockWorldPos);
-                const Block& block = chunk->getBlockAt(local.x, local.y, local.z);
+                const Block& block = chunk->get_block(local.x, local.y, local.z);
 
                 if (block.type != Block::blocks::AIR &&
                     block.type != Block::blocks::WATER &&

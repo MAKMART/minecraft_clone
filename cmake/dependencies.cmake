@@ -64,6 +64,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(RmlUi)
 
+# ==== FastNoise2 ====
+FetchContent_Declare(
+	FastNoise2
+	GIT_REPOSITORY https://github.com/Auburn/FastNoise2.git
+	GIT_TAG        v1.0.1
+)
+
+FetchContent_MakeAvailable(FastNoise2)
+
+
 # ==== Tracy (optional) ====
 if(ENABLE_TRACY)
     FetchContent_Declare(
