@@ -118,8 +118,8 @@ class ChunkManager
 	Shader			 compute;
 
 	std::vector<float> cachedNoiseRegion;
-	glm::ivec2         lastRegionSize  = {-1, -1};
-	glm::ivec3         lastNoiseOrigin = {-999999, 0, -999999};
+	glm::ivec3         lastRegionSize  = {-1, -1, -1};
+	glm::ivec3         lastNoiseOrigin = {-999999, -999999, -999999};
 
 	// TODO: Use an octree to store the chunks
 	std::unordered_map<glm::ivec3, std::unique_ptr<Chunk>, ivec3_hash> chunks;

@@ -3,8 +3,7 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-Chunk::Chunk(const glm::ivec3& pos)
-    : position(pos)
+Chunk::Chunk(const glm::ivec3& pos) : position(pos)
 {
 	glm::vec3 world = chunk_to_world(position);
 	aabb = AABB(world, world + glm::vec3(CHUNK_SIZE));
@@ -18,7 +17,7 @@ Chunk::Chunk(const glm::ivec3& pos)
 
 	srand(static_cast<unsigned int>(position.x ^ position.y ^ position.z));
 }
-void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ)
+void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int regionHeight, int noiseOffsetX, int noiseOffsetY, int noiseOffsetZ)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
@@ -28,12 +27,21 @@ void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int nois
 
 	for (int z = 0; z < CHUNK_SIZE.z; ++z) {
 		for (int x = 0; x < CHUNK_SIZE.x; ++x) {
-			int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
-			int height = static_cast<int>(fullNoise[noiseIndex] * CHUNK_SIZE.y);
-			height     = std::clamp(height, 0, CHUNK_SIZE.y - 1);
+			//int noiseIndex = (noiseOffsetZ + z) * regionWidth + (noiseOffsetX + x);
 			for (int y = 0; y < CHUNK_SIZE.y; ++y) {
+				int noiseIndex = (noiseOffsetZ + z) * regionWidth * regionHeight 
+					+ (noiseOffsetY + y) * regionWidth 
+					+ (noiseOffsetX + x);
+
+				//int height = static_cast<int>(fullNoise[noiseIndex] * CHUNK_SIZE.y);
+				//height     = std::clamp(height, 0, CHUNK_SIZE.y - 1);
 				int index = getBlockIndex(x, y, z);
+				float n = fullNoise[noiseIndex]; // 0..1
 				Block::blocks block_type;
+				if (n < 0.3f) block_type = Block::blocks::STONE;
+				else if (n < 0.5f) block_type = Block::blocks::DIRT;
+				else block_type = Block::blocks::AIR;
+				/*
 				if (y > height) {
 					block_type = Block::blocks::AIR;
 				} else if (y == height) {
@@ -43,6 +51,7 @@ void Chunk::generate(std::span<const float> fullNoise, int regionWidth, int nois
 				} else {
 					block_type = Block::blocks::STONE;
 				}
+				*/
 				blocks[index].type = block_type;
 				uint32_t b = static_cast<uint8_t>(block_type);
 				packed_blocks[index / 4] |= b << ((index % 4) * 8);

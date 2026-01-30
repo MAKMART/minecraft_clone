@@ -140,7 +140,7 @@ public:
   const inline Block *getChunkData() const noexcept { return blocks; }
   const inline glm::ivec3 getPos() const noexcept{ return position; }
   const inline AABB& getAABB() const noexcept { return aabb; }
-  void generate(std::span<const float> fullNoise, int regionWidth, int noiseOffsetX, int noiseOffsetZ);
+  void generate(std::span<const float> fullNoise, int regionWidth, int regionHeight, int noiseOffsetX, int noiseOffsetY, int noiseOffsetZ);
   void updateMesh();
   void renderOpaqueMesh(const Shader &shader, GLuint vao) const noexcept;
   void renderTransparentMesh(const Shader &shader) const noexcept;
@@ -162,7 +162,7 @@ public:
 
   static inline glm::ivec3 world_to_chunk(const glm::vec3 &world_pos) {
 	  glm::ivec3 chunk = glm::ivec3(glm::floor(world_pos / glm::vec3(CHUNK_SIZE)));
-	  chunk.y = 0; // No vertical chunking for now
+	  //chunk.y = 0; // No vertical chunking for now
 	  return chunk;
   }
 
