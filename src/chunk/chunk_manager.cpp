@@ -27,7 +27,7 @@ ChunkManager::ChunkManager(std::optional<int> seed)
 	perlin_node = FastNoise::New<FastNoise::Perlin>();
 	fractal_node = FastNoise::New<FastNoise::FractalFBm>();
 	fractal_node->SetSource(perlin_node);
-	fractal_node->SetOctaveCount(4);
+	fractal_node->SetOctaveCount(2);
 	fractal_node->SetLacunarity(4.48f);
 	fractal_node->SetGain(0.440f);
 	fractal_node->SetWeightedStrength(-0.32f);
@@ -36,17 +36,9 @@ ChunkManager::ChunkManager(std::optional<int> seed)
 }
 ChunkManager::~ChunkManager()
 {
-	clearChunks();
+	chunks.clear();
 	if (VAO)
 		glDeleteVertexArrays(1, &VAO);
-}
-
-void ChunkManager::unloadChunk(glm::vec3 world_pos)
-{
-	auto it = chunks.find(Chunk::world_to_chunk(world_pos));
-	if (it == chunks.end())
-		return;
-	chunks.erase(it);
 }
 
 bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType)
@@ -61,121 +53,112 @@ bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType)
 	chunk->updateMesh();
 	return true;
 }
-
-void ChunkManager::loadChunksAroundPos(const glm::ivec3& playerChunkPos, int renderDistance)
-{
-
-#if defined(TRACY_ENABLE)
-	ZoneScoped;
-#endif
-	chunks.reserve((2*renderDistance + 1)*(2*renderDistance + 1));
-
-	if (renderDistance <= 0)
-		return;
-	Timer chunksTimer("chunk_generation");
-
-	const int side = 2 * renderDistance + 1;
-
-	glm::ivec2 region = {side * CHUNK_SIZE.x, side * CHUNK_SIZE.z};
-
-	// Precomputed noise for the full region
-	const glm::ivec3 noiseOrigin = {
-	    (playerChunkPos.x - renderDistance) * CHUNK_SIZE.x,
-	    0,
-	    (playerChunkPos.z - renderDistance) * CHUNK_SIZE.z};
-
-	{
-		Timer noiseTimer("Noise precomputation");
-		if (lastRegionSize != region || lastNoiseOrigin != noiseOrigin)
-		{
-			cachedNoiseRegion.resize(region.x * region.y);
-
-			constexpr float step = 0.4f;
-
-			// FastNoise2 fills row-major: [y * width + x]
-			fractal_node->GenUniformGrid2D(
-					cachedNoiseRegion.data(),
-					static_cast<float>(noiseOrigin.x),
-					static_cast<float>(noiseOrigin.z),
-					region.x,
-					region.y,
-					step,
-					step,
-					SEED
-					);
-
-			lastRegionSize  = region;
-			lastNoiseOrigin = noiseOrigin;
-		}
-	}
-
-
-	auto& noiseRegion = cachedNoiseRegion;
-
-	compute.use();
-	for (int dz = -renderDistance; dz <= renderDistance; ++dz) {
-		for (int dx = -renderDistance; dx <= renderDistance; ++dx) {
-			glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
-			auto [it, inserted] = chunks.try_emplace(chunkPos, std::make_shared<Chunk>(chunkPos));
-			if (inserted) {
-				int offsetX = (dx + renderDistance) * CHUNK_SIZE.x;
-				int offsetZ = (dz + renderDistance) * CHUNK_SIZE.z;
-
-				auto& chunk = it->second;
-				if (chunk->state == ChunkState::Empty) {
-					//Timer terrain_timer("Chunk terrain generation");
-					chunk->generate(std::span{noiseRegion}, region.x, offsetX, offsetZ);
-					chunk->updateMesh();
-					chunk->state = ChunkState::Generated;
-				}
-			}
-		}
-	}
-}
-
-void ChunkManager::unloadDistantChunks(const glm::ivec3& playerChunkPos, int unloadDistance)
-{
-
-	const int unloadDistSquared = unloadDistance * unloadDistance; // Avoid sqrt()
-
-	std::erase_if(chunks, [&](const auto& pair) {
-		glm::ivec3 chunkPos = pair.first;
-
-		int distX       = chunkPos.x - playerChunkPos.x;
-		int distZ       = chunkPos.z - playerChunkPos.z;
-		int distSquared = distX * distX + distZ * distZ;
-
-		return distSquared > unloadDistSquared; // Remove if too far
-	});
-}
-std::shared_ptr<Chunk> ChunkManager::getOrCreateChunk(glm::vec3 worldPos)
-{
-	glm::ivec3 chunkPos = Chunk::world_to_chunk(worldPos);
-	auto       it       = chunks.find(chunkPos);
-	if (it != chunks.end() && it->second)
-		return it->second;
-
-	auto newChunk    = std::make_shared<Chunk>(chunkPos);
-	chunks[chunkPos] = newChunk;
-	return newChunk;
-}
-
-Chunk* ChunkManager::getChunk(glm::vec3 worldPos) const
+Chunk* ChunkManager::getChunk(glm::vec3 world_pos) const
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-	auto it = chunks.find(Chunk::world_to_chunk(worldPos));
-	if (it != chunks.end()) {
+	auto it = chunks.find(Chunk::world_to_chunk(world_pos));
+	if (it != chunks.end())
 		return it->second.get(); // Return raw pointer (Chunk*)
-	} else {
+	else {
 #if defined(DEBUG)
 		log::system_error("ChunkManager", "Chunk at {} not found!", glm::to_string(worldPos));
 #endif
 		return nullptr;
 	}
 }
-void ChunkManager::generateChunks(glm::vec3 playerPos, unsigned int renderDistance)
+void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int renderDistance)
+{
+#if defined(TRACY_ENABLE)
+    ZoneScoped;
+#endif
+
+    if (renderDistance == 0)
+        return;
+	Timer chunksTimer("chunk_generation");
+
+    const int side = 2 * renderDistance + 1;
+
+    // Compute the bounds of chunks to load
+    glm::ivec2 regionSize = {side * CHUNK_SIZE.x, side * CHUNK_SIZE.z};
+
+    // Determine the origin of the noise grid
+    glm::ivec3 noiseOrigin = {
+        (playerChunkPos.x - renderDistance) * CHUNK_SIZE.x,
+        0,
+        (playerChunkPos.z - renderDistance) * CHUNK_SIZE.z
+    };
+	{
+		Timer noiseTimer("Noise precomputation");
+		// Precompute noise only if necessary
+		if (lastRegionSize != regionSize || lastNoiseOrigin != noiseOrigin)
+		{
+			cachedNoiseRegion.resize(regionSize.x * regionSize.y);
+
+			constexpr float step = 0.4f;
+
+			fractal_node->GenUniformGrid2D(
+					cachedNoiseRegion.data(),
+					static_cast<float>(noiseOrigin.x),
+					static_cast<float>(noiseOrigin.z),
+					regionSize.x,
+					regionSize.y,
+					step,
+					step,
+					SEED
+					);
+
+			lastRegionSize = regionSize;
+			lastNoiseOrigin = noiseOrigin;
+		}
+	}
+
+	compute.use();
+    for (int dz = -static_cast<int>(renderDistance); dz <= static_cast<int>(renderDistance); ++dz)
+    {
+        for (int dx = -static_cast<int>(renderDistance); dx <= static_cast<int>(renderDistance); ++dx)
+        {
+            glm::ivec3 chunkPos{playerChunkPos.x + dx, 0, playerChunkPos.z + dz};
+
+            if (chunks.find(chunkPos) != chunks.end())
+                continue; // Chunk already loaded
+
+            // Insert new chunk
+            auto& chunk = chunks[chunkPos] = std::make_unique<Chunk>(chunkPos);
+
+            int offsetX = (dx + renderDistance) * CHUNK_SIZE.x;
+            int offsetZ = (dz + renderDistance) * CHUNK_SIZE.z;
+
+            // Generate terrain for this chunk
+            chunk->generate(std::span{cachedNoiseRegion}, regionSize.x, offsetX, offsetZ);
+            chunk->state = ChunkState::Generated;
+
+            // Optional: queue mesh update instead of immediate
+            //dirtyChunks.push_back(chunk.get());
+			chunk->updateMesh();
+        }
+    }
+}
+void ChunkManager::unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unloadDistance)
+{
+    const int unloadDistSquared = unloadDistance * unloadDistance;
+
+    // Only iterate over chunks near the edges
+    for (auto it = chunks.begin(); it != chunks.end(); )
+    {
+        glm::ivec3 chunkPos = it->first;
+        int dx = chunkPos.x - playerChunkPos.x;
+        int dz = chunkPos.z - playerChunkPos.z;
+
+        if ((dx * dx + dz * dz) > unloadDistSquared)
+            it = chunks.erase(it); // Unload chunk
+        else
+            ++it;
+    }
+}
+
+void ChunkManager::generate_chunks(glm::vec3 playerPos, unsigned int renderDistance)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
@@ -183,11 +166,8 @@ void ChunkManager::generateChunks(glm::vec3 playerPos, unsigned int renderDistan
 	glm::ivec3 playerChunk{Chunk::world_to_chunk(playerPos)};
 
 	if (playerChunk.x != last_player_chunk_pos.x || playerChunk.z != last_player_chunk_pos.z) {
-		if (renderDistance > 0)
-			loadChunksAroundPos(playerChunk, renderDistance);
-		if (renderDistance > 0)
-			unloadDistantChunks(playerChunk, renderDistance + 3);
-
+		load_around_pos(playerChunk, renderDistance);
+		unload_around_pos(playerChunk, renderDistance + 4);
 		last_player_chunk_pos.x = playerChunk.x;
 		last_player_chunk_pos.z = playerChunk.z;
 	}

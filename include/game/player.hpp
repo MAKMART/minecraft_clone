@@ -122,7 +122,7 @@ class Player
 
 	// --- Player Settings ---
 	float max_interaction_distance = 10.0f;
-	unsigned int render_distance = 5;
+	unsigned int render_distance = 5u;
 
 	float playerHeight;
 	float eyeHeight;

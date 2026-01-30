@@ -74,8 +74,8 @@ extern std::filesystem::path MAIN_DOC_DIRECTORY;
 
 // World Attributes
 extern float     GRAVITY;
-constexpr static glm::ivec3 CHUNK_SIZE{16};
-#define MAX_ENTITIES 10000
+inline constexpr static glm::ivec3 CHUNK_SIZE{16};
+inline constexpr int MAX_ENTITIES = 10'000;
 
 // Utils for rendering
 extern unsigned int g_drawCallCount;

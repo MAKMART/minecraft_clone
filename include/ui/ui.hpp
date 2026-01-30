@@ -42,7 +42,7 @@ class FileInterface : public Rml::FileInterface
 class UI : public Rml::RenderInterface
 {
       public:
-	UI(int width, int height, Shader* ui_shader, std::filesystem::path fontPath, std::filesystem::path docPath);
+	UI(int width, int height, std::filesystem::path fontPath, std::filesystem::path docPath);
 	~UI();
 
 	Rml::CompiledGeometryHandle CompileGeometry(Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices) override;
@@ -107,7 +107,7 @@ class UI : public Rml::RenderInterface
 	};
 
 	Rml::ElementDocument*                                     doc        = nullptr;
-	Shader*                                                   shader     = nullptr;
+	std::unique_ptr<Shader>                                   shader     = nullptr;
 	glm::mat4                                                 projection = glm::mat4(1.0f);
 	glm::mat4                                                 model      = glm::mat4(1.0f);
 	std::unordered_map<Rml::CompiledGeometryHandle, Geometry> geometry_map;

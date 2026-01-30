@@ -5,7 +5,6 @@
 #include "game/ecs/systems/camera_system.hpp"
 #include "game/ecs/systems/chunk_renderer_system.hpp"
 #include "game/ecs/systems/frustum_volume_system.hpp"
-#include <GL/gl.h>
 #if defined(TRACY_ENABLE)
 #include "tracy/Tracy.hpp"
 #endif
@@ -20,7 +19,6 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-#include "imgui_internal.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -42,6 +40,7 @@
 #include "game/ecs/components/debug_camera.hpp"
 #include "game/ecs/components/camera_controller.hpp"
 #include "game/ecs/components/active_camera.hpp"
+#include "game/ecs/components/temporal_camera.hpp"
 #include "game/ecs/systems/movement_intent_system.hpp"
 #include "game/ecs/systems/camera_controller_system.hpp"
 #include "game/ecs/systems/input_system.hpp"
@@ -150,10 +149,13 @@ int main()
 	glfwGetFramebufferSize(context->window, &fb_width, &fb_height);
 
 	log::info("Initializing Shaders...");
+
 	Shader playerShader("Player", PLAYER_VERTEX_SHADER_DIRECTORY, PLAYER_FRAGMENT_SHADER_DIRECTORY);
 	Shader fb_debug("FB_DEBUG", SHADERS_DIRECTORY / "fb_vert.glsl", SHADERS_DIRECTORY / "fb_debug_frag.glsl");
 	Shader fb_player("FB_PLAYER", SHADERS_DIRECTORY / "fb_vert.glsl", SHADERS_DIRECTORY / "fb_player_frag.glsl");
 	Shader shad("Test", SHADERS_DIRECTORY / "test_vert.glsl", SHADERS_DIRECTORY / "test_frag.glsl");
+
+
 
 #if defined(DEBUG)
 	Entity debug_cam;
@@ -180,7 +182,7 @@ int main()
 	g_fb_manager = &fb_manager;
 	Player player(ecs, glm::vec3{0.0f, (float)CHUNK_SIZE.y + 2.0f, 0.0f}, context->getWidth(), context->getHeight());
 	g_player = &player;
-	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), new Shader("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
+	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(context->getWidth(), context->getHeight());
 
 	// Initialize framebuffers for render targets
@@ -237,7 +239,7 @@ int main()
 
 	glCreateVertexArrays(1, &crosshairVAO);
 	VB crosshairVBO(verts, sizeof(verts));
-	IB crosshairEBO(CrosshairIndices, sizeof(CrosshairIndices));
+	IB crosshairEBO(CrosshairIndices, std::size(CrosshairIndices)); // std::size(CrosshairIndices) == 6
 
 	glVertexArrayVertexBuffer(crosshairVAO, 0, crosshairVBO.id(), 0, 5 * sizeof(float));
 	glVertexArrayElementBuffer(crosshairVAO, crosshairEBO.id());
@@ -286,6 +288,7 @@ int main()
 			5 * sizeof(float)   // stride
 			);
 
+	manager.generate_chunks(player.getPos(), player.render_distance);
 	while (!glfwWindowShouldClose(context->window)) {
 		float currentFrame = static_cast<float>(glfwGetTime());
 		deltaTime          = currentFrame - lastFrame;
@@ -490,7 +493,7 @@ int main()
 		input_system(ecs);
 
 		CameraController* ctrl = ecs.get_component<CameraController>(player.getCamera());
-		manager.generateChunks(player.getPos(), player.render_distance);
+		manager.generate_chunks(player.getPos(), player.render_distance);
 
 		movement_intent_system(ecs, camera);
 		movement_physics_system(ecs, manager, deltaTime);
@@ -541,7 +544,7 @@ int main()
 
 
 			// Add all chunks' bounding boxes
-			for (const auto& [chunkKey, chunkPtr] : manager.getChunks()) {
+			for (const auto& [chunkKey, chunkPtr] : manager.get_all()) {
 				if (!chunkPtr)
 					continue; // safety
 

@@ -29,22 +29,22 @@ class Shader
 	std::filesystem::file_time_type lastComputeWriteTime;
 
 	  public:
-	unsigned int getProgramID() const { return ID; }
-	std::string getName() const { return s_name; }
+	[[nodiscard]] inline unsigned int getProgramID() const noexcept { return ID; }
+	[[nodiscard]] inline std::string getName() const noexcept { return s_name; }
 
-	Shader(const std::string& _name, const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath)
-	    : s_name(_name), vertexShaderPath(vertexPath), fragmentShaderPath(fragmentPath)
+	Shader(std::string _name, std::filesystem::path vertex_path, std::filesystem::path fragment_path)
+	    : s_name(std::move(_name)), vertexShaderPath(std::move(vertex_path)), fragmentShaderPath(std::move(fragment_path))
 	{
-		ID = loadAndCompile(vertexPath, fragmentPath);
+		ID = loadAndCompile(vertexShaderPath, fragmentShaderPath);
 		reflectUniforms();
 		lastVertexWriteTime   = std::filesystem::last_write_time(vertexShaderPath);
 		lastFragmentWriteTime = std::filesystem::last_write_time(fragmentShaderPath);
 	}
 
-	Shader(const std::string& _name, const std::filesystem::path& computePath)
-        : s_name(_name), computeShaderPath(computePath)
+	Shader(std::string _name, std::filesystem::path compute_path)
+        : s_name(std::move(_name)), computeShaderPath(std::move(compute_path))
     {
-        ID = loadAndCompile(computePath, ShaderType::Compute);
+        ID = loadAndCompile(computeShaderPath, ShaderType::Compute);
         reflectUniforms();
         lastComputeWriteTime = std::filesystem::last_write_time(computeShaderPath);
     }
@@ -309,7 +309,7 @@ class Shader
 
 			GLint location = glGetUniformLocation(ID, uni_name.c_str());
 			if (location != -1) {
-				uniformCache[uni_name] = location;
+				uniformCache.try_emplace(std::move(uni_name), location);
 			}
 		}
 		if (!uniformCache.empty())
@@ -328,7 +328,7 @@ class Shader
 		if (location == -1) {
 			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", s_name, uni_name);
 		} else {
-			uniformCache[uni_name] = location;
+			uniformCache.try_emplace(uni_name, location);
 		}
 		return location;
 	}
@@ -337,13 +337,13 @@ class Shader
     {
         std::ifstream shaderFile(path);
         if (!shaderFile.is_open())
-            throw std::runtime_error("Failed to open shader file: " + path.string());
+            throw std::runtime_error("Failed to open shader file: '" + path.string() + "'");
 
         std::stringstream ss;
         ss << shaderFile.rdbuf();
         outCode = ss.str();
         if (outCode.empty())
-            throw std::runtime_error("Shader file is empty: " + path.string());
+            throw std::runtime_error("Shader file is empty: '" + path.string() + "'");
     }
 
 	unsigned int compileSingleShader(const std::string& code, GLenum shaderType)

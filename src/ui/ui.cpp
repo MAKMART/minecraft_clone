@@ -1,7 +1,5 @@
 #include "ui/ui.hpp"
 #include "graphics/shader.hpp"
-#include "glm/gtc/type_ptr.hpp"
-#include <iostream>
 #include <cstring>
 #include <GLFW/glfw3.h>
 #include <stdexcept>
@@ -9,7 +7,7 @@
 #include "core/logger.hpp"
 
 using namespace Rml::Input;
-UI::UI(int width, int height, Shader* ui_shader, std::filesystem::path fontPath, std::filesystem::path docPath) : viewport_width(width), viewport_height(height)
+UI::UI(int width, int height, std::filesystem::path fontPath, std::filesystem::path docPath) : viewport_width(width), viewport_height(height)
 {
 
 	// System and file interfaces owned by UI (RAII)
@@ -19,7 +17,7 @@ UI::UI(int width, int height, Shader* ui_shader, std::filesystem::path fontPath,
 	Rml::SetRenderInterface(this);
 	Rml::SetSystemInterface(systemInterface.get());
 	Rml::SetFileInterface(fileInterface.get());
-	shader = ui_shader;
+	shader = std::make_unique<Shader>("UI", UI_VERTEX_SHADER_DIRECTORY, UI_FRAGMENT_SHADER_DIRECTORY);
 	Rml::Initialise();
 
 	context = Rml::CreateContext("main", {width, height});

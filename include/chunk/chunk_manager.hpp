@@ -1,12 +1,10 @@
 #pragma once
-#include <cstdint>
 #include <memory>
 #include <unordered_map>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/glm.hpp>
 #include <vector>
-#include <tuple>
 #include "graphics/shader.hpp"
 #include "graphics/texture.hpp"
 #include "chunk/chunk.hpp"
@@ -18,15 +16,13 @@
 #include "game/ecs/components/camera.hpp"
 #include "game/ecs/components/transform.hpp"
 #include "game/ecs/components/frustum_volume.hpp"
-#include <functional>
-#include <future>
 
 struct ivec3_hash {
 	std::size_t operator()(const glm::ivec3& v) const noexcept
 	{
-		std::size_t x = static_cast<std::size_t>(v.x);
-		std::size_t y = static_cast<std::size_t>(v.y);
-		std::size_t z = static_cast<std::size_t>(v.z);
+		std::size_t x = static_cast<std::size_t>(v.x) + 0x80000000;
+        std::size_t y = static_cast<std::size_t>(v.y) + 0x80000000;
+        std::size_t z = static_cast<std::size_t>(v.z) + 0x80000000;
 
 		const std::size_t prime1 = 73856093;
 		const std::size_t prime2 = 19349663;
@@ -56,15 +52,14 @@ class ChunkManager
 
 	const GLuint& getVAO() const { return VAO; }
 
-	const std::unordered_map<glm::ivec3, std::shared_ptr<Chunk>, ivec3_hash>& getChunks() const { return chunks; }
+	const std::unordered_map<glm::ivec3, std::unique_ptr<Chunk>, ivec3_hash>& get_all() const noexcept { return chunks; }
 
 	std::vector<Chunk*> getOpaqueChunks(const FrustumVolume& fv) const
 	{
 		std::vector<Chunk*> opaqueChunks;
 		for (const auto& chunk : chunks) {
-		if (isAABBInsideFrustum(chunk.second->getAABB(), fv)) {
+		if (isAABBInsideFrustum(chunk.second->getAABB(), fv))
 			opaqueChunks.emplace_back(chunk.second.get());
-		}
 		}
 		return opaqueChunks;
 	}
@@ -88,26 +83,9 @@ class ChunkManager
 
 	bool updateBlock(glm::vec3 world_pos, Block::blocks newType);
 
-	void updateChunk(glm::vec3 world_pos) noexcept
-	{
-		if (auto chunk = getChunk(world_pos))
-			chunk->updateMesh();
-		else
-			return;
-	}
+	void generate_chunks(glm::vec3 playerPos, unsigned int renderDistance);
 
-	void generateChunks(glm::vec3 playerPos, unsigned int renderDistance);
-
-	Chunk* getChunk(glm::vec3 worldPos) const;
-
-	bool getorCreateChunk(glm::vec3 worldPos);
-
-	void unloadChunk(glm::vec3 world_pos);
-
-	void clearChunks() noexcept
-	{
-		chunks.clear();
-	}
+	Chunk* getChunk(glm::vec3 world_pos) const;
 
     private:
 
@@ -144,15 +122,13 @@ class ChunkManager
 	glm::ivec3         lastNoiseOrigin = {-999999, 0, -999999};
 
 	// TODO: Use an octree to store the chunks
-	std::unordered_map<glm::ivec3, std::shared_ptr<Chunk>, ivec3_hash> chunks;
+	std::unordered_map<glm::ivec3, std::unique_ptr<Chunk>, ivec3_hash> chunks;
 
 	// initialize with a value that's != to any reasonable spawn chunk position
 	glm::ivec3 last_player_chunk_pos{INT_MIN};
 
-	std::shared_ptr<Chunk> getOrCreateChunk(glm::vec3 worldPos);
+	void load_around_pos(glm::ivec3 playerChunkPos, unsigned int renderDistance);
 
-	void loadChunksAroundPos(const glm::ivec3& playerChunkPos, int renderDistance);
-
-	void unloadDistantChunks(const glm::ivec3& playerChunkPos, int unloadDistance);
+	void unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unloadDistance);
 
 };

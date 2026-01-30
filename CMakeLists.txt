@@ -106,6 +106,17 @@ disable_debug_symbols(freetype)
 # ==== Main Executable ====
 add_executable(${PROJECT_NAME} src/main.cpp $<$<BOOL:${ENABLE_TRACY}>:src/tracy_overrides.cpp>)
 
+#[[
+target_compile_options(${PROJECT_NAME} PRIVATE
+    -fsanitize=address
+    -fno-omit-frame-pointer
+)
+
+target_link_options(${PROJECT_NAME} PRIVATE
+    -fsanitize=address
+)
+]]
+
 set_target_properties(${PROJECT_NAME}
     PROPERTIES
         OUTPUT_NAME "${EXECUTABLE_OUTPUT_NAME}"

@@ -15,6 +15,6 @@ struct Collider {
 	glm::vec3 halfExtents;
 	AABB      aabb;
 	bool      solid = true; // optional: non-solid entities
-	bool      is_on_ground;
+	bool      is_on_ground = false;
 
 };
