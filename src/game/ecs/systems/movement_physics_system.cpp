@@ -8,7 +8,6 @@
 #include "game/ecs/components/movement_config.hpp"
 #include "game/ecs/components/movement_intent.hpp"
 #include "chunk/chunk_manager.hpp"
-//#include <glm/common.hpp>
 #include <glm/gtx/norm.hpp>
 #include "core/aabb.hpp"
 #if defined(TRACY_ENABLE)
@@ -28,23 +27,17 @@ inline bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManage
     const glm::ivec3 minBlock = glm::floor(box.min);
     const glm::ivec3 maxBlock = glm::floor(box.max - glm::vec3(1e-4f)); // Avoid off-by-one on exact edges
 
-    // Optional: Early exit if AABB completely outside world height
-    if (maxBlock.y < 0 || minBlock.y >= (int)CHUNK_SIZE.y) {
-        return false;
-    }
-
     for (int y = std::max(minBlock.y, 0); y <= std::min(maxBlock.y, (int)CHUNK_SIZE.y - 1); ++y) {
         for (int x = minBlock.x; x <= maxBlock.x; ++x) {
             for (int z = minBlock.z; z <= maxBlock.z; ++z) {
                 const glm::ivec3 blockWorldPos(x, y, z);
 
                 Chunk* chunk = chunkManager.getChunk(blockWorldPos);
-                if (!chunk) {
+                if (!chunk)
                     continue; // Treat missing chunks as air (or return true for "void" if preferred)
-                }
 
                 const glm::ivec3 local = Chunk::world_to_local(blockWorldPos);
-                const Block& block = chunk->get_block(local.x, local.y, local.z);
+                const Block& block = chunk->get_block(local);
 
                 if (block.type != Block::blocks::AIR &&
                     block.type != Block::blocks::WATER &&

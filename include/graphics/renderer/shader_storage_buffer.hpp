@@ -6,11 +6,12 @@ public:
     enum class usage {
         static_draw,
         dynamic_draw,
-        stream_draw
+        stream_draw,
+		dynamic_copy
     };
 
     SSBO() = default;
-    SSBO(const void* data, size_t size, usage u = usage::static_draw)
+    SSBO(const void* data, size_t size, usage u = usage::static_draw) noexcept
         : m_size(size)
     {
         glCreateBuffers(1, &m_id);
@@ -18,8 +19,8 @@ public:
     }
 
     // ❌ no copying
-    SSBO(const SSBO&) = delete;
-    SSBO& operator=(const SSBO&) = delete;
+    SSBO(const SSBO&) noexcept = delete;
+    SSBO& operator=(const SSBO&) const noexcept = delete;
 
     // ✅ move constructor
     SSBO(SSBO&& other) noexcept
@@ -41,18 +42,18 @@ public:
 	    return *this;
     }
 
-    ~SSBO() { release(); }
+    inline ~SSBO() noexcept { release(); }
 
-    GLuint id() const noexcept { return m_id; }
-    size_t size() const noexcept { return m_size; }
+    [[nodiscard]] inline GLuint id() const noexcept { return m_id; }
+	[[nodiscard]] inline size_t size() const noexcept { return m_size; }
 
     // Bind the SSBO to a specific binding point for shaders
-    void bind_to_slot(GLuint slot) const noexcept {
+    inline void bind_to_slot(GLuint slot) const noexcept {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, slot, m_id);
     }
 
     // Update contents (DSA)
-    void update_data(const void* data, size_t size, size_t offset = 0) noexcept {
+    void update_data(const void* data, size_t size, size_t offset = 0) const noexcept {
 		assert(offset + size <= m_size);
         glNamedBufferSubData(m_id, offset, size, data);
     }
@@ -74,8 +75,8 @@ private:
             case usage::static_draw:  return GL_STATIC_DRAW;
             case usage::dynamic_draw: return GL_DYNAMIC_DRAW;
             case usage::stream_draw:  return GL_STREAM_DRAW;
+			case usage::dynamic_copy: return GL_DYNAMIC_COPY;
         }
         return GL_STATIC_DRAW;
     }
 };
-

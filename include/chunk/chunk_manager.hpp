@@ -87,6 +87,8 @@ class ChunkManager
 
 	Chunk* getChunk(glm::vec3 world_pos) const;
 
+	void update_mesh(Chunk *chunk) noexcept;
+
     private:
 
 	//TODO: Maybe move this into a utils namespace or smth
@@ -108,7 +110,6 @@ class ChunkManager
 		return true; // Intersects or is fully inside
 	}
 
-
 	FastNoise::SmartNode<FastNoise::Perlin> perlin_node;
 	FastNoise::SmartNode<FastNoise::FractalFBm> fractal_node;
 	static constexpr int SEED = 1337;
@@ -116,6 +117,8 @@ class ChunkManager
 	Shader           shader;
 	Shader           waterShader;
 	Shader			 compute;
+	Shader			 reset;
+	Shader			 indirect;
 
 	std::vector<float> cachedNoiseRegion;
 	glm::ivec3         lastRegionSize  = {-1, -1, -1};

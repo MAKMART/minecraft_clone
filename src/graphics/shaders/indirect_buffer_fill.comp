@@ -1,0 +1,19 @@
+#version 460 core
+layout(local_size_x = 1) in;
+
+layout(std430, binding = 3) buffer FaceCounter {
+    uint face_count;
+};
+layout(std430, binding = 4) buffer IndirectBuffer {
+    uint count;
+    uint instanceCount;
+    uint first;
+    uint baseInstance;
+} indirect;
+
+void main() {
+	indirect.count = face_count * 6u;
+	indirect.instanceCount = 1u;
+	indirect.first = 0u;
+	indirect.baseInstance = 0u;
+}

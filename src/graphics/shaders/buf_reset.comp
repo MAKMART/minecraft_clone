@@ -1,0 +1,28 @@
+#version 460 core
+
+layout(local_size_x = 1) in; // only need 1 thread
+
+// Binding matches the slots you bind in C++
+layout(std430, binding = 3) buffer CounterSSBO {
+    uint counter[];
+};
+
+layout(std430, binding = 4) buffer IndirectSSBO {
+    uint count;
+    uint instanceCount;
+    uint first;
+    uint baseInstance;
+} indirect;
+
+void main() {
+    // Reset counter_ssbo
+    for (uint i = 0; i < counter.length(); ++i) {
+        counter[i] = 0;
+    }
+
+    // Reset indirect_ssbo (single struct)
+    indirect.count = 0;
+    indirect.instanceCount = 0;
+    indirect.first = 0;
+    indirect.baseInstance = 0;
+}

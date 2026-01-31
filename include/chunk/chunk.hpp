@@ -10,6 +10,7 @@
 #include "core/logger.hpp"
 #include "graphics/shader.hpp"
 #include <glm/gtx/string_cast.hpp>
+#include <FastNoise/FastNoise.h>
 #include <span>
 #include <bit>
 
@@ -116,7 +117,7 @@ public:
   explicit Chunk(const glm::ivec3 &chunkPos);
   ~Chunk() = default;
 
-  inline Block get_block(int x, int y, int z) const noexcept { return blocks[getBlockIndex(x, y, z)]; }
+  inline Block get_block(const glm::ivec3& pos) const noexcept { return blocks[getBlockIndex(pos.x, pos.y, pos.z)]; }
 
   bool setBlockAt(int x, int y, int z, Block::blocks type) noexcept {
     int index = getBlockIndex(x, y, z);
@@ -140,7 +141,7 @@ public:
   const inline Block *getChunkData() const noexcept { return blocks; }
   const inline glm::ivec3 getPos() const noexcept{ return position; }
   const inline AABB& getAABB() const noexcept { return aabb; }
-  void generate(std::span<const float> fullNoise, int regionWidth, int regionHeight, int noiseOffsetX, int noiseOffsetY, int noiseOffsetZ);
+  void generate(/*std::span<const float> fullNoise, int regionWidth, int regionHeight, int noiseOffsetX, int noiseOffsetY, int noiseOffsetZ,*/ const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_node, const int SEED);
   void updateMesh();
   void renderOpaqueMesh(const Shader &shader, GLuint vao) const noexcept;
   void renderTransparentMesh(const Shader &shader) const noexcept;
@@ -184,19 +185,20 @@ public:
   }
 
   bool dirty = true;
-
-private:
-  // Chunk-space position
-  glm::ivec3 position;
-  AABB aabb;
-  const int seaLevel = 5;
   SSBO block_ssbo;   // blocks[]
   SSBO face_ssbo;    // faces[]
   SSBO counter_ssbo; // uint face_count
   SSBO indirect_ssbo;
 
+  uint32_t packed_blocks[(SIZE + 3) / 4] = {};
+private:
+  // Chunk-space position
+  glm::ivec3 position;
+  AABB aabb;
+  const int seaLevel = 5;
+
+
   constexpr static int logSizeX = std::countr_zero(static_cast<unsigned>(CHUNK_SIZE.x));
   constexpr static int logSizeY = std::countr_zero(static_cast<unsigned>(CHUNK_SIZE.y));
   Block blocks[SIZE];
-  uint32_t packed_blocks[(SIZE + 3) / 4] = {};
 };
