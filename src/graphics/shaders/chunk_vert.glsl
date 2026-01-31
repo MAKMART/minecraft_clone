@@ -77,6 +77,14 @@ const vec3 facePositions[6][4] = vec3[6][4](
 );
 const int triangleCornerIndices[6] = int[6](0, 1, 2, 0, 2, 3);
 
+const vec2 localUVs[6] = vec2[](
+    vec2(0, 0),
+    vec2(1, 0),
+    vec2(1, 1),
+    vec2(0, 0),
+    vec2(1, 1),
+    vec2(0, 1)
+);
 
 void main()
 {
@@ -127,17 +135,8 @@ void main()
 
   const vec2 cellSize = vec2(16, 16);	//Size of each texture in the atlas
 
-  // Compute local UV within the tile, based on gl_VertexID % 6
-  vec2 localUV = vec2(0, 0);
-
-  switch (currVertexID) {
-      case 0: localUV = vec2(0.0, 0.0); break;
-      case 1: localUV = vec2(1.0, 0.0); break;
-      case 2: localUV = vec2(1.0, 1.0); break;
-      case 3: localUV = vec2(0.0, 0.0); break;
-      case 4: localUV = vec2(1.0, 1.0); break;
-      case 5: localUV = vec2(0.0, 1.0); break;
-  }
+  // Compute local UV within the tile
+  vec2 localUV = localUVs[currVertexID];
 
   uint u = 15;
   uint v = 15;

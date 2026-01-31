@@ -180,7 +180,7 @@ int main()
     Texture Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 	FramebufferManager fb_manager;
 	g_fb_manager = &fb_manager;
-	Player player(ecs, glm::vec3{0.0f, (float)CHUNK_SIZE.y + 2.0f, 0.0f}, context->getWidth(), context->getHeight());
+	Player player(ecs, /*glm::vec3{0.0f, (float)CHUNK_SIZE.y + 200.0f, 0.0f}*/glm::vec3{-77.0f, 125.0f, -72.0f}, context->getWidth(), context->getHeight());
 	g_player = &player;
 	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(context->getWidth(), context->getHeight());
