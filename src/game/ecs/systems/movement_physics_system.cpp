@@ -1,5 +1,6 @@
 #include "game/ecs/systems/movement_physics_system.hpp"
 #include "core/defines.hpp"
+#include "core/logger.hpp"
 #include "game/ecs/ecs.hpp"
 #include "game/ecs/components/transform.hpp"
 #include "game/ecs/components/velocity.hpp"
@@ -27,7 +28,7 @@ inline bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManage
     const glm::ivec3 minBlock = glm::floor(box.min);
     const glm::ivec3 maxBlock = glm::floor(box.max - glm::vec3(1e-4f)); // Avoid off-by-one on exact edges
 
-    for (int y = std::max(minBlock.y, 0); y <= std::min(maxBlock.y, (int)CHUNK_SIZE.y - 1); ++y) {
+	for (int y = minBlock.y; y <= maxBlock.y; ++y) {
         for (int x = minBlock.x; x <= maxBlock.x; ++x) {
             for (int z = minBlock.z; z <= maxBlock.z; ++z) {
                 const glm::ivec3 blockWorldPos(x, y, z);

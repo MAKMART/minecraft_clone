@@ -198,30 +198,30 @@ struct WindowContext {
 		(void)length;
 		(void)userParam;
 		// Map severity to log level & severity text
-		log::LogLevel level;
+		log::level level;
 		std::string   severityText;
 
 		switch (severity) {
 		case GL_DEBUG_SEVERITY_HIGH:
-			level        = log::LogLevel::ERROR;
+			level        = log::level::ERROR;
 			severityText = "High";
 			break;
 		case GL_DEBUG_SEVERITY_MEDIUM:
-			level        = log::LogLevel::WARNING;
+			level        = log::level::WARNING;
 			severityText = "Medium";
 			break;
 		case GL_DEBUG_SEVERITY_LOW:
 			return;
-			level        = log::LogLevel::INFO;
+			level        = log::level::INFO;
 			severityText = "Low";
 			break;
 		case GL_DEBUG_SEVERITY_NOTIFICATION:
 			return;
-			level        = log::LogLevel::INFO;
+			level        = log::level::INFO;
 			severityText = "Notification";
 			break;
 		default:
-			level        = log::LogLevel::INFO;
+			level        = log::level::INFO;
 			severityText = "Unknown";
 			break;
 		}

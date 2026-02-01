@@ -27,7 +27,7 @@ void chunk_renderer_system(ECS& ecs, const ChunkManager& cm, Camera* cam, Frustu
 		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 		for(auto* chunk : cm.getOpaqueChunks(wanted_fv))
-			chunk->renderOpaqueMesh(shader, cm.getVAO());
+			chunk->render_opaque_mesh(shader, cm.getVAO());
 
 
 		//glDisable(GL_CULL_FACE);

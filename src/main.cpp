@@ -135,7 +135,7 @@ int main()
 	}
 #endif
 
-	log::structured(log::LogLevel::INFO,
+	log::structured(log::level::INFO,
 	                "\nSIZES",{
 					 {"\nInput Manager", SIZE_OF(InputManager)},
 	                 {"\nChunk Manager", SIZE_OF(ChunkManager)},
@@ -180,7 +180,7 @@ int main()
     Texture Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 	FramebufferManager fb_manager;
 	g_fb_manager = &fb_manager;
-	Player player(ecs, /*glm::vec3{0.0f, (float)CHUNK_SIZE.y + 200.0f, 0.0f}*/glm::vec3{-77.0f, 125.0f, -72.0f}, context->getWidth(), context->getHeight());
+	Player player(ecs, glm::vec3{0.0f, (float)CHUNK_SIZE.y, 0.0f}, context->getWidth(), context->getHeight());
 	g_player = &player;
 	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(context->getWidth(), context->getHeight());
@@ -407,7 +407,7 @@ int main()
 
 		PlayerMode* mode = ecs.get_component<PlayerMode>(player.getSelf());
 		PlayerState* state = ecs.get_component<PlayerState>(player.getSelf());
-		if (input.isPressed(CAMERA_SWITCH_KEY)) {
+		if (input.isPressed(CAMERA_SWITCH_KEY) && ecs.has_component<CameraController>(camera)) {
 			ecs.get_component<CameraController>(camera)->third_person = !ecs.get_component<CameraController>(camera)->third_person;
 		}
 
@@ -438,6 +438,12 @@ int main()
 			crosshair_size += 0.1f;
 		if (input.isHeld(GLFW_KEY_M))
 			crosshair_size -= 0.1f;
+
+		if (input.isPressed(GLFW_KEY_ENTER) && camera == debug_cam) {
+			ecs.get_component<Transform>(player.getSelf())->pos = ecs.get_component<Transform>(debug_cam)->pos;
+			ecs.get_component<Velocity>(player.getSelf())->value = ecs.get_component<Velocity>(debug_cam)->value;
+		
+		}
 		
 		
 

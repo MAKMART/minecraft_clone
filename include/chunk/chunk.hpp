@@ -139,12 +139,11 @@ public:
   }
 
   const inline Block *getChunkData() const noexcept { return blocks; }
-  const inline glm::ivec3 getPos() const noexcept{ return position; }
+  const inline glm::ivec3 get_pos() const noexcept{ return position; }
   const inline AABB& getAABB() const noexcept { return aabb; }
-  void generate(/*std::span<const float> fullNoise, int regionWidth, int regionHeight, int noiseOffsetX, int noiseOffsetY, int noiseOffsetZ,*/ const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_node, const int SEED);
-  void updateMesh();
-  void renderOpaqueMesh(const Shader &shader, GLuint vao) const noexcept;
-  void renderTransparentMesh(const Shader &shader) const noexcept;
+  void generate(const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_node, const int SEED) noexcept;
+  void render_opaque_mesh(const Shader &shader, GLuint vao) const noexcept;
+  void render_transparent_mesh(const Shader &shader) const noexcept;
 
   inline int getBlockIndex(int x, int y, int z) const noexcept {
 #if defined(DEBUG)
@@ -162,9 +161,7 @@ public:
   constexpr static int SIZE = CHUNK_SIZE.x * CHUNK_SIZE.y * CHUNK_SIZE.z;
 
   static inline glm::ivec3 world_to_chunk(const glm::vec3 &world_pos) {
-	  glm::ivec3 chunk = glm::ivec3(glm::floor(world_pos / glm::vec3(CHUNK_SIZE)));
-	  //chunk.y = 0; // No vertical chunking for now
-	  return chunk;
+	  return glm::ivec3(glm::floor(world_pos / glm::vec3(CHUNK_SIZE)));
   }
 
   static inline glm::ivec3 world_to_local(const glm::vec3 &world_pos) {
@@ -176,7 +173,7 @@ public:
     return glm::vec3(chunk_pos * CHUNK_SIZE);
   }
 
-  bool isAir(int x, int y, int z) const {
+  inline bool isAir(int x, int y, int z) const noexcept {
     return blocks[getBlockIndex(x, y, z)].type == Block::blocks::AIR;
   }
 
