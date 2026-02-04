@@ -185,6 +185,42 @@ int main()
 	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(context->getWidth(), context->getHeight());
 
+	// Cubemap
+	GLuint cube_id;
+	glGenTextures(1, &cube_id);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cube_id);
+
+	std::array<std::string, 6> cube_faces = {
+		"skybox/right.jpg",
+		"skybox/left.jpg",
+		"skybox/bottom.jpg",
+		"skybox/top.jpg",
+		"skybox/front.jpg",
+		"skybox/back.jpg"
+	};
+	
+	int width, height, nrChannels;
+	unsigned char *data;  
+	for(unsigned int i = 0; i < cube_faces.size(); i++)
+	{
+		std::string string = ASSETS_DIRECTORY / cube_faces[i];
+		//log::info("loading cubemap texture from: {}", string);
+		data = stbi_load(string.c_str(), &width, &height, &nrChannels, 0);
+		if (data) {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB,
+                     width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        stbi_image_free(data);
+    } else {
+        log::error("Failed to load skybox: {}", string);
+    }
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+
 	// Initialize framebuffers for render targets
 	ecs.for_each_component<RenderTarget>([&](Entity e, RenderTarget& rt) {
 			fb_manager.ensure(e, rt);
@@ -518,6 +554,8 @@ int main()
 		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 
+
+
 #if defined(DEBUG)
 		if (debugRender) {
 			getDebugDrawer().addAABB(player.getAABB(), glm::vec3(0.3f, 1.0f, 0.5f));
@@ -575,8 +613,9 @@ int main()
 		}
 		*/
 
+
 		if (renderTerrain) {
-			manager.getShader().checkAndReloadIfModified();
+			//manager.getShader().checkAndReloadIfModified();
 			manager.getShader().setMat4("projection", cam->projectionMatrix);
 			manager.getShader().setMat4("view", cam->viewMatrix);
 			manager.getShader().setFloat("time", (float)glfwGetTime());
@@ -611,6 +650,8 @@ int main()
 		DrawArraysWrapper(GL_TRIANGLES, 0, 3);
 		Atlas.Unbind(0);
 
+
+
 		framebuffer::bind_default_draw();
 		glViewport(0, 0, context->getWidth(), context->getHeight());
 		glDisable(GL_DEPTH_TEST);
@@ -618,6 +659,8 @@ int main()
 		glViewport(0, 0, cur_fb.width(), cur_fb.height());
 		glBindTextureUnit(0, cur_fb.color_attachment(0));
 		glBindTextureUnit(1, cur_fb.depth_attachment());
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, cube_id);
 
 		glm::mat4 curr_view_proj = cam->projectionMatrix * cam->viewMatrix;
 		glm::mat4 curr_inv_view_proj = glm::inverse(curr_view_proj);
@@ -626,8 +669,11 @@ int main()
 			glm::mat4 prev_view_proj = ecs.get_component<CameraTemporal>(player.getCamera())->prev_view_proj;
 			fb_player.setMat4("curr_inv_view_proj", curr_inv_view_proj);
 			fb_player.setMat4("prev_view_proj", prev_view_proj);
+			fb_player.setMat4("invView", glm::inverse(cam->viewMatrix));
+			fb_player.setMat4("invProj", glm::inverse(cam->projectionMatrix));
 			fb_player.setInt("color", 0);
 			fb_player.setInt("depth", 1);
+			fb_player.setInt("skybox", 2);
 			fb_player.use();
 		} 
 #if defined(DEBUG)
@@ -641,8 +687,6 @@ int main()
 		// NOTE: Make sure to have a VAO bound when making this draw call!!
 		DrawArraysWrapper(GL_TRIANGLES, 0, 3);
 		glBindVertexArray(0);
-
-
 
 		// --- UI Pass --- (now rendered BEFORE ImGui)
 		if (renderUI && camera == player.getCamera()) {
@@ -802,7 +846,6 @@ int main()
 
 		camera_temporal_system(ecs);
 		// other UI things...
-
 
 		if (DEPTH_TEST) {
 			glEnable(GL_DEPTH_TEST);

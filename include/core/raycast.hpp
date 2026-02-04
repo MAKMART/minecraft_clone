@@ -106,7 +106,7 @@ class raycast
 		glm::ivec3 lastVoxel = worldResult;
 
 		while (t < maxDistance) {
-			Chunk* chunk = chunkManager.getChunk({worldResult.x, 0, worldResult.z});
+			Chunk* chunk = chunkManager.getChunk(worldResult);
 
 			if (chunk) {
 				glm::ivec3 localVoxelPos = Chunk::world_to_local(worldResult);

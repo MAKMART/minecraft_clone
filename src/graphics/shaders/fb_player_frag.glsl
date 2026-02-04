@@ -5,12 +5,15 @@ out vec4 frag_color;
 
 uniform sampler2D color;
 uniform sampler2D depth;
+uniform samplerCube skybox;
 uniform float near_plane;
 uniform float far_plane;
 uniform float time;
 uniform int toggle;
 uniform mat4 curr_inv_view_proj;
 uniform mat4 prev_view_proj;
+uniform mat4 invView;
+uniform mat4 invProj;
 uniform float scale;
 
 float linearize_depth(float z) {
@@ -24,7 +27,7 @@ vec2 compute_velocity(vec2 uv, sampler2D depth, mat4 curr_inv_view_proj, mat4 pr
     float d = texture(depth, uv).r;
 
     // 2️⃣ Ignore background / sky
-    if(d >= 0.9999)
+    if(d < 0.0001)
         return vec2(0.0);
 
     // 3️⃣ Reconstruct world position
@@ -74,13 +77,20 @@ void main()
 
 	vec2 vis = clamp(velocity * scale, -1.0, 1.0) * 0.5 + 0.5;
 	float mag = clamp(length(velocity) * scale, 0.0, 1.0);
-	if(toggle == 0) {
+	if (d < 0.001f) {  // Near 0.0 = far plane (no geometry hit)
+							// Reconstruct view-space ray direction
+		vec4 ndc = vec4(v_uv * 2.0 - 1.0, -1.0, 1.0);  // z=-1 for unproject from near (adjust for reverse-Z)
+		vec4 viewPos = invProj * ndc;
+		viewPos /= viewPos.w;
+		vec3 viewDir = normalize(viewPos.xyz);
+		vec3 worldDir = normalize((invView * vec4(viewDir, 0.0)).xyz);
+		frag_color = texture(skybox, worldDir);
+		// Optional: add fog or tint based on depth
+	} else {
 		frag_color = texture(color, v_uv);
 		//frag_color = mix(frag_color, vec4(vis, 0.0, 1.0), 0.8);
 		//frag_color = mix(frag_color, vec4(vec3(mag), 1.0), 0.5);
 		frag_color = motion_blur(16, velocity * scale, v_uv);
-	} else {
-		frag_color = vec4(vec3(depth0), 1.0f);
 	}
 
 	/*	vignette effect */
@@ -93,5 +103,6 @@ void main()
 
 	//vec2 offset = sin(v_uv.yx * 5.0 + time) * 0.01;
 	//frag_color = texture(color, v_uv + offset);
+	if (toggle == 1)
+        frag_color = vec4(vec3(d), 1.0);
 }
-
