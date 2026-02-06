@@ -8,13 +8,13 @@ Chunk::Chunk(const glm::ivec3& pos) : position(pos)
 {
 	glm::vec3 world = chunk_to_world(position);
 	aabb = AABB(world, world + glm::vec3(CHUNK_SIZE));
+	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
 
 	// Fill face_ssbo with max possible faces (SIZE * 6)
-	face_ssbo = SSBO(nullptr, SIZE * 6 * sizeof(face_gpu), SSBO::usage::dynamic_copy);
-	counter_ssbo = SSBO(nullptr, sizeof(uint), SSBO::usage::dynamic_copy);
-	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
-	indirect_ssbo = SSBO(&cmd, sizeof(DrawArraysIndirectCommand), SSBO::usage::dynamic_copy);
-	block_ssbo = SSBO(nullptr, sizeof(packed_blocks), SSBO::usage::static_draw);
+	face_ssbo = SSBO::Dynamic(nullptr, SIZE * 6 * sizeof(face_gpu));
+	counter_ssbo = SSBO::Dynamic(nullptr, sizeof(uint));
+	indirect_ssbo = SSBO::Dynamic(&cmd, sizeof(DrawArraysIndirectCommand));
+	block_ssbo = SSBO::Dynamic(nullptr, sizeof(packed_blocks));
 }
 void Chunk::generate(const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_node, const int SEED) noexcept
 {

@@ -138,8 +138,8 @@ void DebugDrawer::initGLResources()
 {
 	glGenVertexArrays(1, &vao);
 	glGenVertexArrays(1, &vao_lines);
-	vbo = VB(vertices.data(), vertices.size() * sizeof(glm::vec3), VB::usage::static_draw);
-	vbo2 = VB(line_vertices, sizeof(line_vertices), VB::usage::static_draw);
+	vbo = VB::Immutable(vertices.data(), vertices.size() * sizeof(glm::vec3));
+	vbo2 = VB::Immutable(line_vertices, sizeof(line_vertices));
 
 	glBindVertexArray(vao);
 	glVertexArrayVertexBuffer(vao, 0, vbo.id(), 0, sizeof(glm::vec3));

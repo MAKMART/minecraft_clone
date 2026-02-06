@@ -281,8 +281,8 @@ int main()
 
 
 	glCreateVertexArrays(1, &crosshairVAO);
-	VB crosshairVBO(verts, sizeof(verts));
-	IB crosshairEBO(CrosshairIndices, std::size(CrosshairIndices)); // std::size(CrosshairIndices) == 6
+	VB crosshairVBO = VB::Immutable(verts, sizeof(verts));
+	IB crosshairEBO = IB::Immutable(CrosshairIndices, std::size(CrosshairIndices)); // std::size(CrosshairIndices) == 6
 
 	glVertexArrayVertexBuffer(crosshairVAO, 0, crosshairVBO.id(), 0, 5 * sizeof(float));
 	glVertexArrayElementBuffer(crosshairVAO, crosshairEBO.id());
@@ -322,7 +322,7 @@ int main()
 		-1.0f,  3.0f, 0.0f,  0.0f, 2.0f
 	};
 
-	VB vb(vertices, sizeof(vertices));
+	VB vb = VB::Immutable(vertices, sizeof(vertices));
 	glVertexArrayVertexBuffer(
 			VAO,
 			0,                  // binding index

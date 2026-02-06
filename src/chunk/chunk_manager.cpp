@@ -124,6 +124,7 @@ void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int rende
 		{
 			for (int dx = -dist; dx <= dist; ++dx)
 			{
+				if (dx*dx + dy*dy + dz*dz > renderDistance*renderDistance) continue;
 				glm::ivec3 chunkPos{playerChunkPos.x + dx, playerChunkPos.y + dy, playerChunkPos.z + dz};
 
 				if (chunks.find(chunkPos) != chunks.end())
@@ -171,7 +172,7 @@ void ChunkManager::generate_chunks(glm::vec3 playerPos, unsigned int renderDista
 
 	if (playerChunk != last_player_chunk_pos) {
 		load_around_pos(playerChunk, renderDistance);
-		unload_around_pos(playerChunk, renderDistance + 4);
+		unload_around_pos(playerChunk, renderDistance + 1);
 		last_player_chunk_pos = playerChunk;
 	}
 }

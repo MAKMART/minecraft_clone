@@ -4,70 +4,63 @@
 
 class VB {
 public:
-    enum class usage {
-        static_draw,
-        dynamic_draw,
-        stream_draw
-    };
-
     VB() = default;
-    VB(const void* data, size_t size, usage u = usage::static_draw)
+
+    // Core modern constructor
+    VB(const void* data, std::size_t size, GLbitfield flags = GL_DYNAMIC_STORAGE_BIT) noexcept
         : m_size(size)
     {
         glCreateBuffers(1, &m_id);
-        glNamedBufferData(m_id, size, data, to_gl_usage(u));
+        glNamedBufferStorage(m_id, size, data, flags);
     }
 
-    // ❌ no copying
-    VB(const VB&)            = delete;
+    // Convenience factories (highly recommended)
+    static VB Immutable(const void* data, std::size_t size) {
+        return VB(data, size, 0);                                   // never updated
+    }
+
+    static VB Dynamic(const void* data, std::size_t size) {
+        return VB(data, size, GL_DYNAMIC_STORAGE_BIT);              // glNamedBufferSubData
+    }
+
+    static VB PersistentWrite(const void* data, std::size_t size) {
+        constexpr GLbitfield f = GL_DYNAMIC_STORAGE_BIT |
+                                 GL_MAP_WRITE_BIT |
+                                 GL_MAP_PERSISTENT_BIT |
+                                 GL_MAP_COHERENT_BIT;
+        return VB(data, size, f);                                   // zero-copy streaming
+    }
+
+    // move semantics (unchanged)
+    VB(const VB&) = delete;
     VB& operator=(const VB&) = delete;
 
-    // ✅ move constructor
-    VB(VB&& other) noexcept
-	    : m_id(other.m_id), m_size(other.m_size)
-	    {
-		    other.m_id   = 0;
-		    other.m_size = 0;
-	    }
-
-    // ✅ move assignment
-    VB& operator=(VB&& other) noexcept {
-	    if (this != &other) {
-		    release();
-		    m_id        = other.m_id;
-		    m_size      = other.m_size;
-		    other.m_id  = 0;
-		    other.m_size = 0;
-	    }
-	    return *this;
+    VB(VB&& other) noexcept : m_id(other.m_id), m_size(other.m_size) {
+        other.m_id = 0; other.m_size = 0;
     }
-    ~VB() { release(); }
+    VB& operator=(VB&& other) noexcept {
+        if (this != &other) {
+            release();
+            m_id = other.m_id; m_size = other.m_size;
+            other.m_id = 0; other.m_size = 0;
+        }
+        return *this;
+    }
 
+    inline ~VB() { release(); }
 
-    GLuint id() const { return m_id; }
-    size_t size() const { return m_size; }
-    void update_data(const void* data, size_t size, size_t offset = 0) {
-	    glNamedBufferSubData(m_id, offset, size, data);
+    [[nodiscard]] inline GLuint id() const noexcept { return m_id; }
+    [[nodiscard]] inline std::size_t size() const noexcept { return m_size; }
+
+    void update_data(const void* data, std::size_t size, size_t offset = 0) const noexcept {
+        glNamedBufferSubData(m_id, offset, size, data);
     }
 
 private:
-    GLuint m_id;
-    size_t m_size;
+    GLuint m_id = 0;
+    size_t m_size = 0;
 
-    void release() {
-	    if (m_id != 0) {
-		    glDeleteBuffers(1, &m_id);
-		    m_id = 0;
-	    }
-    }
-
-    static GLenum to_gl_usage(usage u) {
-        switch (u) {
-        case usage::static_draw:  return GL_STATIC_DRAW;
-        case usage::dynamic_draw: return GL_DYNAMIC_DRAW;
-        case usage::stream_draw:  return GL_STREAM_DRAW;
-        }
-        return GL_STATIC_DRAW; // fallback
+    void release() noexcept {
+        if (m_id) glDeleteBuffers(1, &m_id);
     }
 };
-
