@@ -156,7 +156,6 @@ int main()
 	Shader shad("Test", SHADERS_DIRECTORY / "test_vert.glsl", SHADERS_DIRECTORY / "test_frag.glsl");
 
 
-
 #if defined(DEBUG)
 	Entity debug_cam;
 	debug_cam = ecs.create_entity();
@@ -180,7 +179,7 @@ int main()
     Texture Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 	FramebufferManager fb_manager;
 	g_fb_manager = &fb_manager;
-	Player player(ecs, glm::vec3{0.0f, (float)CHUNK_SIZE.y, 0.0f}, context->getWidth(), context->getHeight());
+	Player player(ecs, glm::vec3{0.0f, 19.0f, 0.0f}, context->getWidth(), context->getHeight());
 	g_player = &player;
 	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
 	ui->SetViewportSize(context->getWidth(), context->getHeight());
@@ -191,12 +190,20 @@ int main()
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cube_id);
 
 	std::array<std::string, 6> cube_faces = {
-		"skybox/right.jpg",
-		"skybox/left.jpg",
-		"skybox/bottom.jpg",
-		"skybox/top.jpg",
-		"skybox/front.jpg",
-		"skybox/back.jpg"
+		/*
+		"skybox/right.jpg", // +x
+		"skybox/left.jpg",	// -x
+		"skybox/bottom.jpg",// -y
+		"skybox/top.jpg",	// +y
+		"skybox/front.jpg",	// +z
+		"skybox/back.jpg"	// -z
+		*/
+		"skybox/px.png",
+		"skybox/nx.png",
+		"skybox/ny.png",
+		"skybox/py.png",
+		"skybox/pz.png",
+		"skybox/nz.png"
 	};
 	
 	int width, height, nrChannels;
@@ -208,7 +215,7 @@ int main()
 		data = stbi_load(string.c_str(), &width, &height, &nrChannels, 0);
 		if (data) {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB,
-                     width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+                     width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data); // BEWARE OF THE FORMAT: It has to match the provided images
         stbi_image_free(data);
     } else {
         log::error("Failed to load skybox: {}", string);

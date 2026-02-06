@@ -97,6 +97,10 @@ struct Block {
     return type == Block::blocks::AIR || type == Block::blocks::LEAVES || type == Block::blocks::WATER;
   }
 
+  static inline constexpr bool isLiquid(blocks type) noexcept {
+    return type == Block::blocks::WATER || type == Block::blocks::LAVA;
+  }
+
   constexpr const char *toString() const { return toString(type); }
 
   static constexpr int toInt(blocks type) { return static_cast<int>(type); }

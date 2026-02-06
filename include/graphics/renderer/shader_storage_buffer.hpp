@@ -18,11 +18,11 @@ public:
         glNamedBufferData(m_id, size, data, to_gl_usage(u));
     }
 
-    // ❌ no copying
+    // no copying
     SSBO(const SSBO&) noexcept = delete;
     SSBO& operator=(const SSBO&) const noexcept = delete;
 
-    // ✅ move constructor
+    // move constructor
     SSBO(SSBO&& other) noexcept
 	    : m_id(other.m_id), m_size(other.m_size)
 	    {
@@ -30,7 +30,7 @@ public:
 		    other.m_size = 0;
 	    }
 
-    // ✅ move assignment
+    // move assignment
     SSBO& operator=(SSBO&& other) noexcept {
 	    if (this != &other) {
 		    release();

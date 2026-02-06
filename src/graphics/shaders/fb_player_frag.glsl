@@ -50,14 +50,26 @@ vec2 compute_velocity(vec2 uv, sampler2D depth, mat4 curr_inv_view_proj, mat4 pr
 
     return velocity;
 }
-vec4 motion_blur(int samples, vec2 velocity, vec2 uv) {
+vec4 motion_blur(sampler2D sampler, int samples, vec2 velocity, vec2 uv) {
 	vec4 col = vec4(0.0);
 	// simple linear blur along the motion vector
 	for(int i = 0; i < samples; i++)
 	{
 		float t = float(i) / float(samples - 1);
 		vec2 sample_uv = uv - velocity * t; // move backward along velocity
-		col += texture(color, sample_uv);
+		col += texture(sampler, sample_uv);
+	}
+	col /= float(samples);
+	return col;
+}
+vec4 motion_blur_2(samplerCube sampler, int samples, vec2 velocity, vec2 uv, vec3 worldDir) {
+	vec4 col = vec4(0.0);
+	// simple linear blur along the motion vector
+	for(int i = 0; i < samples; i++)
+	{
+		float t = float(i) / float(samples - 1);
+		vec2 sample_uv = uv - velocity * t; // move backward along velocity
+		col += texture(sampler, worldDir);
 	}
 	col /= float(samples);
 	return col;
@@ -77,6 +89,7 @@ void main()
 
 	vec2 vis = clamp(velocity * scale, -1.0, 1.0) * 0.5 + 0.5;
 	float mag = clamp(length(velocity) * scale, 0.0, 1.0);
+	vec4 base;
 	if (d < 0.001f) {  // Near 0.0 = far plane (no geometry hit)
 							// Reconstruct view-space ray direction
 		vec4 ndc = vec4(v_uv * 2.0 - 1.0, -1.0, 1.0);  // z=-1 for unproject from near (adjust for reverse-Z)
@@ -84,13 +97,14 @@ void main()
 		viewPos /= viewPos.w;
 		vec3 viewDir = normalize(viewPos.xyz);
 		vec3 worldDir = normalize((invView * vec4(viewDir, 0.0)).xyz);
-		frag_color = texture(skybox, worldDir);
+		base = texture(skybox, worldDir);
+		frag_color = motion_blur_2(skybox, 16, velocity * scale, v_uv, worldDir);
 		// Optional: add fog or tint based on depth
 	} else {
-		frag_color = texture(color, v_uv);
+		base = texture(color, v_uv);
 		//frag_color = mix(frag_color, vec4(vis, 0.0, 1.0), 0.8);
 		//frag_color = mix(frag_color, vec4(vec3(mag), 1.0), 0.5);
-		frag_color = motion_blur(16, velocity * scale, v_uv);
+		frag_color = motion_blur(color, 16, velocity * scale, v_uv);
 	}
 
 	/*	vignette effect */

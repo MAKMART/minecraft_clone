@@ -118,7 +118,7 @@ void Player::placeBlock(ChunkManager& chunkManager)
 		glm::ivec3 hitBlockPos = hitResult->first;
 		glm::ivec3 normal      = hitResult->second;
 		glm::ivec3 placePos = hitBlockPos + (-normal);
-		if (isInsidePlayerBoundingBox(placePos))
+		if (isInsidePlayerBoundingBox(placePos) && !Block::isLiquid(static_cast<Block::blocks>(selectedBlock)))
 			return;
 
 		glm::ivec3 localBlockPos = Chunk::world_to_local(placePos);
