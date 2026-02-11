@@ -40,12 +40,11 @@ ChunkManager::ChunkManager(std::optional<int> seed)
 	fractal_node->SetGain(0.440f);
 	fractal_node->SetWeightedStrength(-0.32f);
 
-
 	voxel_buffer.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
 	prefix_sum.setUInt("total_faces", Chunk::TOTAL_FACES);
 	write_faces.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
 	write_faces.setUInt("total_faces", Chunk::TOTAL_FACES);
-	shader.setVec3("CHUNK_SIZE", CHUNK_SIZE);
+	shader.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
 	uint num_workgroups = (Chunk::TOTAL_FACES + 255u) / 256u;
 	uint num_scan_groups = (num_workgroups + 255u) / 256u;
 	compute_global_offsets.setUInt("num_groups", num_workgroups);

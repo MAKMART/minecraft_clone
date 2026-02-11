@@ -43,33 +43,28 @@ uint get_voxel(uint idx) {
 uint get_index(uint x, uint y, uint z) {
 	return x + (y * CHUNK_SIZE.x) + (z * CHUNK_SIZE.x * CHUNK_SIZE.y);
 }
-uvec3 unpack_pos(uint p)
+
+uint pack_face(uint voxel_index, uint face_id, uint block_type)
 {
-	return uvec3(
-			p & 31u,
-			(p >> 5) & 31u,
-			(p >> 10) & 31u
-			);
+	return
+		(voxel_index) |
+		(face_id << 18) |
+		(block_type << 21);
+}
+
+uint unpack_voxel_index(uint p)
+{
+	return p & ((1u << 18) - 1u);
 }
 
 uint unpack_face_id(uint p)
 {
-	return (p >> 15) & 7u;
+	return (p >> 18) & 7u;
 }
 
 uint unpack_block_type(uint p)
 {
-	return (p >> 18) & 255u;
-}
-
-uint pack_face(uvec3 pos, uint face_id, uint block_type)
-{
-    return
-        (pos.x) |
-        (pos.y << 5) |
-        (pos.z << 10) |
-        (face_id << 15) |
-        (block_type << 18);
+	return (p >> 21) & 255u;
 }
 
 void main() {
@@ -84,13 +79,6 @@ void main() {
     uint voxel_idx = gid / 6u;
     uint face_id   = gid % 6u;
 
-    // compute 3D voxel position
-	uvec3 p = uvec3(
-        voxel_idx % CHUNK_SIZE.x,
-        (voxel_idx / CHUNK_SIZE.x) % CHUNK_SIZE.y,
-        voxel_idx / (CHUNK_SIZE.x * CHUNK_SIZE.y)
-    );
-
-	uint block_type = get_voxel(get_index(p.x, p.y, p.z));
-	faces[out_idx].packed_value = pack_face(p, face_id, block_type);
+	uint block_type = get_voxel(voxel_idx);
+	faces[out_idx].packed_value = pack_face(voxel_idx, face_id, block_type);
 }

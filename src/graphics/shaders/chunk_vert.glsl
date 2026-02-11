@@ -18,13 +18,13 @@ const vec3 debugColor[6] = vec3[6](
 struct FaceGPU {
 	uint packed_value;
 };
-uniform uvec3 CHUNK_SIZE;
 
 layout(std430, binding = 7) readonly buffer faces_buffer
 {
 	FaceGPU faces[];
 };
 
+uniform uvec3 CHUNK_SIZE;
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
@@ -88,23 +88,19 @@ const vec2 localUVs[6] = vec2[](
 uint get_index(uint x, uint y, uint z) {
 	return x + (y * CHUNK_SIZE.x) + (z * CHUNK_SIZE.x * CHUNK_SIZE.y);
 }
-uvec3 unpack_pos(uint p)
+uint unpack_voxel_index(uint p)
 {
-	return uvec3(
-			p & 31u,
-			(p >> 5) & 31u,
-			(p >> 10) & 31u
-			);
+    return p & ((1u << 18) - 1u);
 }
 
 uint unpack_face_id(uint p)
 {
-	return (p >> 15) & 7u;
+    return (p >> 18) & 7u;
 }
 
 uint unpack_block_type(uint p)
 {
-	return (p >> 18) & 255u;
+    return (p >> 21) & 255u;
 }
 
 void main()
@@ -138,9 +134,7 @@ void main()
   }
   */
 
-  uint gid = gl_GlobalInvocationID.x;
-
-  uint voxel_idx = gid / 6u;
+  uint voxel_idx = unpack_voxel_index(f.packed_value);
   // compute 3D voxel position
   uvec3 p = uvec3(
 		  voxel_idx % CHUNK_SIZE.x,

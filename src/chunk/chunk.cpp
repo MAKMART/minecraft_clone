@@ -8,6 +8,7 @@ Chunk::Chunk(const glm::ivec3& pos) : position(pos)
 {
 	glm::vec3 world = chunk_to_world(position);
 	aabb = AABB(world, world + glm::vec3(CHUNK_SIZE));
+
 	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
 
 	uint num_workgroups = (TOTAL_FACES + 255u) / 256u;
