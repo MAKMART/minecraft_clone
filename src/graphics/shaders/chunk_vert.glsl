@@ -16,10 +16,7 @@ const vec3 debugColor[6] = vec3[6](
 );
 
 struct FaceGPU {
-    uvec3 pos;       // 12 bytes
-    uint face_id;    // 4 bytes
-    uint block_type; // 4 bytes
-	uint _pad;
+	uint packed_value;
 };
 uniform uvec3 CHUNK_SIZE;
 
@@ -88,14 +85,36 @@ const vec2 localUVs[6] = vec2[](
     vec2(0, 1)
 );
 
+uint get_index(uint x, uint y, uint z) {
+	return x + (y * CHUNK_SIZE.x) + (z * CHUNK_SIZE.x * CHUNK_SIZE.y);
+}
+uvec3 unpack_pos(uint p)
+{
+	return uvec3(
+			p & 31u,
+			(p >> 5) & 31u,
+			(p >> 10) & 31u
+			);
+}
+
+uint unpack_face_id(uint p)
+{
+	return (p >> 15) & 7u;
+}
+
+uint unpack_block_type(uint p)
+{
+	return (p >> 18) & 255u;
+}
+
 void main()
 {
   const int currVertexID = gl_VertexID % 6;
   const int index = gl_VertexID / 6;
 
   FaceGPU f = faces[index];
-  uint face_id = min(f.face_id, 5u);
-  uint block_type = f.block_type;
+  uint face_id = min(unpack_face_id(f.packed_value), 5u);
+  uint block_type = unpack_block_type(f.packed_value);
 
   //DebugColor = debugColor[face_id];
   //DebugColor = vec3(f.pos) / vec3(CHUNK_SIZE);
@@ -119,7 +138,16 @@ void main()
   }
   */
 
-  vec3 position = vec3(f.pos) + facePositions[face_id][triangleCornerIndices[currVertexID]];
+  uint gid = gl_GlobalInvocationID.x;
+
+  uint voxel_idx = gid / 6u;
+  // compute 3D voxel position
+  uvec3 p = uvec3(
+		  voxel_idx % CHUNK_SIZE.x,
+		  (voxel_idx / CHUNK_SIZE.x) % CHUNK_SIZE.y,
+		  voxel_idx / (CHUNK_SIZE.x * CHUNK_SIZE.y)
+		  );
+  vec3 position = vec3(p) + facePositions[face_id][triangleCornerIndices[currVertexID]];
 
   // EFFECTS
   vec4 worldPos = model * vec4(position, 1.0);

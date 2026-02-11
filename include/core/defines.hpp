@@ -74,6 +74,7 @@ extern std::filesystem::path MAIN_DOC_DIRECTORY;
 
 // World Attributes
 extern float     GRAVITY;
+// WARNING: CHUNK_SIZE ≤ 32 because of how the voxel faces are packed in the GPU buffer
 inline constexpr static glm::ivec3 CHUNK_SIZE{16};
 inline constexpr int MAX_ENTITIES = 10'000;
 

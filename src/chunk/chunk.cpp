@@ -12,7 +12,6 @@ Chunk::Chunk(const glm::ivec3& pos) : position(pos)
 
 	uint num_workgroups = (TOTAL_FACES + 255u) / 256u;
 
-
 	faces = SSBO::Dynamic(nullptr, TOTAL_FACES * sizeof(face_gpu));
 	indirect_ssbo = SSBO::Dynamic(&cmd, sizeof(DrawArraysIndirectCommand));
 	block_ssbo = SSBO::Dynamic(nullptr, sizeof(blocks));

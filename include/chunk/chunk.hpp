@@ -108,6 +108,7 @@ struct Block {
 };
 static_assert(sizeof(Block) == sizeof(std::uint8_t));
 
+/*
 struct face_gpu {
   glm::uvec3 position; // 12 bytes
   uint32_t face_id;    // 4
@@ -116,7 +117,11 @@ struct face_gpu {
   uint32_t _pad2;      // 4 <-- Add these
   uint32_t _pad3;      // 4 <-- to reach 32 bytes
 };
-static_assert(sizeof(face_gpu) == 32);
+*/
+struct face_gpu {
+	uint packed;
+};
+static_assert(sizeof(face_gpu) == sizeof(uint));
 
 class Chunk {
 public:

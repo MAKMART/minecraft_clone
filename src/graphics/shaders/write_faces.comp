@@ -18,10 +18,7 @@ layout(std430, binding = 5) readonly buffer prefix_sums {
 
 // Output: face_ssbo, one FaceGPU per visible face
 struct FaceGPU {
-    uvec3 pos;       // 12 bytes
-    uint face_id;    // 4 bytes
-    uint block_type; // 4 bytes
-	uint _pad;
+    uint packed_value;
 };
 layout(std430, binding = 7) writeonly buffer face_ssbo {
     FaceGPU faces[];
@@ -46,6 +43,35 @@ uint get_voxel(uint idx) {
 uint get_index(uint x, uint y, uint z) {
 	return x + (y * CHUNK_SIZE.x) + (z * CHUNK_SIZE.x * CHUNK_SIZE.y);
 }
+uvec3 unpack_pos(uint p)
+{
+	return uvec3(
+			p & 31u,
+			(p >> 5) & 31u,
+			(p >> 10) & 31u
+			);
+}
+
+uint unpack_face_id(uint p)
+{
+	return (p >> 15) & 7u;
+}
+
+uint unpack_block_type(uint p)
+{
+	return (p >> 18) & 255u;
+}
+
+uint pack_face(uvec3 pos, uint face_id, uint block_type)
+{
+    return
+        (pos.x) |
+        (pos.y << 5) |
+        (pos.z << 10) |
+        (face_id << 15) |
+        (block_type << 18);
+}
+
 void main() {
     uint gid = gl_GlobalInvocationID.x;
 
@@ -66,9 +92,5 @@ void main() {
     );
 
 	uint block_type = get_voxel(get_index(p.x, p.y, p.z));
-
-    // Write face data
-    faces[out_idx].pos        = p;
-    faces[out_idx].face_id    = face_id;
-    faces[out_idx].block_type = block_type;
+	faces[out_idx].packed_value = pack_face(p, face_id, block_type);
 }
