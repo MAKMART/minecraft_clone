@@ -188,13 +188,10 @@ public:
   }
 
   bool dirty = true;
-  SSBO block_ssbo;
-  SSBO face_flags;
   SSBO faces;
-  SSBO prefix;
-  SSBO group_totals;
-  // unused SSBO normals;
   SSBO indirect_ssbo;
+  SSBO block_ssbo;
+  // unused SSBO normals;
 private:
   // Chunk-space position
   glm::ivec3 position;

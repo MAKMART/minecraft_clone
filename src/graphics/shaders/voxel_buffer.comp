@@ -14,7 +14,7 @@ layout(std430, binding = 2) writeonly buffer face_flags {
 
 uniform uvec3 CHUNK_SIZE;
 
-ivec3 dirs[6] = ivec3[](
+const ivec3 dirs[6] = ivec3[](
     ivec3(0,0,1),  ivec3(0,0,-1),
     ivec3(-1,0,0), ivec3(1,0,0),
     ivec3(0,1,0),  ivec3(0,-1,0)
@@ -77,9 +77,21 @@ void main() {
     uint voxel_type = get_voxel(get_index(p.x, p.y, p.z));
 
     // Only solid voxels can produce faces
+	/*
     if (voxel_type == 0u) {
         flags[gid] = 0u;
     } else {
         flags[gid] = is_face_visible(p, dirs[face]) ? 1u : 0u;
+    }
+	*/
+
+    // Pack the bit: 1 bit per face
+    uint word_index = gid >> 5;      // gid / 32
+    uint bit_index  = gid & 31u;     // gid % 32
+
+    // Each thread writes exactly one bit → atomic-free
+    if (is_face_visible(p, dirs[face])) {
+        //flags[word_index] = 1u << bit_index;
+		atomicOr(flags[word_index], 1u << bit_index);
     }
 }

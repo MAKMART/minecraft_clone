@@ -10,6 +10,11 @@ layout(std430, binding = 9) buffer IndirectBuffer {
     uint baseInstance;
 } indirect;
 
+bool get_flag(uint index)
+{
+    uint word = flags[index >> 5];
+    return ((word >> (index & 31u)) & 1u) != 0u;
+}
 void main() {
     uint last = prefix.length() - 1u;
 
@@ -17,7 +22,7 @@ void main() {
     // so total visible faces = prefix[last] + (1 if last face visible else 0)
     uint total_visible_faces = prefix[last];
 
-    if (flags[last] != 0u) {
+    if (get_flag(last)) {
         total_visible_faces += 1u;
     }
 

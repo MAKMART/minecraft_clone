@@ -120,6 +120,10 @@ class ChunkManager
 	Shader			 add_global_offsets;
 	Shader			 indirect;
 
+	SSBO			 prefix;
+	SSBO			 face_flags;
+	SSBO			 group_totals;
+
 	std::vector<float> cachedNoiseRegion;
 	glm::ivec3         lastRegionSize  = {-1, -1, -1};
 	glm::ivec3         lastNoiseOrigin = {-999999, -999999, -999999};

@@ -17,13 +17,18 @@ shared uint temp[256]; // shared memory for scan
 
 uniform uint total_faces;
 
+bool get_flag(uint index)
+{
+    uint word = flags[index >> 5];
+    return ((word >> (index & 31u)) & 1u) != 0u;
+}
 void main() {
     uint gid = gl_GlobalInvocationID.x;
     uint tid = gl_LocalInvocationID.x;
     uint group_id = gl_WorkGroupID.x;
 
     // Load flags into shared memory (0 for out-of-bounds)
-    temp[tid] = (gid < total_faces) ? flags[gid] : 0u;
+    temp[tid] = (gid < total_faces) ? uint(get_flag(gid)) : 0u;
     barrier();
 
     // --- Blelloch inclusive scan in shared memory ---

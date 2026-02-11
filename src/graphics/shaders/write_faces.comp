@@ -67,11 +67,18 @@ uint unpack_block_type(uint p)
 	return (p >> 21) & 255u;
 }
 
+bool get_flag(uint index)
+{
+    uint word = flags[index >> 5];
+    return ((word >> (index & 31u)) & 1u) != 0u;
+
+}
 void main() {
     uint gid = gl_GlobalInvocationID.x;
 
     if (gid >= total_faces) return;
-    if (flags[gid] == 0u) return; // skip invisible faces
+    //if (get_flag(gid) == 0u) return; // skip invisible faces
+	if (!get_flag(gid)) return;
 
     // Index in the output face_ssbo
     uint out_idx = prefix[gid];

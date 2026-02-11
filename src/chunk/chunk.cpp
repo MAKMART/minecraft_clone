@@ -10,16 +10,12 @@ Chunk::Chunk(const glm::ivec3& pos) : position(pos)
 	aabb = AABB(world, world + glm::vec3(CHUNK_SIZE));
 
 	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
-
-	uint num_workgroups = (TOTAL_FACES + 255u) / 256u;
+	const constexpr uint num_workgroups = (TOTAL_FACES + 255u) / 256u;
 
 	faces = SSBO::Dynamic(nullptr, TOTAL_FACES * sizeof(face_gpu));
 	indirect_ssbo = SSBO::Dynamic(&cmd, sizeof(DrawArraysIndirectCommand));
 	block_ssbo = SSBO::Dynamic(nullptr, sizeof(blocks));
-	face_flags   = SSBO::Dynamic(nullptr, TOTAL_FACES * sizeof(uint));
-	prefix       = SSBO::Dynamic(nullptr, TOTAL_FACES * sizeof(uint));
 	//normals = SSBO::Dynamic(nullptr, TOTAL_FACES * 4 * sizeof(uint));
-	group_totals  = SSBO::Dynamic(nullptr, num_workgroups * sizeof(uint));
 }
 void Chunk::generate(const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_node, const int SEED) noexcept
 {

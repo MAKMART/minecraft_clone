@@ -40,13 +40,20 @@ ChunkManager::ChunkManager(std::optional<int> seed)
 	fractal_node->SetGain(0.440f);
 	fractal_node->SetWeightedStrength(-0.32f);
 
+	constexpr uint num_workgroups = (Chunk::TOTAL_FACES + 255u) / 256u;
+	constexpr uint num_scan_groups = (num_workgroups + 255u) / 256u;
+
+	const constexpr uint flag_words = (Chunk::TOTAL_FACES + 31u) / 32u;
+	face_flags   = SSBO::Dynamic(nullptr, flag_words * sizeof(uint));
+	//normals = SSBO::Dynamic(nullptr, TOTAL_FACES * 4 * sizeof(uint));
+	group_totals  = SSBO::Dynamic(nullptr, num_workgroups * sizeof(uint));
+	prefix       = SSBO::Dynamic(nullptr, Chunk::TOTAL_FACES * sizeof(uint));
+
 	voxel_buffer.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
 	prefix_sum.setUInt("total_faces", Chunk::TOTAL_FACES);
 	write_faces.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
 	write_faces.setUInt("total_faces", Chunk::TOTAL_FACES);
 	shader.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
-	uint num_workgroups = (Chunk::TOTAL_FACES + 255u) / 256u;
-	uint num_scan_groups = (num_workgroups + 255u) / 256u;
 	compute_global_offsets.setUInt("num_groups", num_workgroups);
 	add_global_offsets.setUInt("total_faces", Chunk::TOTAL_FACES);
 	glCreateVertexArrays(1, &VAO);
@@ -66,14 +73,23 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 	if (!chunk->dirty)
         return;
 	if (chunk->block_ssbo.id())
-		chunk->block_ssbo.update_data(chunk->getChunkData(), sizeof(*chunk->getChunkData()));
+		chunk->block_ssbo.update_data(chunk->getChunkData(), sizeof(Block) * Chunk::SIZE);
 
+
+	glClearNamedBufferData(
+			face_flags.id(),
+			GL_R32UI,
+			GL_RED_INTEGER,
+			GL_UNSIGNED_INT,
+			nullptr
+			);
 
 	chunk->block_ssbo.bind_to_slot(1);
-	chunk->face_flags.bind_to_slot(2);
-	chunk->prefix.bind_to_slot(5);
-	chunk->group_totals.bind_to_slot(6);
+	face_flags.bind_to_slot(2);
+	prefix.bind_to_slot(5);
+	group_totals.bind_to_slot(6);
 	chunk->faces.bind_to_slot(7);
+
 
 	uint num_workgroups = (Chunk::TOTAL_FACES + 255u) / 256u;
 	uint num_scan_groups = (num_workgroups + 255u) / 256u;
@@ -115,6 +131,7 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 	add_global_offsets.use();
 	glDispatchCompute(num_workgroups, 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
 
 	write_faces.use();
 	glDispatchCompute(num_workgroups, 1, 1);
