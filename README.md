@@ -1,7 +1,7 @@
 # Minecraft Clone
 ## Introduction 📝
 
-This is a small minecraft clone built using OpenGL 4.6 and C++ 20. The project is in a very early, experimental stage 🚀.
+This is a small minecraft clone built using OpenGL 4.6 and C++ 23. The project is in a very early, experimental stage 🚀.
 
 Since this is meant for me to learn programming, don't expect high-quality stuff here for some time.
 
