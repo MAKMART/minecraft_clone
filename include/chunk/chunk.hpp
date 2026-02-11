@@ -11,7 +11,6 @@
 #include "graphics/shader.hpp"
 #include <glm/gtx/string_cast.hpp>
 #include <FastNoise/FastNoise.h>
-#include <span>
 #include <bit>
 
 enum class ChunkState { Empty, Generated, Linked, TreesPlaced, Meshed };
@@ -107,21 +106,24 @@ struct Block {
 
   constexpr int toInt() const { return toInt(type); }
 };
+static_assert(sizeof(Block) == sizeof(std::uint8_t));
 
 struct face_gpu {
   glm::uvec3 position; // 12 bytes
   uint32_t face_id;    // 4
   uint32_t block_type; // 4
   uint32_t _pad;       // 4 (std430 alignment safety)
+  uint32_t _pad2;      // 4 <-- Add these
+  uint32_t _pad3;      // 4 <-- to reach 32 bytes
 };
-static_assert(sizeof(face_gpu) == 24);
+static_assert(sizeof(face_gpu) == 32);
 
 class Chunk {
 public:
   explicit Chunk(const glm::ivec3 &chunkPos);
   ~Chunk() = default;
 
-  inline Block get_block(const glm::ivec3& pos) const noexcept { return blocks[getBlockIndex(pos.x, pos.y, pos.z)]; }
+  inline const Block& get_block(const glm::ivec3& pos) const noexcept { return blocks[getBlockIndex(pos.x, pos.y, pos.z)]; }
 
   bool setBlockAt(int x, int y, int z, Block::blocks type) noexcept {
     int index = getBlockIndex(x, y, z);
@@ -131,11 +133,6 @@ public:
     }
 	if (blocks[index].type != type) {
 		blocks[index].type = type;
-		// Update the packed blocks array
-		uint32_t& packed = packed_blocks[index / 4];           // find the correct uint32_t
-		uint32_t shift  = (index % 4) * 8;                    // calculate shift for this block
-		packed &= ~(0xFFu << shift);                          // clear the old block type
-		packed |= (static_cast<uint32_t>(type) << shift);     // set the new block typ
 		dirty = true;
 		return true;
 	}
@@ -151,8 +148,7 @@ public:
 
   inline int getBlockIndex(int x, int y, int z) const noexcept {
 #if defined(DEBUG)
-    if (x < 0 || x >= CHUNK_SIZE.x || y < 0 || y >= CHUNK_SIZE.y || z < 0 ||
-        z >= CHUNK_SIZE.z) {
+    if (x < 0 || x >= CHUNK_SIZE.x || y < 0 || y >= CHUNK_SIZE.y || z < 0 || z >= CHUNK_SIZE.z) {
       log::system_error("Chunk", "Invalid index for block at {}!", glm::to_string(glm::ivec3(x, y, z)));
       return -1;
     }
@@ -162,7 +158,8 @@ public:
 
   ChunkState state = ChunkState::Empty;
 
-  constexpr static int SIZE = CHUNK_SIZE.x * CHUNK_SIZE.y * CHUNK_SIZE.z;
+  constexpr static inline int SIZE = CHUNK_SIZE.x * CHUNK_SIZE.y * CHUNK_SIZE.z;
+  constexpr static inline int TOTAL_FACES = SIZE * 6;
 
   static inline glm::ivec3 world_to_chunk(const glm::vec3 &world_pos) {
 	  return glm::ivec3(glm::floor(world_pos / glm::vec3(CHUNK_SIZE)));
@@ -186,12 +183,13 @@ public:
   }
 
   bool dirty = true;
-  SSBO block_ssbo;   // blocks[]
-  SSBO face_ssbo;    // faces[]
-  SSBO counter_ssbo; // uint face_count
+  SSBO block_ssbo;
+  SSBO face_flags;
+  SSBO faces;
+  SSBO prefix;
+  SSBO group_totals;
+  // unused SSBO normals;
   SSBO indirect_ssbo;
-
-  uint32_t packed_blocks[(SIZE + 3) / 4] = {};
 private:
   // Chunk-space position
   glm::ivec3 position;
@@ -201,5 +199,6 @@ private:
 
   constexpr static int logSizeX = std::countr_zero(static_cast<unsigned>(CHUNK_SIZE.x));
   constexpr static int logSizeY = std::countr_zero(static_cast<unsigned>(CHUNK_SIZE.y));
+  float chunk_noise[SIZE];
   Block blocks[SIZE];
 };

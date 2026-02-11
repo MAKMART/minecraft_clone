@@ -146,6 +146,26 @@ class Shader
 		glProgramUniform1i(ID, location, value);
 	}
 
+	void setUInt(const std::string& name, unsigned int value) const
+	{
+		if (ID == 0) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Attempting to set uniform '{}' on invalid shader program!", s_name, name);
+#endif
+			return;
+		}
+
+		GLint location = getUniformLocation(name);
+		if (location == -1) {
+#if defined(DEBUG)
+			log::system_warn("Shader", "[{}] Uniform {} not found in shader program!", s_name, name);
+#endif
+			return;
+		}
+
+		glProgramUniform1ui(ID, location, value);
+	}
+
 	void setFloat(const std::string& name, float value) const
 	{
 		if (ID == 0) {

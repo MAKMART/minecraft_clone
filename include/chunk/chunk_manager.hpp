@@ -42,13 +42,9 @@ class ChunkManager
 
 	Shader& getWaterShader(){ return waterShader; }
 
-	Shader& getCompute() { return compute; }
-
 	const Shader& getShader() const { return shader; }
 
 	const Shader& getWaterShader() const { return waterShader; }
-
-	const Shader& getCompute() const { return compute; }
 
 	const GLuint& getVAO() const { return VAO; }
 
@@ -116,8 +112,12 @@ class ChunkManager
 	GLuint           VAO;
 	Shader           shader;
 	Shader           waterShader;
-	Shader			 compute;
-	Shader			 reset;
+
+	Shader			 voxel_buffer;
+	Shader			 write_faces;
+	Shader			 prefix_sum;
+	Shader			 compute_global_offsets;
+	Shader			 add_global_offsets;
 	Shader			 indirect;
 
 	std::vector<float> cachedNoiseRegion;

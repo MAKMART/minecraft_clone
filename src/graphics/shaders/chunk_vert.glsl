@@ -16,12 +16,14 @@ const vec3 debugColor[6] = vec3[6](
 );
 
 struct FaceGPU {
-	uvec3 pos;
-	uint face_id;
-	uint block_type;
+    uvec3 pos;       // 12 bytes
+    uint face_id;    // 4 bytes
+    uint block_type; // 4 bytes
+	uint _pad;
 };
+uniform uvec3 CHUNK_SIZE;
 
-layout(std430, binding = 2) readonly buffer vertexPullBuffer
+layout(std430, binding = 7) readonly buffer faces_buffer
 {
 	FaceGPU faces[];
 };
@@ -95,7 +97,13 @@ void main()
   uint face_id = min(f.face_id, 5u);
   uint block_type = f.block_type;
 
-  DebugColor = debugColor[face_id];
+  //DebugColor = debugColor[face_id];
+  //DebugColor = vec3(f.pos) / vec3(CHUNK_SIZE);
+  DebugColor = vec3(
+		  float(gl_VertexID % 997) / 997.0,
+		  float((gl_VertexID / 13) % 251) / 251.0,
+		  float(gl_VertexID % 6) / 5.0
+	  );
   //DebugColor = mix(debugColor[face_id], vec3(float(gl_VertexID % 6) / 6.0, 0.0, 1.0), 0.5);
   //DebugColor = vec3(float(face_id) / 6.0, 0.0, 1.0);
 
@@ -113,9 +121,6 @@ void main()
 
   vec3 position = vec3(f.pos) + facePositions[face_id][triangleCornerIndices[currVertexID]];
 
-  //DebugColor = vec3(f.pos) / 16.0;
-
-  
   // EFFECTS
   vec4 worldPos = model * vec4(position, 1.0);
 

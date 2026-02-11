@@ -1,10 +1,9 @@
 #version 460 core
 layout(local_size_x = 1) in;
 
-layout(std430, binding = 3) buffer FaceCounter {
-    uint face_count;
-};
-layout(std430, binding = 4) buffer IndirectBuffer {
+layout(std430, binding = 5) readonly buffer PrefixSSBO { uint prefix[]; };
+layout(std430, binding = 2) readonly buffer FaceFlagsSSBO { uint flags[]; };
+layout(std430, binding = 9) buffer IndirectBuffer {
     uint count;
     uint instanceCount;
     uint first;
@@ -12,8 +11,18 @@ layout(std430, binding = 4) buffer IndirectBuffer {
 } indirect;
 
 void main() {
-	indirect.count = face_count * 6u;
-	indirect.instanceCount = 1u;
-	indirect.first = 0u;
-	indirect.baseInstance = 0u;
+    uint last = prefix.length() - 1u;
+
+    // After add_global_offsets.comp, prefix[last] = sum of all previous visible faces
+    // so total visible faces = prefix[last] + (1 if last face visible else 0)
+    uint total_visible_faces = prefix[last];
+
+    if (flags[last] != 0u) {
+        total_visible_faces += 1u;
+    }
+
+    indirect.count        = total_visible_faces * 6u;   // 6 vertices per quad
+    indirect.instanceCount = 1u;
+    indirect.first        = 0u;
+    indirect.baseInstance = 0u;
 }

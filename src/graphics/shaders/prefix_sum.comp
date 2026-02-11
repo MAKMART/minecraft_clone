@@ -1,0 +1,48 @@
+#version 460 core
+layout(local_size_x = 256) in;
+
+layout(std430, binding = 2) readonly buffer face_flags {
+    uint flags[];       // Input: 1 = visible, 0 = hidden
+};
+
+layout(std430, binding = 5) writeonly buffer prefix_sums {
+    uint prefix[];      // Output: exclusive prefix sum per face
+};
+
+layout(std430, binding = 6) writeonly buffer workgroup_totals {
+    uint group_totals[]; // Total visible faces per workgroup
+};
+
+shared uint temp[256]; // shared memory for scan
+
+uniform uint total_faces;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    uint tid = gl_LocalInvocationID.x;
+    uint group_id = gl_WorkGroupID.x;
+
+    // Load flags into shared memory (0 for out-of-bounds)
+    temp[tid] = (gid < total_faces) ? flags[gid] : 0u;
+    barrier();
+
+    // --- Blelloch inclusive scan in shared memory ---
+    for (uint offset = 1u; offset < gl_WorkGroupSize.x; offset <<= 1) {
+        uint t = temp[tid];
+        barrier();
+        if (tid >= offset) t += temp[tid - offset];
+        barrier();
+        temp[tid] = t;
+        barrier();
+    }
+
+    // Write exclusive prefix sum
+    if (gid < total_faces) {
+        prefix[gid] = (tid == 0u) ? 0u : temp[tid - 1u];
+    }
+
+    // Last thread in workgroup writes total for global offsets
+    if (tid == gl_WorkGroupSize.x - 1u) {
+        group_totals[group_id] = temp[tid];
+    }
+}

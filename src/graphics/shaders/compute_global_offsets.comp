@@ -1,0 +1,34 @@
+#version 460 core
+layout(local_size_x = 256) in;
+
+layout(std430, binding = 6) buffer workgroup_totals {
+    uint group_totals[];
+};
+
+shared uint temp[256]; // assume max 256 workgroups
+
+uniform uint num_groups;
+
+void main() {
+    uint tid = gl_LocalInvocationID.x;
+    if (tid >= num_groups) return;
+
+    // Load into shared memory
+    temp[tid] = group_totals[tid];
+    barrier();
+
+    // Blelloch inclusive scan
+    for (uint offset = 1u; offset < num_groups; offset <<= 1) {
+        uint t = temp[tid];
+        barrier();
+        if (tid >= offset) t += temp[tid - offset];
+        barrier();
+        temp[tid] = t;
+        barrier();
+    }
+
+    // Exclusive scan
+    if (tid < num_groups) {
+        group_totals[tid] = (tid == 0u) ? 0u : temp[tid - 1u];
+    }
+}

@@ -1,0 +1,85 @@
+#version 460 core
+layout(local_size_x = 256) in;
+
+struct Block {
+	uint type;
+};
+layout(std430, binding = 1) readonly buffer voxel_buffer {
+    uint voxels[];
+};
+
+layout(std430, binding = 2) writeonly buffer face_flags {
+    uint flags[]; // 1 uint per face (1 = visible, 0 = hidden)
+};
+
+uniform uvec3 CHUNK_SIZE;
+
+ivec3 dirs[6] = ivec3[](
+    ivec3(0,0,1),  ivec3(0,0,-1),
+    ivec3(-1,0,0), ivec3(1,0,0),
+    ivec3(0,1,0),  ivec3(0,-1,0)
+);
+
+// Get voxel type from packed uint
+uint get_voxel(uint idx) {
+    uint element = voxels[idx / 4u];
+    uint shift   = (idx % 4u) * 8u;
+    return (element >> shift) & 0xFFu;
+}
+
+uint get_index(uint x, uint y, uint z) {
+	return x + (y * CHUNK_SIZE.x) + (z * CHUNK_SIZE.x * CHUNK_SIZE.y);
+}
+
+bool is_transparent(uint type) {
+    return (type == 0u) ||          // AIR
+           (type == 5u) ||          // WATER
+           (type == 7u);            // LEAVES
+           // add others if you have glass etc. later
+}
+
+bool is_face_visible(uvec3 p, ivec3 dir) {
+    ivec3 n = ivec3(p) + dir;
+
+    // Out of bounds → always visible (chunk edge)
+    if (any(lessThan(n, ivec3(0))) || any(greaterThanEqual(n, CHUNK_SIZE))) {
+        return true;
+    }
+
+    uint neighbor_type = get_voxel(get_index(uint(n.x), uint(n.y), uint(n.z)));
+
+    // My own type (for self-culling / liquids)
+    uint my_type = get_voxel(get_index(p.x, p.y, p.z));
+
+    // Classic Minecraft-like rule:
+    // Draw face if:
+    //   neighbor is transparent   AND   I am not air
+    return !is_transparent(my_type) && is_transparent(neighbor_type);
+}
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+	uvec3 size = uvec3(CHUNK_SIZE);
+    uint voxels_total = size.x * size.y * size.z;
+    uint total_faces = voxels_total * 6u;
+
+    if (gid >= total_faces) return;
+
+    uint voxel_idx = gid / 6u;
+    uint face = gid % 6u;
+
+    uvec3 p = uvec3(
+        voxel_idx % size.x,
+        (voxel_idx / size.x) % size.y,
+        voxel_idx / (size.x * size.y)
+    );
+
+    uint voxel_type = get_voxel(get_index(p.x, p.y, p.z));
+
+    // Only solid voxels can produce faces
+    if (voxel_type == 0u) {
+        flags[gid] = 0u;
+    } else {
+        flags[gid] = is_face_visible(p, dirs[face]) ? 1u : 0u;
+    }
+}

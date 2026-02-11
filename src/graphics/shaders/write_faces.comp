@@ -1,0 +1,74 @@
+#version 460 core
+layout(local_size_x = 256) in;
+
+struct Block {
+	uint type;
+};
+layout(std430, binding = 1) readonly buffer voxel_buffer {
+    uint voxels[];
+};
+layout(std430, binding = 2) readonly buffer face_flags {
+    uint flags[]; // 1 = visible, 0 = hidden
+};
+
+// Input: exclusive prefix sum for each face
+layout(std430, binding = 5) readonly buffer prefix_sums {
+    uint prefix[]; // maps visible faces to face_ssbo indices
+};
+
+// Output: face_ssbo, one FaceGPU per visible face
+struct FaceGPU {
+    uvec3 pos;       // 12 bytes
+    uint face_id;    // 4 bytes
+    uint block_type; // 4 bytes
+	uint _pad;
+};
+layout(std430, binding = 7) writeonly buffer face_ssbo {
+    FaceGPU faces[];
+};
+
+// Uniforms
+uniform uvec3 CHUNK_SIZE;
+uniform uint total_faces;
+
+ivec3 dirs[6] = ivec3[](
+    ivec3(0,0,1),  ivec3(0,0,-1),
+    ivec3(-1,0,0), ivec3(1,0,0),
+    ivec3(0,1,0),  ivec3(0,-1,0)
+);
+
+// Get voxel type from packed uint
+uint get_voxel(uint idx) {
+    uint element = voxels[idx / 4u];
+    uint shift   = (idx % 4u) * 8u;
+    return (element >> shift) & 0xFFu;
+}
+uint get_index(uint x, uint y, uint z) {
+	return x + (y * CHUNK_SIZE.x) + (z * CHUNK_SIZE.x * CHUNK_SIZE.y);
+}
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+
+    if (gid >= total_faces) return;
+    if (flags[gid] == 0u) return; // skip invisible faces
+
+    // Index in the output face_ssbo
+    uint out_idx = prefix[gid];
+
+    uint voxel_idx = gid / 6u;
+    uint face_id   = gid % 6u;
+
+    // compute 3D voxel position
+	uvec3 p = uvec3(
+        voxel_idx % CHUNK_SIZE.x,
+        (voxel_idx / CHUNK_SIZE.x) % CHUNK_SIZE.y,
+        voxel_idx / (CHUNK_SIZE.x * CHUNK_SIZE.y)
+    );
+
+	uint block_type = get_voxel(get_index(p.x, p.y, p.z));
+
+    // Write face data
+    faces[out_idx].pos        = p;
+    faces[out_idx].face_id    = face_id;
+    faces[out_idx].block_type = block_type;
+}
