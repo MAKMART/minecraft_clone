@@ -14,14 +14,17 @@ Chunk::Chunk(const glm::ivec3& pos) : position(pos)
 
 	faces = SSBO::Dynamic(nullptr, TOTAL_FACES * sizeof(face_gpu));
 	indirect_ssbo = SSBO::Dynamic(&cmd, sizeof(DrawArraysIndirectCommand));
-	block_ssbo = SSBO::Dynamic(nullptr, sizeof(blocks));
+	block_ssbo = SSBO::Dynamic(nullptr, sizeof(block_types));
 	//normals = SSBO::Dynamic(nullptr, TOTAL_FACES * 4 * sizeof(uint));
+
+	model = glm::translate(glm::mat4(1.0f), chunk_to_world(position));
 }
 void Chunk::generate(const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_node, const int SEED) noexcept
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
+	non_air_count = 0;
 	constexpr int dirtDepth  = 3;
 	constexpr int beachDepth = 1; // How wide the beach is vertically
 
@@ -40,7 +43,7 @@ void Chunk::generate(const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_no
 			);
 	/*
     noise_node->GenUniformGrid3D(
-        chunk_noise.data(),
+        chunk_noise,
         static_cast<float>(chunk_origin.x),
         static_cast<float>(chunk_origin.y),
         static_cast<float>(chunk_origin.z),
@@ -50,7 +53,7 @@ void Chunk::generate(const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_no
     );
 	*/
 
-#define MAX_WORLD_HEIGHT 2
+#define MAX_WORLD_HEIGHT 20
 	int noise_index = 0;
 	for (int x = 0; x < CHUNK_SIZE.x; ++x)
 		for (int z = 0; z < CHUNK_SIZE.z; ++z)
@@ -63,20 +66,33 @@ void Chunk::generate(const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_no
 
 			for (int y = 0; y < CHUNK_SIZE.y; ++y)
 			{
-				int index = getBlockIndex(x, y, z);
-				if (y > height) blocks[index].type = Block::blocks::AIR;
-				else if (y == height) blocks[index].type = Block::blocks::GRASS;
-				else if (y >= height - dirtDepth) blocks[index].type = Block::blocks::DIRT;
-				else blocks[index].type = Block::blocks::STONE;
+				int index = get_index(x, y, z);
+				Block::blocks type;
+				if (y > height)
+					type = Block::blocks::AIR;
+				else if (y == height)
+					type = Block::blocks::GRASS;
+				else if (y >= height - dirtDepth)
+					type = Block::blocks::DIRT;
+				else
+					type = Block::blocks::STONE;
+				//blocks[index].type = type;
+				block_types[index] = static_cast<std::uint8_t>(type);
+
+				if (type != Block::blocks::AIR)
+					++non_air_count;
 			}
 
 		}
 
-	block_ssbo.update_data(blocks, sizeof(blocks));
+	block_ssbo.update_data(block_types, sizeof(block_types));
 }
 void Chunk::render_opaque_mesh(const Shader& shader, GLuint vao) const noexcept
 {
-	shader.setMat4("model", getModelMatrix());
+	if (!has_any_blocks())
+		return;
+	
+	shader.setMat4("model", model);
 
 	faces.bind_to_slot(7);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirect_ssbo.id());
@@ -85,5 +101,5 @@ void Chunk::render_opaque_mesh(const Shader& shader, GLuint vao) const noexcept
 }
 void Chunk::render_transparent_mesh(const Shader& shader) const noexcept
 {
-	shader.setMat4("model", getModelMatrix());
+	shader.setMat4("model", model);
 }

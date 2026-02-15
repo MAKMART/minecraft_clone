@@ -123,8 +123,8 @@ void Player::placeBlock(ChunkManager& chunkManager)
 
 		glm::ivec3 localBlockPos = Chunk::world_to_local(placePos);
 
-		if (chunkManager.getChunk(placePos)->get_block(localBlockPos).type != Block::blocks::AIR) {
-			log::system_info("Player", "❌ Target block is NOT air! It's type: {}", Block::toString(chunkManager.getChunk(placePos)->get_block(localBlockPos).type));
+		if (chunkManager.getChunk(placePos)->get_block_type(localBlockPos.x, localBlockPos.y, localBlockPos.z) != Block::blocks::AIR) {
+			log::system_info("Player", "❌ Target block is NOT air! It's type: {}", Block::toString(chunkManager.getChunk(placePos)->get_block_type(localBlockPos.x, localBlockPos.y, localBlockPos.z)));
 			return;
 		}
 

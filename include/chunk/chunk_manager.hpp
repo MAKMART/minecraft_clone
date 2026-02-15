@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/glm.hpp>
+#include <unordered_set>
 #include <vector>
 #include "graphics/shader.hpp"
 #include "graphics/texture.hpp"
@@ -115,9 +116,9 @@ class ChunkManager
 
 	Shader			 voxel_buffer;
 	Shader			 write_faces;
+	Shader			 add_global_offsets;
 	Shader			 prefix_sum;
 	Shader			 compute_global_offsets;
-	Shader			 add_global_offsets;
 	Shader			 indirect;
 
 	SSBO			 prefix;
@@ -126,14 +127,16 @@ class ChunkManager
 
 	std::vector<float> cachedNoiseRegion;
 	glm::ivec3         lastRegionSize  = {-1, -1, -1};
-	glm::ivec3         lastNoiseOrigin = {-999999, -999999, -999999};
+	glm::ivec3         lastNoiseOrigin{-999999};
 
 	// TODO: Use an octree to store the chunks
 	std::unordered_map<glm::ivec3, std::unique_ptr<Chunk>, ivec3_hash> chunks;
+	std::vector<Chunk*> dirty_chunks;
 
 	// initialize with a value that's != to any reasonable spawn chunk position
 	glm::ivec3 last_player_chunk_pos{INT_MIN};
 
+	void update_meshes() noexcept;
 	void load_around_pos(glm::ivec3 playerChunkPos, unsigned int renderDistance);
 
 	void unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unloadDistance);

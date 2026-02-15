@@ -35,10 +35,8 @@ ChunkManager::ChunkManager(std::optional<int> seed)
 	perlin_node = FastNoise::New<FastNoise::Perlin>();
 	fractal_node = FastNoise::New<FastNoise::FractalFBm>();
 	fractal_node->SetSource(perlin_node);
-	fractal_node->SetOctaveCount(1);
-	fractal_node->SetLacunarity(4.48f);
-	fractal_node->SetGain(0.440f);
-	fractal_node->SetWeightedStrength(-0.32f);
+	fractal_node->SetOctaveCount(2);
+	//fractal_node->SetLacunarity(4.48f);
 
 	constexpr uint num_workgroups = (Chunk::TOTAL_FACES + 255u) / 256u;
 	constexpr uint num_scan_groups = (num_workgroups + 255u) / 256u;
@@ -70,10 +68,8 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-	if (!chunk->dirty)
-        return;
 	if (chunk->block_ssbo.id())
-		chunk->block_ssbo.update_data(chunk->getChunkData(), sizeof(Block) * Chunk::SIZE);
+		chunk->block_ssbo.update_data(chunk->get_block_data(), sizeof(Block) * Chunk::SIZE);
 
 
 	glClearNamedBufferData(
@@ -132,17 +128,22 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 	glDispatchCompute(num_workgroups, 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-
 	write_faces.use();
 	glDispatchCompute(num_workgroups, 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-
-	chunk->dirty = false;
 	chunk->indirect_ssbo.bind_to_slot(9);
 	indirect.use();
 	glDispatchCompute(1, 1, 1);
 	glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+}
+void ChunkManager::update_meshes() noexcept
+{
+	for (auto chunk : dirty_chunks) {
+		update_mesh(chunk);
+		chunk->in_dirty_list = false;
+	}
+
 }
 bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType)
 {
@@ -151,8 +152,9 @@ bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType)
 		return false;
 	glm::ivec3 localPos = Chunk::world_to_local(world_pos);
 
-	chunk->setBlockAt(localPos.x, localPos.y, localPos.z, newType);
-	update_mesh(chunk);
+	chunk->set_block_type(localPos.x, localPos.y, localPos.z, newType);
+	if (!chunk->in_dirty_list)
+		dirty_chunks.emplace_back(chunk);
 	return true;
 }
 Chunk* ChunkManager::getChunk(glm::vec3 world_pos) const
@@ -202,13 +204,11 @@ void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int rende
 				int offsetZ = (dz + renderDistance) * CHUNK_SIZE.z;
 
 				chunk->generate(fractal_node, SEED);
-				chunk->state = ChunkState::Generated;
 
-
-				// Optional: queue mesh update instead of immediate
-				//dirtyChunks.push_back(chunk.get());
-				update_mesh(chunk.get());
-				chunk->state = ChunkState::Meshed;
+				if (chunk->has_any_blocks() && !chunk->in_dirty_list) {
+					dirty_chunks.emplace_back(chunk.get());
+					chunk->in_dirty_list = true;
+				}
 			}
 		}
 	}
@@ -242,4 +242,6 @@ void ChunkManager::generate_chunks(glm::vec3 playerPos, unsigned int renderDista
 		unload_around_pos(playerChunk, renderDistance + 1);
 		last_player_chunk_pos = playerChunk;
 	}
+	update_meshes();
+	dirty_chunks.clear();
 }

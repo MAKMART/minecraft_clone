@@ -45,10 +45,9 @@ class raycast
 
 			if (chunk) {
 				glm::ivec3 localVoxelPos = Chunk::world_to_local(worldResult);
-				int        blockIndex    = chunk->getBlockIndex(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
+				int        blockIndex    = chunk->get_index(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
 
-				if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < Chunk::SIZE &&
-				    chunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
+				if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < Chunk::SIZE && chunk->get_block_type(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z) != Block::blocks::AIR) {
 					return worldResult; // Found a solid block
 				}
 			}
@@ -110,10 +109,9 @@ class raycast
 
 			if (chunk) {
 				glm::ivec3 localVoxelPos = Chunk::world_to_local(worldResult);
-				int        blockIndex    = chunk->getBlockIndex(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
+				int        blockIndex    = chunk->get_index(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
 
-				if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < Chunk::SIZE &&
-				    chunk->getChunkData()[blockIndex].type != Block::blocks::AIR) {
+				if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < Chunk::SIZE && chunk->get_block_type(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z) != Block::blocks::AIR) {
 					return std::make_pair(worldResult, worldResult - lastVoxel);
 				}
 			}

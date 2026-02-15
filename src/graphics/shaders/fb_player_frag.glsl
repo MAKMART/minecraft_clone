@@ -108,9 +108,9 @@ void main()
 	}
 
 	/*	vignette effect */
-	vec2 center = vec2(0.5, 0.5);
-	float dist = distance(v_uv, center);
-	frag_color.rgb *= smoothstep(0.8, 0.5, dist); // darkens edges
+	//vec2 center = vec2(0.5, 0.5);
+	//float dist = distance(v_uv, center);
+	//frag_color.rgb *= smoothstep(0.8, 0.5, dist); // darkens edges
 
 	//frag_color.rgb = floor(frag_color.rgb * 8.0) / 8.0; // Pixelation with 8 levels per channel
 

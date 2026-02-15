@@ -38,11 +38,11 @@ inline bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManage
                     continue; // Treat missing chunks as air (or return true for "void" if preferred)
 
                 const glm::ivec3 local = Chunk::world_to_local(blockWorldPos);
-                const Block& block = chunk->get_block(local);
+                const Block::blocks& type = chunk->get_block_type(local.x, local.y, local.z);
 
-                if (block.type != Block::blocks::AIR &&
-                    block.type != Block::blocks::WATER &&
-                    block.type != Block::blocks::LAVA) {
+                if (type != Block::blocks::AIR &&
+                    type != Block::blocks::WATER &&
+                    type != Block::blocks::LAVA) {
                     return true;
                 }
             }

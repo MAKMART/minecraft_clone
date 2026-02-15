@@ -13,8 +13,6 @@
 #include <FastNoise/FastNoise.h>
 #include <bit>
 
-enum class ChunkState { Empty, Generated, Linked, TreesPlaced, Meshed };
-
 struct DrawArraysIndirectCommand {
   GLuint count;         // vertices to draw
   GLuint instanceCount; // usually 1
@@ -108,16 +106,6 @@ struct Block {
 };
 static_assert(sizeof(Block) == sizeof(std::uint8_t));
 
-/*
-struct face_gpu {
-  glm::uvec3 position; // 12 bytes
-  uint32_t face_id;    // 4
-  uint32_t block_type; // 4
-  uint32_t _pad;       // 4 (std430 alignment safety)
-  uint32_t _pad2;      // 4 <-- Add these
-  uint32_t _pad3;      // 4 <-- to reach 32 bytes
-};
-*/
 struct face_gpu {
 	uint packed;
 };
@@ -128,40 +116,38 @@ public:
   explicit Chunk(const glm::ivec3 &chunkPos);
   ~Chunk() = default;
 
-  inline const Block& get_block(const glm::ivec3& pos) const noexcept { return blocks[getBlockIndex(pos.x, pos.y, pos.z)]; }
+  Block::blocks get_block_type(int x, int y, int z) const noexcept {
+	  return static_cast<Block::blocks>(
+			  block_types[x + (y << logSizeX) + (z << (logSizeX + logSizeY))]
+			  );
+  }
+  void set_block_type(int x, int y, int z, Block::blocks type) noexcept {
+	  int index = x + (y << logSizeX) + (z << (logSizeX + logSizeY));
+	  if (block_types[index] != static_cast<std::uint8_t>(type)) {
+		  if (block_types[index] == static_cast<std::uint8_t>(Block::blocks::AIR) &&
+				  type != Block::blocks::AIR)
+			  ++non_air_count;
+		  else if (block_types[index] != static_cast<std::uint8_t>(Block::blocks::AIR) &&
+				  type == Block::blocks::AIR)
+			  --non_air_count;
 
-  bool setBlockAt(int x, int y, int z, Block::blocks type) noexcept {
-    int index = getBlockIndex(x, y, z);
-    if (index == -1) {
-      log::system_error("Chunk", "tried to set block out-of-bounds for chunk at {}", glm::to_string(position));
-      return false;
-    }
-	if (blocks[index].type != type) {
-		blocks[index].type = type;
-		dirty = true;
-		return true;
-	}
-	return false;
+		  block_types[index] = static_cast<std::uint8_t>(type);
+	  }
   }
 
-  const inline Block *getChunkData() const noexcept { return blocks; }
+  const inline std::uint8_t *get_block_data() const noexcept { return block_types; }
   const inline glm::ivec3 get_pos() const noexcept{ return position; }
   const inline AABB& getAABB() const noexcept { return aabb; }
   void generate(const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_node, const int SEED) noexcept;
   void render_opaque_mesh(const Shader &shader, GLuint vao) const noexcept;
   void render_transparent_mesh(const Shader &shader) const noexcept;
 
-  inline int getBlockIndex(int x, int y, int z) const noexcept {
-#if defined(DEBUG)
-    if (x < 0 || x >= CHUNK_SIZE.x || y < 0 || y >= CHUNK_SIZE.y || z < 0 || z >= CHUNK_SIZE.z) {
-      log::system_error("Chunk", "Invalid index for block at {}!", glm::to_string(glm::ivec3(x, y, z)));
-      return -1;
-    }
-#endif
+  inline int get_index(int x, int y, int z) const noexcept {
     return x + (y << logSizeX) + (z << (logSizeX + logSizeY));
   }
 
-  ChunkState state = ChunkState::Empty;
+  bool has_any_blocks() const noexcept { return non_air_count > 0; }
+
 
   constexpr static inline int SIZE = CHUNK_SIZE.x * CHUNK_SIZE.y * CHUNK_SIZE.z;
   constexpr static inline int TOTAL_FACES = SIZE * 6;
@@ -180,14 +166,14 @@ public:
   }
 
   inline bool isAir(int x, int y, int z) const noexcept {
-    return blocks[getBlockIndex(x, y, z)].type == Block::blocks::AIR;
+    return get_block_type(x, y, z) == Block::blocks::AIR;
   }
 
-  glm::mat4 getModelMatrix() const {
-    return glm::translate(glm::mat4(1.0f), chunk_to_world(position));
+  const glm::mat4& getModelMatrix() const {
+	return model;
   }
 
-  bool dirty = true;
+  bool in_dirty_list = false;
   SSBO faces;
   SSBO indirect_ssbo;
   SSBO block_ssbo;
@@ -197,10 +183,12 @@ private:
   glm::ivec3 position;
   AABB aabb;
   const int seaLevel = 5;
+  glm::mat4 model;
 
 
   constexpr static int logSizeX = std::countr_zero(static_cast<unsigned>(CHUNK_SIZE.x));
   constexpr static int logSizeY = std::countr_zero(static_cast<unsigned>(CHUNK_SIZE.y));
-  float chunk_noise[SIZE];
-  Block blocks[SIZE];
+  alignas(16) float chunk_noise[SIZE];
+  alignas(16) std::uint8_t block_types[SIZE]{};
+  int non_air_count = 0;
 };
