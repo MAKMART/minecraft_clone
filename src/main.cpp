@@ -760,7 +760,9 @@ int main()
 			DrawElementsWrapper(GL_TRIANGLES, sizeof(CrosshairIndices) / sizeof(CrosshairIndices[0]), GL_UNSIGNED_INT, nullptr);
 			glBindVertexArray(0);
 
-			ui->render();
+			if (camera == player.getCamera())
+				ui->render();
+			
 			// other UI stuff...
 		}
 #if defined(NDEBUG) // TEMP
