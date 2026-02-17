@@ -21,8 +21,10 @@ void InputManager::key_callback(GLFWwindow* window, int key, int scancode, int a
 		return;
 	InputManager& im = InputManager::get();
 
-	if (action == GLFW_PRESS)   im._keyStates[key] = KeyState::PRESSED;
-	if (action == GLFW_RELEASE) im._keyStates[key] = KeyState::RELEASED;
+	if (action == GLFW_PRESS)
+		im._keyStates[key] = KeyState::PRESSED;
+	else if (action == GLFW_RELEASE)
+		im._keyStates[key] = KeyState::RELEASED;
 }
 
 void InputManager::mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
@@ -32,8 +34,10 @@ void InputManager::mouse_button_callback(GLFWwindow* window, int button, int act
 		return;
 	InputManager& im = InputManager::get();
 
-	if (action == GLFW_PRESS)   im._mouseButtonStates[button] = KeyState::PRESSED;
-	if (action == GLFW_RELEASE) im._mouseButtonStates[button] = KeyState::RELEASED;
+	if (action == GLFW_PRESS)
+		im._mouseButtonStates[button] = KeyState::PRESSED;
+	else if (action == GLFW_RELEASE)
+		im._mouseButtonStates[button] = KeyState::RELEASED;
 }
 
 void InputManager::cursor_pos_callback(GLFWwindow* window, double xpos, double ypos)

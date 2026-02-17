@@ -59,7 +59,7 @@ float GRAVITY = 9.80665f;
 
 // Utils for rendering
 unsigned int g_drawCallCount = 0;
-void         DrawArraysWrapper(GLenum mode, GLint first, GLsizei count)
+void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count)
 {
 	glDrawArrays(mode, first, count);
 	g_drawCallCount++;
