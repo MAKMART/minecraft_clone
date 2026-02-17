@@ -1,17 +1,13 @@
 #version 460 core
 in vec4 vColor;
 in vec2 TexCoord;
-layout (binding = 3) uniform sampler2D uTexture;
+layout (binding = 0) uniform sampler2D uTexture;
 uniform int uHasTexture;    // Flag to check if texture is used
-out vec4 FragColor;
+out vec4 fragColor;
 
 void main() {
-    if (uHasTexture == 0) {
-	// If no texture is provided, use the color from the CSS
-	FragColor = vColor; 
-    } else {
-	// Otherwise, sample the texture and apply the vertex color
-	vec4 tex = texture(uTexture, TexCoord);
-	FragColor = tex * vColor;
-    }
+	if (uHasTexture == 1)
+		fragColor = texture(uTexture, TexCoord) * vColor;
+	else
+		fragColor = vColor;
 }
