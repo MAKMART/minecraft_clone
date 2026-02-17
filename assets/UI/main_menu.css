@@ -1,0 +1,53 @@
+/* Note: RmlUI uses RCSS, not standard CSS */
+body {
+    height: 100%;
+    width: 100%;
+    background: rgba(0, 0, 0, 1); /* RmlUI often prefers 0-255 for alpha in some versions, or 0.0-1.0 */
+    font-family: Hack; /* No quotes, no fallbacks */
+    color: yellow;
+}
+
+.menu-container {
+    /* Manual centering since flex is limited */
+	/*display: center;*/
+    margin: auto;
+	height: 60%;
+    width: 30%;
+    text-align: center;
+    background: rgba(50, 50, 100, 200);
+    padding: 40px;
+    font-family: Hack; /* No quotes, no fallbacks */
+    border-radius: 20px;
+    /* box-shadow removed: Not supported */
+}
+
+h1 {
+    margin-bottom: 30px;
+    font-family: Hack; /* No quotes, no fallbacks */
+    font-size: 48px; /* Use px instead of rem for better reliability in RmlUI */
+}
+
+button {
+    font-family: Hack; /* No quotes, no fallbacks */
+    display: block;
+    margin: 15px auto;
+    padding: 10px 40px;
+    font-size: 24px;
+    background: #4CAF50;
+    color: white;
+    border-width: 0px; /* Use this instead of border: none */
+    border-radius: 10px;
+    /* cursor: pointer; -- RmlUI handles cursors differently, usually via C++ */
+}
+
+button:hover {
+    background: #45a049;
+}
+
+#quit-button {
+    background: #f44336;
+}
+
+#quit-button:hover {
+    background: #da190b;
+}
