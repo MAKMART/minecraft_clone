@@ -7,7 +7,7 @@ public:
     IB() = default;
 
     // Core modern constructor
-    IB(const unsigned int* data, size_t count, GLbitfield flags = GL_DYNAMIC_STORAGE_BIT) noexcept
+    IB(const int* data, size_t count, GLbitfield flags = GL_DYNAMIC_STORAGE_BIT) noexcept
         : m_count(count)
     {
         glCreateBuffers(1, &m_id);
@@ -15,15 +15,15 @@ public:
     }
 
     // Convenience factories
-    static IB Immutable(const unsigned int* data, size_t count) {
+    static IB Immutable(const int* data, size_t count) {
         return IB(data, count, 0);
     }
 
-    static IB Dynamic(const unsigned int* data, size_t count) {
+    static IB Dynamic(const int* data, size_t count) {
         return IB(data, count, GL_DYNAMIC_STORAGE_BIT);
     }
 
-    static IB PersistentWrite(const unsigned int* data, size_t count) {
+    static IB PersistentWrite(const int* data, size_t count) {
         constexpr GLbitfield f = GL_DYNAMIC_STORAGE_BIT |
                                  GL_MAP_WRITE_BIT |
                                  GL_MAP_PERSISTENT_BIT |

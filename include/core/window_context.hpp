@@ -1,7 +1,6 @@
 #pragma once
 #include <GLFW/glfw3.h>
 #include <stb_image.h>
-#include <stb_image.h>
 #include "core/defines.hpp"
 #include "core/logger.hpp"
 #if defined(TRACY_ENABLE)
@@ -16,6 +15,11 @@ struct WindowContext {
 		create_window();
 		glfwSetWindowUserPointer(window, this);
 	}
+	WindowContext(const WindowContext&) = delete;
+	WindowContext& operator=(const WindowContext&) = delete;
+
+	WindowContext(WindowContext&&) = default;
+	WindowContext& operator=(WindowContext&&) = default;
 	~WindowContext()
 	{
 		if (window)
