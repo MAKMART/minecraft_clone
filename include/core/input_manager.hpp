@@ -9,9 +9,6 @@
 class InputManager
 {
       public:
-	enum class KeyState { RELEASED,
-		              PRESSED,
-		              HELD };
 
 	// Singleton access
 	static InputManager& get()
@@ -30,55 +27,68 @@ class InputManager
 	void update();
 
 	// --- Keyboard Input ---
-	bool isPressed(int_fast16_t key) const;
-	bool isHeld(int_fast16_t key) const;
-	bool isReleased(int_fast16_t key) const;
-
-	// --- Mouse Input ---
-	bool isMousePressed(int_fast8_t button) const;
-	bool isMouseHeld(int_fast8_t button) const;
-	bool isMouseReleased(int_fast8_t button) const;
-
-	const glm::vec2& getMousePos() const
+	[[nodiscard]] inline bool isPressed(int_fast16_t key) const noexcept
 	{
-		return _lastMouse;
+		assert(key >= 0 && key < MAX_KEYS && "Invalid key code");
+		return _keyStates[key] == KeyState::PRESSED;
 	}
 
-	glm::vec2 getMouseDelta() const
+	[[nodiscard]] inline bool isHeld(int_fast16_t key) const noexcept
 	{
+		assert(key >= 0 && key < MAX_KEYS && "Invalid key code");
+		return _keyStates[key] == KeyState::DOWN;
+	}
+
+	[[nodiscard]] inline bool isReleased(int_fast16_t key) const noexcept
+	{
+		assert(key >= 0 && key < MAX_KEYS && "Invalid key code");
+		return _keyStates[key] == KeyState::RELEASED;
+	}
+
+	// --- Mouse Input ---
+	[[nodiscard]] inline bool isMousePressed(int_fast8_t button) const noexcept
+	{
+		assert(button >= 0 && button < MAX_MOUSE_BUTTONS && "Invalid button code");
+		return _mouseButtonStates[button] == KeyState::PRESSED;
+	}
+
+	[[nodiscard]] inline bool isMouseHeld(int_fast8_t button) const noexcept
+	{
+		assert(button >= 0 && button < MAX_MOUSE_BUTTONS && "Invalid button code");
+		return _mouseButtonStates[button] == KeyState::DOWN;
+	}
+
+	[[nodiscard]] inline bool isMouseReleased(int_fast8_t button) const noexcept
+	{
+		assert(button >= 0 && button < MAX_MOUSE_BUTTONS && "Invalid button code");
+		return _mouseButtonStates[button] == KeyState::RELEASED;
+	}
+
+	inline const glm::vec2& getMousePos() const noexcept { return _lastMouse; }
+	inline const glm::vec2& getScroll() const noexcept { return _scroll; }
+
+	inline glm::vec2 getMouseDelta() const noexcept {
 		return glm::vec2(
 		    invertXAxis ? -_mouseDelta.x : _mouseDelta.x,
 		    invertYAxis ? -_mouseDelta.y : _mouseDelta.y);
 	}
 
-	glm::vec2 getScroll() const
-	{
-		return _scroll;
-	}
 
-	void setInvertYAxis(bool enabled)
-	{
-		if (invertYAxis != enabled) {
-			invertYAxis = enabled;
-		}
-	}
-	bool isMouseYAxisInverted()
-	{
-		return invertYAxis;
-	}
-	void setInvertXAxis(bool enabled)
+	bool isMouseYAxisInverted() const noexcept { return invertYAxis; }
+	bool isMouseXAxisInverted() const noexcept { return invertXAxis; }
+	bool isMouseTrackingEnabled() const noexcept { return mouseTrackingEnabled; }
+
+	void setInvertXAxis(bool enabled) noexcept
 	{
 		if (invertXAxis != enabled) {
 			invertXAxis = enabled;
 		}
 	}
-	bool isMouseXAxisInverted()
+	void setInvertYAxis(bool enabled) noexcept
 	{
-		return invertXAxis;
-	}
-	bool isMouseTrackingEnabled() const
-	{
-		return mouseTrackingEnabled;
+		if (invertYAxis != enabled) {
+			invertYAxis = enabled;
+		}
 	}
 	void setMouseTrackingEnabled(bool enabled);
 
@@ -108,11 +118,9 @@ class InputManager
 	bool           invertYAxis = false;
 	bool           invertXAxis = false;
 
+	enum class KeyState { UP, PRESSED, DOWN, RELEASED };
 	std::array<KeyState, MAX_KEYS> _keyStates{};
-	std::array<KeyState, MAX_KEYS> _previousKeyStates{};
-
 	std::array<KeyState, MAX_MOUSE_BUTTONS> _mouseButtonStates{};
-	std::array<KeyState, MAX_MOUSE_BUTTONS> _previousMouseButtonStates{};
 
 	bool mouseTrackingEnabled = true;
 

@@ -121,7 +121,7 @@ class Player
 	}
 
 	// --- Player Settings ---
-	float max_interaction_distance = 10.0f;
+	float max_interaction_distance = 1000.0f; // 10
 	unsigned int render_distance = 5u;
 
 	float playerHeight;

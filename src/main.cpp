@@ -48,6 +48,7 @@
 #include "game/ecs/systems/frustum_volume_system.hpp"
 #include "game/ecs/systems/temporal_camera_system.hpp"
 #include "graphics/renderer/framebuffer_manager.hpp"
+#include "core/raycast.hpp"
 
 std::uint64_t  nbFrames  = 0;
 f32 deltaTime = 0.0f;
@@ -422,12 +423,60 @@ int main()
 
 		// 1. Player
 		if (input.isMouseTrackingEnabled()) {
-			if (input.isMousePressed(ATTACK_BUTTON) && player.canBreakBlocks) {
+			if (input.isMousePressed(ATTACK_BUTTON) && player.canBreakBlocks && camera == player.getCamera()) {
 				player.breakBlock(manager);
 			}
-			if (input.isMousePressed(DEFENSE_BUTTON) && player.canPlaceBlocks) {
+			if (input.isMousePressed(DEFENSE_BUTTON) && player.canPlaceBlocks && camera == player.getCamera()) {
 				player.placeBlock(manager);
 			}
+			if (camera == debug_cam) {
+				Transform* trans = ecs.get_component<Transform>(camera);
+				if (!trans)
+					log::error("NO TRANSFORM FOR ENTITY: {}", camera.id);
+				glm::vec4 clip = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
+
+				glm::vec4 view_space = glm::inverse(cam->projectionMatrix) * clip;
+				view_space.z = -1.0f; // forward direction
+				view_space.w = 0.0f;  // this is a direction, not a position
+
+				glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(cam->viewMatrix) * view_space));
+				glm::vec3 ray_origin = trans->pos; // start at camera position
+				if (input.isMouseHeld(ATTACK_BUTTON)) {
+					std::optional<glm::ivec3> hitBlock = raycast::voxel(manager, ray_origin, ray_dir, player.max_interaction_distance);
+					if (hitBlock.has_value()) {
+						glm::ivec3 blockPos = hitBlock.value();
+						manager.updateBlock(blockPos, Block::blocks::AIR);
+					}
+					// log::info("Breaking block at: {}, {}, {}", blockPos.x, blockPos.y, blockPos.z);
+				}
+				if (input.isMouseHeld(DEFENSE_BUTTON)) {
+					std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycast::voxel_normals(manager, ray_origin, ray_dir, player.max_interaction_distance);
+					if (hitResult.has_value()) {
+						glm::ivec3 hitBlockPos = hitResult->first;
+						glm::ivec3 normal      = hitResult->second;
+						glm::ivec3 placePos = hitBlockPos + (-normal);
+						glm::ivec3 localBlockPos = Chunk::world_to_local(placePos);
+
+						if (manager.getChunk(placePos)->get_block_type(localBlockPos.x, localBlockPos.y, localBlockPos.z) != Block::blocks::AIR) {
+							log::error("❌ Target block is NOT air! It's type: {}", Block::toString(manager.getChunk(placePos)->get_block_type(localBlockPos.x, localBlockPos.y, localBlockPos.z)));
+						}
+
+						//log::info("Placing block at: {}, {}, {}", placePos.x, placePos.y, placePos.z);
+						/*
+						int radius = 2;
+						for(int i = -radius; i < radius; i++) {
+							for(int j = -radius; j < radius; j++) {
+								for(int k = -radius; k < radius; k++)
+									manager.updateBlock(placePos + glm::ivec3(i, j, k), static_cast<Block::blocks>(player.selectedBlock));
+							}
+						}
+						*/
+						manager.updateBlock(placePos, static_cast<Block::blocks>(player.selectedBlock));
+					}
+				}
+			
+			}
+
 
 			float scrollY = input.getScroll().y;
 			if (scrollY != 0.0f) {
@@ -696,7 +745,7 @@ int main()
 		glBindVertexArray(0);
 
 		// --- UI Pass --- (now rendered BEFORE ImGui)
-		if (renderUI && camera == player.getCamera()) {
+		if (renderUI/* && camera == player.getCamera()*/) {
 			glDisable(GL_DEPTH_TEST);
 			// -- Crosshair Pass ---
 				glm::mat4 orthoProj = glm::ortho(0.0f, static_cast<float>(cur_fb.width()), 0.0f, static_cast<float>(cur_fb.height()));
@@ -819,7 +868,7 @@ int main()
 						auto* cfg = ecs.get_component<MovementConfig>(player.getSelf());
 						ImGui::SliderFloat("Player walking speed ", &cfg->walk_speed, 0.0f, 100.0f);
 						ImGui::SliderFloat("Player flying speed", &cfg->fly_speed, 0.0f, 100.0f);
-						ImGui::SliderFloat("Max Interaction Distance", &player.max_interaction_distance, 0.0f, 100.0f);
+						ImGui::SliderFloat("Max Interaction Distance", &player.max_interaction_distance, 0.0f, 1000.0f);
 						ImGui::TreePop();
 					}
 					if (ImGui::TreeNode("Camera")) {
@@ -827,7 +876,7 @@ int main()
 						ImGui::SliderFloat("FOV", &cam->fov, 0.001f, 179.899f);
 						ImGui::SliderFloat("Near Plane", &cam->near_plane, 0.001f, 10.0f);
 						ImGui::SliderFloat("Far Plane", &cam->far_plane, 10.0f, 1000000.0f);
-						ImGui::SliderFloat("Third Person Offset", &ctrl->orbit_distance, 1.0f, 20.0f);
+						ImGui::SliderFloat("Third Person Offset", &ctrl->orbit_distance, 1.0f, 200.0f);
 						ImGui::TreePop();
 					}
 					if (ImGui::TreeNode("Miscellaneous")) {

@@ -3,7 +3,6 @@
 #include "game/ecs/components/frustum_volume.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include <optional>
-#include "glm/trigonometric.hpp"
 #include "core/raycast.hpp"
 #include "game/ecs/components/active_camera.hpp"
 #include "game/ecs/components/temporal_camera.hpp"
@@ -29,7 +28,7 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos, int width, int height)
 			.can_fly = false,
 			.jump_height = 1.252f,
 			.walk_speed = 3.6f,
-			.run_speed = 77.8f,
+			.run_speed = 7.8f,
 			.crouch_speed = 2.5f,
 			.fly_speed = 17.5f
 			});
@@ -129,6 +128,17 @@ void Player::placeBlock(ChunkManager& chunkManager)
 		}
 
 		//log::system_info("Player", "Placing block at: {}, {}, {}", placePos.x, placePos.y, placePos.z);
+		/*
+		int radius = 2;
+		for(int i = -radius; i < radius; i++) {
+			for(int j = -radius; j < radius; j++) {
+				for(int k = -radius; k < radius; k++) {
+					chunkManager.updateBlock(placePos + glm::ivec3(i, j, k), static_cast<Block::blocks>(selectedBlock));
+				}
+			}
+
+		}
+		*/
 		chunkManager.updateBlock(placePos, static_cast<Block::blocks>(selectedBlock));
 	}
 }

@@ -55,7 +55,7 @@ void RenderTimings()
 	ImVec2      origin   = ImGui::GetCursorScreenPos();
 	ImGui::Dummy(graphSize); // Reserve space
 
-	const float maxMs       = 100.0f;
+	const float maxMs       = 15.0f;
 	ImVec2      bottomRight = ImVec2(origin.x + graphSize.x, origin.y + graphSize.y);
 	drawList->AddRect(origin, bottomRight, IM_COL32(255, 255, 255, 64));
 

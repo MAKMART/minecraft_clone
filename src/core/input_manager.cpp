@@ -5,15 +5,13 @@ void InputManager::update()
 {
 	_mouseDelta                = glm::vec2(0.0f); // reset after each frame
 	_scroll                    = glm::vec2(0.0f);
-	_previousKeyStates         = _keyStates;
-	_previousMouseButtonStates = _mouseButtonStates;
 	for (auto& key : _keyStates) {
-		if (key == KeyState::PRESSED)
-			key = KeyState::HELD;
+		if (key == KeyState::PRESSED)  key = KeyState::DOWN;
+		if (key == KeyState::RELEASED) key = KeyState::UP;
 	}
 	for (auto& btn : _mouseButtonStates) {
-		if (btn == KeyState::PRESSED)
-			btn = KeyState::HELD;
+		if (btn == KeyState::PRESSED)  btn = KeyState::DOWN;
+		if (btn == KeyState::RELEASED) btn = KeyState::UP;
 	}
 }
 void InputManager::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -23,10 +21,8 @@ void InputManager::key_callback(GLFWwindow* window, int key, int scancode, int a
 		return;
 	InputManager& im = InputManager::get();
 
-	if (action == GLFW_PRESS)
-		im._keyStates[key] = KeyState::PRESSED;
-	else if (action == GLFW_RELEASE)
-		im._keyStates[key] = KeyState::RELEASED;
+	if (action == GLFW_PRESS)   im._keyStates[key] = KeyState::PRESSED;
+	if (action == GLFW_RELEASE) im._keyStates[key] = KeyState::RELEASED;
 }
 
 void InputManager::mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
@@ -36,10 +32,8 @@ void InputManager::mouse_button_callback(GLFWwindow* window, int button, int act
 		return;
 	InputManager& im = InputManager::get();
 
-	if (action == GLFW_PRESS)
-		im._mouseButtonStates[button] = KeyState::PRESSED;
-	else if (action == GLFW_RELEASE)
-		im._mouseButtonStates[button] = KeyState::RELEASED;
+	if (action == GLFW_PRESS)   im._mouseButtonStates[button] = KeyState::PRESSED;
+	if (action == GLFW_RELEASE) im._mouseButtonStates[button] = KeyState::RELEASED;
 }
 
 void InputManager::cursor_pos_callback(GLFWwindow* window, double xpos, double ypos)
@@ -84,43 +78,10 @@ void InputManager::window_focus_callback(GLFWwindow* window, int focused)
 		im._scroll     = glm::vec2(0.0f);
 	}
 }
-// --- Keyboard Functions ---
-bool InputManager::isPressed(int_fast16_t key) const
-{
-	return key < MAX_KEYS && _keyStates[key] == KeyState::PRESSED;
-}
-
-bool InputManager::isHeld(int_fast16_t key) const
-{
-	return key < MAX_KEYS && _keyStates[key] == KeyState::HELD;
-}
-
-bool InputManager::isReleased(int_fast16_t key) const
-{
-	return key < MAX_KEYS && _previousKeyStates[key] != KeyState::RELEASED && _keyStates[key] == KeyState::RELEASED;
-}
-
-// --- Mouse Button Functions ---
-bool InputManager::isMousePressed(int_fast8_t button) const
-{
-	return button < MAX_MOUSE_BUTTONS && _mouseButtonStates[button] == KeyState::PRESSED;
-}
-
-bool InputManager::isMouseHeld(int_fast8_t button) const
-{
-	return button < MAX_MOUSE_BUTTONS && _mouseButtonStates[button] == KeyState::HELD;
-}
-
-bool InputManager::isMouseReleased(int_fast8_t button) const
-{
-	return button < MAX_MOUSE_BUTTONS && _previousMouseButtonStates[button] != KeyState::RELEASED && _mouseButtonStates[button] == KeyState::RELEASED;
-}
-
 void InputManager::setMouseTrackingEnabled(bool enabled)
 {
 	if (mouseTrackingEnabled == enabled)
 		return; // No change
-
 	mouseTrackingEnabled = enabled;
 
 	if (enabled) {
@@ -130,4 +91,5 @@ void InputManager::setMouseTrackingEnabled(bool enabled)
 		// Show cursor and release capture (enable OS cursor)
 		glfwSetInputMode(_context->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 	}
+	_mouseDelta = {};
 }
