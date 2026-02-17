@@ -182,7 +182,7 @@ int main()
 	g_fb_manager = &fb_manager;
 	Player player(ecs, glm::vec3{0.0f, 19.0f, 0.0f}, context->getWidth(), context->getHeight());
 	g_player = &player;
-	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), MAIN_FONT_DIRECTORY, MAIN_DOC_DIRECTORY);
+	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), MAIN_FONT_DIRECTORY);
 	ui->SetViewportSize(context->getWidth(), context->getHeight());
 
 	// Cubemap
@@ -254,7 +254,7 @@ int main()
 	// --- CROSSHAIR STUFF ---
 	Shader crossHairshader("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
 	Texture crossHairTexture(ICONS_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST);
-	static constexpr unsigned int CrosshairIndices[6] = {
+	static constexpr int CrosshairIndices[6] = {
 	    0, 1, 2,
 	    2, 3, 0
 	};
@@ -540,29 +540,29 @@ int main()
 		
 
 		// 2. UI
-		if (ui->context) {
+		if (ui->get_context()) {
 			glm::vec2 mousePos = input.getMousePos();
-			ui->context->ProcessMouseMove(static_cast<int>(mousePos.x), static_cast<int>(mousePos.y), ui->GetKeyModifiers());
+			ui->get_context()->ProcessMouseMove(static_cast<int>(mousePos.x), static_cast<int>(mousePos.y), ui->GetKeyModifiers());
 
 			// Mouse buttons
 			for (int b = 0; b < InputManager::MAX_MOUSE_BUTTONS; ++b) {
 				if (input.isMousePressed(b))
-					ui->context->ProcessMouseButtonDown(b, 0);
+					ui->get_context()->ProcessMouseButtonDown(b, 0);
 				else if (input.isMouseReleased(b))
-					ui->context->ProcessMouseButtonUp(b, 0);
+					ui->get_context()->ProcessMouseButtonUp(b, 0);
 			}
 
 			// Scroll
 			float scrollY = input.getScroll().y;
 			if (scrollY != 0.0f)
-				ui->context->ProcessMouseWheel(-scrollY, 0);
+				ui->get_context()->ProcessMouseWheel(-scrollY, 0);
 
 			// Keyboard
 			for (int k = 0; k < GLFW_KEY_LAST; ++k) {
 				if (input.isPressed(k))
-					ui->context->ProcessKeyDown(ui->MapKey(k), ui->GetKeyModifiers());
+					ui->get_context()->ProcessKeyDown(ui->MapKey(k), ui->GetKeyModifiers());
 				else if (input.isReleased(k))
-					ui->context->ProcessKeyUp(ui->MapKey(k), ui->GetKeyModifiers());
+					ui->get_context()->ProcessKeyUp(ui->MapKey(k), ui->GetKeyModifiers());
 			}
 		}
 
