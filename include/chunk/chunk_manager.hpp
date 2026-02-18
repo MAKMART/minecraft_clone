@@ -37,56 +37,92 @@ class ChunkManager
 {
       public:
 	ChunkManager(std::optional<int> seed = std::nullopt);
-	~ChunkManager();
+	~ChunkManager() noexcept;
 
-	Shader& getShader() { return shader; }
+	Shader& getShader() noexcept { return shader; }
+	const Shader& getShader() const noexcept { return shader; }
 
-	Shader& getWaterShader(){ return waterShader; }
-
-	const Shader& getShader() const { return shader; }
-
-	const Shader& getWaterShader() const { return waterShader; }
-
-	const GLuint& getVAO() const { return VAO; }
+	Shader& getWaterShader() noexcept { return waterShader; }
+	const Shader& getWaterShader() const noexcept { return waterShader; }
 
 	const std::unordered_map<glm::ivec3, std::unique_ptr<Chunk>, ivec3_hash>& get_all() const noexcept { return chunks; }
 
-	std::vector<Chunk*> getOpaqueChunks(const FrustumVolume& fv) const
+	// Call this every fram to build visibility lists to check which chunks are visible from a given FrustumVolume
+	void build_lists(const Transform& ts, const FrustumVolume& fv) noexcept 
 	{
-		std::vector<Chunk*> opaqueChunks;
-		for (const auto& chunk : chunks) {
-		if (isAABBInsideFrustum(chunk.second->getAABB(), fv))
-			opaqueChunks.emplace_back(chunk.second.get());
-		}
-		return opaqueChunks;
-	}
+		std::vector<DrawArraysIndirectCommand> commands;
+		opaqueChunks.clear();
+		transparentChunks.clear();
+		model_data.clear();
 
-	std::vector<Chunk*> getTransparentChunks(const FrustumVolume& fv, const Transform& ts) const
-	{
-		std::vector<Chunk*> transparentChunks;
-		for (const auto& chunk : chunks) {
-			if (isAABBInsideFrustum(chunk.second->getAABB(), fv)) {
-				transparentChunks.emplace_back(chunk.second.get());
+		for (const auto& [pos, chunk_ptr] : chunks) {
+			Chunk* c = chunk_ptr.get();
+			if (c->visible_face_count > 0 && isAABBInsideFrustum(c->getAABB(), fv)) {
+				//if (chunk->isTransparent())
+				//transparentChunks.emplace_back(chunk.get());
+				//else
+				opaqueChunks.emplace_back(c);
+
+				commands.push_back({
+						.count = c->visible_face_count * 6,
+						.instanceCount = 1,
+						.first = (GLuint)(c->faces_offset / sizeof(face_gpu)) * 6,  // vertex offset in faces buffer
+						.baseInstance = (GLuint)commands.size()
+						});
+				model_data.emplace_back(c->getModelMatrix());
 			}
 		}
-		std::sort(transparentChunks.begin(), transparentChunks.end(),
-				[&](const auto& a, const auto& b) {
-				float distA = glm::distance(ts.pos, a->getAABB().center());
-				float distB = glm::distance(ts.pos, b->getAABB().center());
-				return distA > distB; // farthest first
-				});
-		return transparentChunks;
+
+		std::size_t needed_model = model_data.size() * sizeof(glm::mat4);
+		if (needed_model > model_ssbo_capacity) {
+			model_ssbo.resize_grow(needed_model * 2);
+			model_ssbo_capacity = model_ssbo.size();
+		}
+		model_ssbo.update_data(model_data.data(), model_data.size() * sizeof(glm::mat4));
+		global_indirect.update_data(commands.data(), commands.size() * sizeof(DrawArraysIndirectCommand));
+		if (!transparentChunks.empty()) {
+			std::sort(transparentChunks.begin(), transparentChunks.end(),
+					[&](const auto& a, const auto& b) {
+					float distA = glm::distance(ts.pos, a->getAABB().center());
+					float distB = glm::distance(ts.pos, b->getAABB().center());
+					return distA > distB; // farthest first
+					});
+		
+		}
+	}
+	void render_opaque(const Transform& ts, const FrustumVolume& fv) {
+		build_lists(ts, fv);  // Rebuild indirect every frame (or only if dirty/camera moved)
+
+		if (opaqueChunks.empty()) return;
+
+		shader.use();
+		global_faces.bind_to_slot(7);
+		model_ssbo.bind_to_slot(10);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, global_indirect.id());
+
+		glMultiDrawArraysIndirect(GL_TRIANGLES, 0, opaqueChunks.size(), 0);  // stride=0 for tight pack
+		g_drawCallCount++;
 	}
 
-	bool updateBlock(glm::vec3 world_pos, Block::blocks newType);
+	const std::vector<Chunk*>& get_opaque_chunks() const noexcept { return opaqueChunks; }
+	const std::vector<Chunk*>& get_transparent_chunks() const noexcept { return transparentChunks; }
 
-	void generate_chunks(glm::vec3 playerPos, unsigned int renderDistance);
-
-	Chunk* getChunk(glm::vec3 world_pos) const;
-
+	bool updateBlock(glm::vec3 world_pos, Block::blocks newType) noexcept;
+	void generate_chunks(glm::vec3 playerPos, unsigned int renderDistance) noexcept;
+	Chunk* getChunk(glm::vec3 world_pos) const noexcept;
 	void update_mesh(Chunk *chunk) noexcept;
 
     private:
+	struct MemoryBlock {
+		GLintptr offset;
+		GLsizeiptr size;
+	};
+	// A simple list to track holes in the global_faces buffer
+	std::vector<MemoryBlock> free_blocks;
+
+	// Helper methods
+	GLintptr allocate_faces(GLsizeiptr size);
+	void deallocate_faces(GLintptr offset, GLsizeiptr size);
 
 	//TODO: Maybe move this into a utils namespace or smth
 	static bool isAABBInsideFrustum(const AABB& aabb, const FrustumVolume& fv) {
@@ -110,10 +146,12 @@ class ChunkManager
 	FastNoise::SmartNode<FastNoise::Perlin> perlin_node;
 	FastNoise::SmartNode<FastNoise::FractalFBm> fractal_node;
 	static constexpr int SEED = 1337;
-	GLuint           VAO;
 	Shader           shader;
 	Shader           waterShader;
 
+	// Allocation strategy: simple linear bump allocator for now
+	GLintptr MAX_FACES_BUFFER_BYTES = 32 * 1024 * 1024; // 32 MiB → ~5.3M faces (adjust)
+	GLsizeiptr model_ssbo_capacity   = 4096 * sizeof(glm::mat4);
 	Shader			 voxel_buffer;
 	Shader			 write_faces;
 	Shader			 add_global_offsets;
@@ -121,9 +159,15 @@ class ChunkManager
 	Shader			 compute_global_offsets;
 	Shader			 indirect;
 
+	SSBO global_faces;               // All visible faces from all chunks
+	SSBO global_indirect;            // DrawArraysIndirectCommand per visible chunk
 	SSBO			 prefix;
 	SSBO			 face_flags;
 	SSBO			 group_totals;
+	SSBO model_ssbo;
+	std::vector<glm::mat4> model_data;
+	SSBO temp_faces;
+	SSBO temp_indirect;
 
 	std::vector<float> cachedNoiseRegion;
 	glm::ivec3         lastRegionSize  = {-1, -1, -1};
@@ -131,14 +175,20 @@ class ChunkManager
 
 	// TODO: Use an octree to store the chunks
 	std::unordered_map<glm::ivec3, std::unique_ptr<Chunk>, ivec3_hash> chunks;
+	std::vector<Chunk*> opaqueChunks;
+	std::vector<Chunk*> transparentChunks;
 	std::vector<Chunk*> dirty_chunks;
+	std::vector<SSBO> indirect_ssbo_pool;
 
 	// initialize with a value that's != to any reasonable spawn chunk position
 	glm::ivec3 last_player_chunk_pos{INT_MIN};
 
-	void update_meshes() noexcept;
-	void load_around_pos(glm::ivec3 playerChunkPos, unsigned int renderDistance);
+	const static constexpr uint num_workgroups = (Chunk::TOTAL_FACES + 255u) / 256u;
+	const static constexpr uint num_scan_groups = (num_workgroups + 255u) / 256u;
+	const static constexpr uint flag_words = (Chunk::TOTAL_FACES + 31u) / 32u;
 
-	void unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unloadDistance);
+	void update_meshes() noexcept;
+	void load_around_pos(glm::ivec3 playerChunkPos, unsigned int renderDistance) noexcept;
+	void unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unloadDistance) noexcept;
 
 };

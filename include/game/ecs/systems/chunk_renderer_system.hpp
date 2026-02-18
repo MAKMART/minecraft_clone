@@ -5,4 +5,4 @@ struct Camera;
 struct FrustumVolume;
 struct FramebufferManager;
 
-void chunk_renderer_system(ECS& ecs, const ChunkManager& cm, Camera* cam, FrustumVolume& wanted_fv, FramebufferManager& fb);
+void chunk_renderer_system(ECS& ecs, ChunkManager& cm, Camera* cam, FrustumVolume& wanted_fv, FramebufferManager& fb);

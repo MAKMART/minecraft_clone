@@ -1,23 +1,22 @@
 #include "chunk/chunk.hpp"
 #include "core/defines.hpp"
-#include "graphics/renderer/vertex_buffer.hpp"
-#include "graphics/shader.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
 
-Chunk::Chunk(const glm::ivec3& pos) : position(pos)
+Chunk::Chunk(const glm::ivec3& pos)
+	: position(pos), 
+	changed(true),           // Force initial upload
+	in_dirty_list(false), 
+	faces_offset(0), 
+	current_mesh_bytes(0),
+	visible_face_count(0)
 {
 	glm::vec3 world = chunk_to_world(position);
 	aabb = AABB(world, world + glm::vec3(CHUNK_SIZE));
 
-	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
-	const constexpr uint num_workgroups = (TOTAL_FACES + 255u) / 256u;
-
-	indirect_ssbo = SSBO::Dynamic(&cmd, sizeof(DrawArraysIndirectCommand));
 	block_ssbo = SSBO::Dynamic(nullptr, sizeof(block_types));
 	//normals = SSBO::Dynamic(nullptr, TOTAL_FACES * 4 * sizeof(uint));
-
 	model = glm::translate(glm::mat4(1.0f), chunk_to_world(position));
 }
 void Chunk::generate(const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_node, const int SEED) noexcept
@@ -84,27 +83,5 @@ void Chunk::generate(const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_no
 			}
 
 		}
-
-	if (has_any_blocks()) {
-		faces = SSBO::Dynamic(nullptr, TOTAL_FACES * sizeof(face_gpu));
-		block_ssbo.update_data(block_types, sizeof(block_types));
-	} else {
-		faces = SSBO::Dynamic(nullptr, 1);
-	}
-}
-void Chunk::render_opaque_mesh(const Shader& shader, GLuint vao) const noexcept
-{
-	if (!has_any_blocks())
-		return;
-	
-	shader.setMat4("model", model);
-
-	faces.bind_to_slot(7);
-	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirect_ssbo.id());
-	glDrawArraysIndirect(GL_TRIANGLES, nullptr);
-	g_drawCallCount++;
-}
-void Chunk::render_transparent_mesh(const Shader& shader) const noexcept
-{
-	shader.setMat4("model", model);
+	this->changed = true;
 }

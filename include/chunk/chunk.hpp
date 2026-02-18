@@ -109,7 +109,7 @@ static_assert(sizeof(Block) == sizeof(std::uint8_t));
 struct face_gpu {
 	uint packed;
 };
-static_assert(sizeof(face_gpu) == sizeof(uint));
+static_assert(sizeof(face_gpu) == sizeof(uint) == sizeof(std::uint8_t) == sizeof(uint8_t) == sizeof(int8_t) == sizeof(char) == 1);
 
 class Chunk {
 public:
@@ -117,9 +117,7 @@ public:
   ~Chunk() = default;
 
   Block::blocks get_block_type(int x, int y, int z) const noexcept {
-	  return static_cast<Block::blocks>(
-			  block_types[x + (y << logSizeX) + (z << (logSizeX + logSizeY))]
-			  );
+	  return static_cast<Block::blocks>(block_types[x + (y << logSizeX) + (z << (logSizeX + logSizeY))]);
   }
   void set_block_type(int x, int y, int z, Block::blocks type) noexcept {
 	  int index = x + (y << logSizeX) + (z << (logSizeX + logSizeY));
@@ -132,15 +130,15 @@ public:
 			  --non_air_count;
 
 		  block_types[index] = static_cast<std::uint8_t>(type);
+		  changed = true;
 	  }
   }
 
   const inline std::uint8_t *get_block_data() const noexcept { return block_types; }
   const inline glm::ivec3 get_pos() const noexcept{ return position; }
   const inline AABB& getAABB() const noexcept { return aabb; }
+  const glm::mat4& getModelMatrix() const noexcept { return model; }
   void generate(const FastNoise::SmartNode<FastNoise::FractalFBm>& noise_node, const int SEED) noexcept;
-  void render_opaque_mesh(const Shader &shader, GLuint vao) const noexcept;
-  void render_transparent_mesh(const Shader &shader) const noexcept;
 
   inline int get_index(int x, int y, int z) const noexcept {
     return x + (y << logSizeX) + (z << (logSizeX + logSizeY));
@@ -148,20 +146,19 @@ public:
 
   bool has_any_blocks() const noexcept { return non_air_count > 0; }
 
-
   constexpr static inline int SIZE = CHUNK_SIZE.x * CHUNK_SIZE.y * CHUNK_SIZE.z;
   constexpr static inline int TOTAL_FACES = SIZE * 6;
 
-  static inline glm::ivec3 world_to_chunk(const glm::vec3 &world_pos) {
+  static inline glm::ivec3 world_to_chunk(const glm::vec3 &world_pos) noexcept {
 	  return glm::ivec3(glm::floor(world_pos / glm::vec3(CHUNK_SIZE)));
   }
 
-  static inline glm::ivec3 world_to_local(const glm::vec3 &world_pos) {
+  static inline glm::ivec3 world_to_local(const glm::vec3 &world_pos) noexcept {
 	glm::vec3 chunk_origin = chunk_to_world(world_to_chunk(world_pos));
 	return glm::ivec3(glm::floor(world_pos - chunk_origin));
   }
 
-  static inline glm::vec3 chunk_to_world(const glm::ivec3 &chunk_pos) {
+  static inline glm::vec3 chunk_to_world(const glm::ivec3 &chunk_pos) noexcept {
     return glm::vec3(chunk_pos * CHUNK_SIZE);
   }
 
@@ -169,13 +166,20 @@ public:
     return get_block_type(x, y, z) == Block::blocks::AIR;
   }
 
-  const glm::mat4& getModelMatrix() const {
-	return model;
-  }
 
-  bool in_dirty_list = false;
-  SSBO faces;
-  SSBO indirect_ssbo;
+  // The byte offset within the global_faces buffer where this chunk starts
+  GLintptr faces_offset = 0; 
+
+  // The current size (in bytes) of the mesh stored in the global buffer
+  // Required so the Free List knows how much to deallocate when remeshing
+  GLsizeiptr current_mesh_bytes = 0;
+
+  // Number of faces currently generated for this chunk
+  uint32_t visible_face_count = 0;
+
+  // Flags for the ChunkManager's update loop
+  bool changed = true;       // Set to true initially to force first GPU upload
+  bool in_dirty_list = false; // Prevents adding the same chunk to the dirty list twi
   SSBO block_ssbo;
   // unused SSBO normals;
 private:

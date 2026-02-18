@@ -11,13 +11,16 @@
 ChunkManager::ChunkManager(std::optional<int> seed)
     : shader("Chunk", CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY),
       waterShader("Water", WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY),
-
 	  voxel_buffer("voxel_buffer", SHADERS_DIRECTORY / "voxel_buffer.comp"),
 	  write_faces("write_faces", SHADERS_DIRECTORY / "write_faces.comp"),
 	  add_global_offsets("add_global_offsets", SHADERS_DIRECTORY / "add_global_offsets.comp"),
 	  prefix_sum("prefix_sum", SHADERS_DIRECTORY / "prefix_sum.comp"),
 	  compute_global_offsets("compute_global_offsets", SHADERS_DIRECTORY / "compute_global_offsets.comp"),
-	  indirect("indirect", SHADERS_DIRECTORY / "indirect_buffer_fill.comp")
+	  indirect("indirect", SHADERS_DIRECTORY / "indirect_buffer_fill.comp"),
+	  // Could be PersistentWrite
+	  global_faces(SSBO::Dynamic(nullptr, MAX_FACES_BUFFER_BYTES)),  // or just Dynamic
+	  global_indirect(SSBO::Dynamic(nullptr, 4096 * sizeof(DrawArraysIndirectCommand))),  // generous initial size
+	  model_ssbo(SSBO::Dynamic(nullptr, model_ssbo_capacity))
 {
 
 	log::info("Loading texture atlas from {} with working dir = {}", BLOCK_ATLAS_TEXTURE_DIRECTORY.string(), WORKING_DIRECTORY.string());
@@ -38,14 +41,10 @@ ChunkManager::ChunkManager(std::optional<int> seed)
 	fractal_node->SetOctaveCount(2);
 	//fractal_node->SetLacunarity(4.48f);
 
-	constexpr uint num_workgroups = (Chunk::TOTAL_FACES + 255u) / 256u;
-	constexpr uint num_scan_groups = (num_workgroups + 255u) / 256u;
-
-	const constexpr uint flag_words = (Chunk::TOTAL_FACES + 31u) / 32u;
-	face_flags   = SSBO::Dynamic(nullptr, flag_words * sizeof(uint));
+	face_flags = SSBO::PersistentWrite(nullptr, flag_words * sizeof(uint));
 	//normals = SSBO::Dynamic(nullptr, TOTAL_FACES * 4 * sizeof(uint));
-	group_totals  = SSBO::Dynamic(nullptr, num_workgroups * sizeof(uint));
-	prefix       = SSBO::Dynamic(nullptr, Chunk::TOTAL_FACES * sizeof(uint));
+	group_totals = SSBO::PersistentWrite(nullptr, num_workgroups * sizeof(uint));
+	prefix = SSBO::PersistentWrite(nullptr, Chunk::TOTAL_FACES * sizeof(uint));
 
 	voxel_buffer.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
 	prefix_sum.setUInt("total_faces", Chunk::TOTAL_FACES);
@@ -54,41 +53,49 @@ ChunkManager::ChunkManager(std::optional<int> seed)
 	shader.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
 	compute_global_offsets.setUInt("num_groups", num_workgroups);
 	add_global_offsets.setUInt("total_faces", Chunk::TOTAL_FACES);
-	glCreateVertexArrays(1, &VAO);
+
+	free_blocks.push_back({0, MAX_FACES_BUFFER_BYTES});
+
+	opaqueChunks.reserve(chunks.size());
+	transparentChunks.reserve(chunks.size());
+	temp_faces = SSBO::PersistentWrite(nullptr, Chunk::TOTAL_FACES * sizeof(face_gpu));
+	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
+	temp_indirect = SSBO::PersistentWrite(&cmd, sizeof(DrawArraysIndirectCommand));
 }
-ChunkManager::~ChunkManager()
+ChunkManager::~ChunkManager() noexcept
 {
 	chunks.clear();
-	if (VAO)
-		glDeleteVertexArrays(1, &VAO);
 }
-
 void ChunkManager::update_mesh(Chunk *chunk) noexcept 
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-	if (chunk->block_ssbo.id())
+	if (!chunk->has_any_blocks()) {
+		// Return existing memory if chunk becomes empty
+		deallocate_faces(chunk->faces_offset, chunk->current_mesh_bytes);
+		chunk->faces_offset = 0;
+		chunk->current_mesh_bytes = 0;
+		chunk->visible_face_count = 0;
+		return;
+	}
+	if (chunk->block_ssbo.id() && chunk->changed)
 		chunk->block_ssbo.update_data(chunk->get_block_data(), sizeof(Block) * Chunk::SIZE);
 
+	// Reuse or create small temp SSBO (could pool these too)
+	/*
+	SSBO temp_faces = SSBO::PersistentWrite(nullptr, Chunk::TOTAL_FACES * sizeof(face_gpu));
+	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
+	SSBO temp_indirect = SSBO::PersistentWrite(&cmd, sizeof(DrawArraysIndirectCommand));
+	*/
 
-	glClearNamedBufferData(
-			face_flags.id(),
-			GL_R32UI,
-			GL_RED_INTEGER,
-			GL_UNSIGNED_INT,
-			nullptr
-			);
+	glClearNamedBufferData(face_flags.id(), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
 	chunk->block_ssbo.bind_to_slot(1);
 	face_flags.bind_to_slot(2);
 	prefix.bind_to_slot(5);
 	group_totals.bind_to_slot(6);
-	chunk->faces.bind_to_slot(7);
-
-
-	uint num_workgroups = (Chunk::TOTAL_FACES + 255u) / 256u;
-	uint num_scan_groups = (num_workgroups + 255u) / 256u;
+	temp_faces.bind_to_slot(7);
 
 	voxel_buffer.use();
 	glDispatchCompute(num_workgroups, 1, 1);
@@ -102,28 +109,6 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 	glDispatchCompute(num_scan_groups, 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-	/* Uncomment this and comment out the compute_global_offsets pass if you want to do the exclusive prefix sum on the CPU (This will copy the buffer from the GPU to the CPU which isn't ideal)
-	// === READ WORKGROUP TOTALS (tiny buffer) ===
-	std::vector<std::uint32_t> wg_totals(num_workgroups);
-	glGetNamedBufferSubData(chunk->group_totals.id(), 0,
-			num_workgroups * sizeof(uint32_t), wg_totals.data());
-
-	// === EXCLUSIVE PREFIX SUM ON CPU ===
-	uint32_t running_sum = 0;
-	for (uint32_t i = 0; i < num_workgroups; ++i) {
-		uint32_t old = wg_totals[i];
-		wg_totals[i] = running_sum;          // exclusive base for this group
-		running_sum += old;
-	}
-
-	// === WRITE BACK ===
-	glNamedBufferSubData(chunk->group_totals.id(), 0,
-			num_workgroups * sizeof(uint32_t), wg_totals.data());
-	//chunk->group_totals.update_data(wg_totals.data(), num_workgroups * sizeof(uint32_t));
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-	*/
-
-
 	add_global_offsets.use();
 	glDispatchCompute(num_workgroups, 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
@@ -132,20 +117,89 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 	glDispatchCompute(num_workgroups, 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-	chunk->indirect_ssbo.bind_to_slot(9);
+	temp_indirect.bind_to_slot(9);
 	indirect.use();
 	glDispatchCompute(1, 1, 1);
 	glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+	glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+
+	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
+	// Read back total visible faces (tiny readback)
+	glGetNamedBufferSubData(temp_indirect.id(), 0, sizeof(cmd), &cmd);
+	//chunk->visible_face_count = cmd.count / 6;  // vertices / 6
+	uint32_t new_face_count = cmd.count / 6;
+
+	// 1. Release old memory
+	deallocate_faces(chunk->faces_offset, chunk->current_mesh_bytes);
+
+	if (new_face_count == 0) {
+		chunk->faces_offset = 0;
+		chunk->current_mesh_bytes = 0;
+		chunk->visible_face_count = 0;
+		return;
+	}
+	// 2. Allocate new memory
+	GLsizeiptr needed_bytes = static_cast<GLsizeiptr>(new_face_count) * sizeof(face_gpu);
+	GLintptr new_offset = allocate_faces(needed_bytes);
+
+	if (new_offset != -1) {
+		chunk->faces_offset = new_offset;
+		chunk->current_mesh_bytes = needed_bytes;
+		chunk->visible_face_count = new_face_count;
+
+		// 3. Copy from temp compute buffer to the global faces buffer
+		glCopyNamedBufferSubData(temp_faces.id(), global_faces.id(), 0, chunk->faces_offset, needed_bytes);
+	}
+}
+GLintptr ChunkManager::allocate_faces(GLsizeiptr size) {
+    if (size == 0) return 0;
+
+    for (auto it = free_blocks.begin(); it != free_blocks.end(); ++it) {
+        if (it->size >= size) {
+            GLintptr offset = it->offset;
+            if (it->size == size) {
+                free_blocks.erase(it);
+            } else {
+                it->offset += size;
+                it->size -= size;
+            }
+            return offset;
+        }
+    }
+    log::error("ChunkManager", "GPU Face Buffer is full or too fragmented!");
+    return -1; // Allocation failed
+}
+
+void ChunkManager::deallocate_faces(GLintptr offset, GLsizeiptr size) {
+    if (size == 0) return;
+
+    free_blocks.push_back({offset, size});
+
+    // Sort blocks by offset to allow merging adjacent blocks
+    std::sort(free_blocks.begin(), free_blocks.end(), [](const auto& a, const auto& b) {
+        return a.offset < b.offset;
+    });
+
+    // Merge adjacent blocks
+    for (size_t i = 0; i < free_blocks.size() - 1; ) {
+        if (free_blocks[i].offset + free_blocks[i].size == free_blocks[i+1].offset) {
+            free_blocks[i].size += free_blocks[i+1].size;
+            free_blocks.erase(free_blocks.begin() + i + 1);
+        } else {
+            ++i;
+        }
+    }
 }
 void ChunkManager::update_meshes() noexcept
 {
-	for (auto chunk : dirty_chunks) {
+	for (auto& chunk : dirty_chunks) {
 		update_mesh(chunk);
 		chunk->in_dirty_list = false;
+		chunk->changed = false;
 	}
-
+	dirty_chunks.clear();
 }
-bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType)
+bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType) noexcept
 {
 	Chunk* chunk = getChunk(world_pos);
 	if (!chunk)
@@ -153,11 +207,13 @@ bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType)
 	glm::ivec3 localPos = Chunk::world_to_local(world_pos);
 
 	chunk->set_block_type(localPos.x, localPos.y, localPos.z, newType);
-	if (!chunk->in_dirty_list)
+	if (!chunk->in_dirty_list) {
 		dirty_chunks.emplace_back(chunk);
+		chunk->in_dirty_list = true;
+	}
 	return true;
 }
-Chunk* ChunkManager::getChunk(glm::vec3 world_pos) const
+Chunk* ChunkManager::getChunk(glm::vec3 world_pos) const noexcept
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
@@ -172,7 +228,7 @@ Chunk* ChunkManager::getChunk(glm::vec3 world_pos) const
 		return nullptr;
 	}
 }
-void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int renderDistance)
+void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int renderDistance) noexcept
 {
 #if defined(TRACY_ENABLE)
     ZoneScoped;
@@ -182,8 +238,8 @@ void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int rende
         return;
 	Timer chunksTimer("chunk_generation");
 
-    const int side = 2 * renderDistance + 1;
 	const int dist = static_cast<int>(renderDistance);
+	const int max_dist_square = dist * dist;
 
 	for (int dz = -dist; dz <= dist; ++dz)
 	{
@@ -191,46 +247,44 @@ void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int rende
 		{
 			for (int dx = -dist; dx <= dist; ++dx)
 			{
-				if (dx*dx + dy*dy + dz*dz > renderDistance*renderDistance) continue;
-				glm::ivec3 chunkPos{playerChunkPos.x + dx, playerChunkPos.y + dy, playerChunkPos.z + dz};
+				if (dx*dx + dy*dy + dz*dz > max_dist_square) continue;
+				glm::ivec3 chunkPos = playerChunkPos + glm::ivec3(dx, dy, dz);
 
-				if (chunks.find(chunkPos) != chunks.end())
+				auto [it, inserted] = chunks.try_emplace(chunkPos, nullptr);
+
+				if (!inserted)
 					continue;
 
-				auto& chunk = chunks[chunkPos] = std::make_unique<Chunk>(chunkPos);
+				// If we reach here, it's a new chunk
+				it->second = std::make_unique<Chunk>(chunkPos);
+				it->second->generate(fractal_node, SEED);
 
-				int offsetX = (dx + renderDistance) * CHUNK_SIZE.x;
-				int offsetY = (dy + renderDistance) * CHUNK_SIZE.y;
-				int offsetZ = (dz + renderDistance) * CHUNK_SIZE.z;
-
-				chunk->generate(fractal_node, SEED);
-
-				if (chunk->has_any_blocks() && !chunk->in_dirty_list) {
-					dirty_chunks.emplace_back(chunk.get());
-					chunk->in_dirty_list = true;
+				if (it->second->has_any_blocks()) {
+					dirty_chunks.emplace_back(it->second.get());
+					it->second->in_dirty_list = true;
 				}
 			}
 		}
 	}
 }
-void ChunkManager::unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unloadDistance)
+void ChunkManager::unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unloadDistance) noexcept
 {
-    const int unloadDistSquared = unloadDistance * unloadDistance;
+    const unsigned int unloadDistSquared = unloadDistance * unloadDistance;
 
     // Only iterate over chunks near the edges
-    for (auto it = chunks.begin(); it != chunks.end(); )
+    for (auto it = chunks.begin(); it != chunks.end();)
     {
         glm::vec3 chunkPos = it->first;
 		glm::vec3 distance = chunkPos - glm::vec3(playerChunkPos);
 
-        if (glm::length2(distance) > unloadDistSquared)
+        if ((unsigned int)glm::length2(distance) > unloadDistSquared)
             it = chunks.erase(it); // Unload chunk
         else
             ++it;
     }
 }
 
-void ChunkManager::generate_chunks(glm::vec3 playerPos, unsigned int renderDistance)
+void ChunkManager::generate_chunks(glm::vec3 playerPos, unsigned int renderDistance) noexcept
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
@@ -243,5 +297,4 @@ void ChunkManager::generate_chunks(glm::vec3 playerPos, unsigned int renderDista
 		last_player_chunk_pos = playerChunk;
 	}
 	update_meshes();
-	dirty_chunks.clear();
 }

@@ -23,11 +23,14 @@ layout(std430, binding = 7) readonly buffer faces_buffer
 {
 	FaceGPU faces[];
 };
+layout(std430, binding=10) readonly buffer models_buffer 
+{ 
+	mat4 models[]; 
+};
 
 uniform uvec3 CHUNK_SIZE;
 uniform mat4 projection;
 uniform mat4 view;
-uniform mat4 model;
 uniform float time;
 
 const vec3 facePositions[6][4] = vec3[6][4](
@@ -144,7 +147,7 @@ void main()
   vec3 position = vec3(p) + facePositions[face_id][triangleCornerIndices[currVertexID]];
 
   // EFFECTS
-  vec4 worldPos = model * vec4(position, 1.0);
+  vec4 worldPos = models[gl_BaseInstance] * vec4(position, 1.0);
 
   // WATER EFFECTS
   if (block_type == 5u || block_type == 4u) {

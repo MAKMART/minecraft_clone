@@ -1,3 +1,36 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+ *
+ * TODO: IMPLEMENT THE APPSTATE AND THE MAIN MENU WITH THE NEW UI SYSTEM
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
 #include "game/ecs/components/debug_camera_controller.hpp"
 #include "game/ecs/components/movement_config.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
@@ -677,7 +710,8 @@ int main()
 			manager.getShader().setFloat("time", (float)glfwGetTime());
 			Atlas.Bind(0);
 			manager.getShader().use();
-			glBindVertexArray(manager.getVAO());
+			// Whatever VAO'll work
+			glBindVertexArray(VAO);
 			chunk_renderer_system(ecs, manager, cam, *ecs.get_component<FrustumVolume>(player.getCamera()), fb_manager);
 			glBindVertexArray(0);
 			Atlas.Unbind(0);
