@@ -10,6 +10,15 @@ public:
     {
         glCreateBuffers(1, &m_id);
         glNamedBufferStorage(m_id, size, data, flags);
+		if (m_flags & GL_MAP_PERSISTENT_BIT)
+		{
+			m_mapped_ptr = glMapNamedBufferRange(
+					m_id,
+					0,
+					m_size,
+					m_flags & (GL_MAP_WRITE_BIT | GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+					);
+		}
     }
 	// Convenience factories – use these everywhere
 	static SSBO Immutable(const void* data, std::size_t size) {
@@ -48,9 +57,11 @@ public:
 		    m_id        = other.m_id;
 		    m_size      = other.m_size;
 			m_flags		= other.m_flags;
+			m_mapped_ptr = other.m_mapped_ptr;
 		    other.m_id  = 0;
 		    other.m_size = 0;
 			other.m_flags = 0;
+			other.m_mapped_ptr = nullptr;
 	    }
 	    return *this;
     }
@@ -60,6 +71,13 @@ public:
     [[nodiscard]] inline GLuint id() const noexcept { return m_id; }
 	[[nodiscard]] inline std::size_t size() const noexcept { return m_size; }
 	[[nodiscard]] inline GLbitfield flags() const noexcept { return m_flags; }
+
+	template<typename T>
+		[[nodiscard]] inline T* mapped() noexcept
+		{
+			assert(m_mapped_ptr);
+			return reinterpret_cast<T*>(m_mapped_ptr);
+		}
 
     // Bind the SSBO to a specific binding point for shaders
     inline void bind_to_slot(GLuint slot) const noexcept {
@@ -76,6 +94,16 @@ public:
 		GLuint new_id = 0;
 		glCreateBuffers(1, &new_id);
 		glNamedBufferStorage(new_id, new_size, nullptr, m_flags);
+		void* new_ptr = nullptr;
+		if (m_flags & GL_MAP_PERSISTENT_BIT)
+		{
+			new_ptr = glMapNamedBufferRange(
+					new_id,
+					0,
+					new_size,
+					m_flags & (GL_MAP_WRITE_BIT | GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+					);
+		}
 
 		// Copy old content if buffer existed
 		if (m_id != 0 && m_size > 0) {
@@ -85,11 +113,12 @@ public:
 		release();
 		m_id = new_id;
 		m_size = new_size;
+		m_mapped_ptr = new_ptr;
 	}
 
     // Update contents (DSA)
     void update_data(const void* data, std::size_t size, std::size_t offset = 0) const noexcept {
-		assert(offset + size <= m_size);
+		assert(offset + size <= m_size && !(m_flags & GL_MAP_PERSISTENT_BIT));
         glNamedBufferSubData(m_id, offset, size, data);
     }
 
@@ -97,9 +126,15 @@ private:
     GLuint m_id = 0;
     size_t m_size = 0;
 	GLbitfield  m_flags = 0;
+	void* m_mapped_ptr = nullptr;
 
     void release() noexcept {
 	    if (m_id != 0) {
+			if (m_mapped_ptr)
+			{
+				glUnmapNamedBuffer(m_id);
+				m_mapped_ptr = nullptr;
+			}
 		    glDeleteBuffers(1, &m_id);
 		    m_id = 0;
 	    }

@@ -3,6 +3,7 @@
 #include "chunk/chunk.hpp"
 #include "core/defines.hpp"
 #include "core/timer.hpp"
+#include "game/ecs/components/frustum_volume.hpp"
 #include "graphics/shader.hpp"
 #include <glm/gtx/norm.hpp>
 #if defined(TRACY_ENABLE)
@@ -54,7 +55,7 @@ ChunkManager::ChunkManager(std::optional<int> seed)
 	compute_global_offsets.setUInt("num_groups", num_workgroups);
 	add_global_offsets.setUInt("total_faces", Chunk::TOTAL_FACES);
 
-	free_blocks.push_back({0, MAX_FACES_BUFFER_BYTES});
+	free_blocks.emplace_back(0, MAX_FACES_BUFFER_BYTES);
 
 	opaqueChunks.reserve(chunks.size());
 	transparentChunks.reserve(chunks.size());
@@ -78,24 +79,12 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 		chunk->current_mesh_bytes = 0;
 		chunk->visible_face_count = 0;
 		return;
-	}
-	if (chunk->block_ssbo.id() && chunk->changed)
+	} else if (chunk->block_ssbo.id() && chunk->changed)
 		chunk->block_ssbo.update_data(chunk->get_block_data(), sizeof(Block) * Chunk::SIZE);
-
-	// Reuse or create small temp SSBO (could pool these too)
-	/*
-	SSBO temp_faces = SSBO::PersistentWrite(nullptr, Chunk::TOTAL_FACES * sizeof(face_gpu));
-	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
-	SSBO temp_indirect = SSBO::PersistentWrite(&cmd, sizeof(DrawArraysIndirectCommand));
-	*/
 
 	glClearNamedBufferData(face_flags.id(), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
 	chunk->block_ssbo.bind_to_slot(1);
-	face_flags.bind_to_slot(2);
-	prefix.bind_to_slot(5);
-	group_totals.bind_to_slot(6);
-	temp_faces.bind_to_slot(7);
 
 	voxel_buffer.use();
 	glDispatchCompute(num_workgroups, 1, 1);
@@ -121,13 +110,9 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 	indirect.use();
 	glDispatchCompute(1, 1, 1);
 	glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
-	glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 
-	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
-	// Read back total visible faces (tiny readback)
-	glGetNamedBufferSubData(temp_indirect.id(), 0, sizeof(cmd), &cmd);
-	//chunk->visible_face_count = cmd.count / 6;  // vertices / 6
-	uint32_t new_face_count = cmd.count / 6;
+	auto* cmd = temp_indirect.mapped<DrawArraysIndirectCommand>();
+	uint32_t new_face_count = cmd->count / 6;
 
 	// 1. Release old memory
 	deallocate_faces(chunk->faces_offset, chunk->current_mesh_bytes);
@@ -148,6 +133,7 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 		chunk->visible_face_count = new_face_count;
 
 		// 3. Copy from temp compute buffer to the global faces buffer
+		face_gpu* face_ptr = temp_faces.mapped<face_gpu>();
 		glCopyNamedBufferSubData(temp_faces.id(), global_faces.id(), 0, chunk->faces_offset, needed_bytes);
 	}
 }
@@ -192,10 +178,16 @@ void ChunkManager::deallocate_faces(GLintptr offset, GLsizeiptr size) {
 }
 void ChunkManager::update_meshes() noexcept
 {
+	if (dirty_chunks.empty()) return;
+	
+	face_flags.bind_to_slot(2);
+	prefix.bind_to_slot(5);
+	group_totals.bind_to_slot(6);
+	temp_faces.bind_to_slot(7);
 	for (auto& chunk : dirty_chunks) {
-		update_mesh(chunk);
-		chunk->in_dirty_list = false;
-		chunk->changed = false;
+			update_mesh(chunk);
+			chunk->in_dirty_list = false;
+			chunk->changed = false;
 	}
 	dirty_chunks.clear();
 }
@@ -277,9 +269,10 @@ void ChunkManager::unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unl
         glm::vec3 chunkPos = it->first;
 		glm::vec3 distance = chunkPos - glm::vec3(playerChunkPos);
 
-        if ((unsigned int)glm::length2(distance) > unloadDistSquared)
-            it = chunks.erase(it); // Unload chunk
-        else
+        if ((unsigned int)glm::length2(distance) > unloadDistSquared) {
+			deallocate_faces(it->second->faces_offset, it->second->current_mesh_bytes);
+            it = chunks.erase(it);
+		} else
             ++it;
     }
 }

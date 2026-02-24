@@ -28,7 +28,7 @@ Player::Player(ECS& ecs, glm::vec3 spawnPos, int width, int height)
 			.can_fly = false,
 			.jump_height = 1.252f,
 			.walk_speed = 3.6f,
-			.run_speed = 7.8f,
+			.run_speed = 777.8f,
 			.crouch_speed = 2.5f,
 			.fly_speed = 17.5f
 			});
