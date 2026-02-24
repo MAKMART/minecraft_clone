@@ -14,6 +14,7 @@ ChunkManager::ChunkManager(std::optional<int> seed)
       waterShader("Water", WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY),
 	  voxel_buffer("voxel_buffer", SHADERS_DIRECTORY / "voxel_buffer.comp"),
 	  write_faces("write_faces", SHADERS_DIRECTORY / "write_faces.comp"),
+	  merged_offsets("merged_offsets", SHADERS_DIRECTORY / "merged_offsets.comp"),
 	  add_global_offsets("add_global_offsets", SHADERS_DIRECTORY / "add_global_offsets.comp"),
 	  prefix_sum("prefix_sum", SHADERS_DIRECTORY / "prefix_sum.comp"),
 	  compute_global_offsets("compute_global_offsets", SHADERS_DIRECTORY / "compute_global_offsets.comp"),
@@ -54,6 +55,8 @@ ChunkManager::ChunkManager(std::optional<int> seed)
 	shader.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
 	compute_global_offsets.setUInt("num_groups", num_workgroups);
 	add_global_offsets.setUInt("total_faces", Chunk::TOTAL_FACES);
+	merged_offsets.setUInt("num_groups", num_workgroups);
+	merged_offsets.setUInt("total_faces", Chunk::TOTAL_FACES);
 
 	free_blocks.emplace_back(0, MAX_FACES_BUFFER_BYTES);
 
@@ -94,11 +97,16 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 	glDispatchCompute(num_workgroups, 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
+	/*
 	compute_global_offsets.use();
 	glDispatchCompute(num_scan_groups, 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
 	add_global_offsets.use();
+	glDispatchCompute(num_workgroups, 1, 1);
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+	*/
+	merged_offsets.use();
 	glDispatchCompute(num_workgroups, 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 

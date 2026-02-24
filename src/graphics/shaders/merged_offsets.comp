@@ -1,0 +1,47 @@
+#version 460 core
+layout(local_size_x = 256) in;
+
+layout(std430, binding = 5) buffer prefix_sums {
+    uint prefix[];
+};
+layout(std430, binding = 6) buffer workgroup_totals {
+    uint group_totals[];
+};
+
+shared uint temp[256]; // Assume max 256 workgroups, matching original
+
+uniform uint num_groups;
+uniform uint total_faces;
+
+void main() {
+    uint tid = gl_LocalInvocationID.x;
+    uint gid = gl_GlobalInvocationID.x;
+    uint group_id = gl_WorkGroupID.x;
+
+    // Phase 1: Redundant scan in every workgroup
+    // Load into shared memory
+    if (tid < num_groups) {
+        temp[tid] = group_totals[tid];
+    }
+    barrier();
+
+    // Blelloch inclusive scan (adjusted for num_groups)
+    for (uint offset = 1u; offset < num_groups; offset <<= 1) {
+        uint t = (tid < num_groups) ? temp[tid] : 0u;
+        barrier();
+        if (tid >= offset && tid < num_groups) {
+            t += temp[tid - offset];
+        }
+        barrier();
+        if (tid < num_groups) {
+            temp[tid] = t;
+        }
+        barrier();
+    }
+
+    // Phase 2: Add exclusive scan offset to prefixes
+    uint global_offset = (group_id == 0u) ? 0u : temp[group_id - 1u];
+    if (gid < total_faces) {
+        prefix[gid] += global_offset;
+    }
+}

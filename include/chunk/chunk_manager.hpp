@@ -145,7 +145,7 @@ class ChunkManager
 
 	FastNoise::SmartNode<FastNoise::Perlin> perlin_node;
 	FastNoise::SmartNode<FastNoise::FractalFBm> fractal_node;
-	static constexpr int SEED = 1337;
+	static constexpr int SEED = 123456;
 	Shader           shader;
 	Shader           waterShader;
 
@@ -154,6 +154,7 @@ class ChunkManager
 	GLsizeiptr model_ssbo_capacity   = 4096 * sizeof(glm::mat4);
 	Shader			 voxel_buffer;
 	Shader			 write_faces;
+	Shader			 merged_offsets;
 	Shader			 add_global_offsets;
 	Shader			 prefix_sum;
 	Shader			 compute_global_offsets;

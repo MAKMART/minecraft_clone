@@ -7,6 +7,7 @@
 #include "game/ecs/components/active_camera.hpp"
 #include "game/ecs/components/temporal_camera.hpp"
 #include "game/ecs/components/render_target.hpp"
+#include "core/timer.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
