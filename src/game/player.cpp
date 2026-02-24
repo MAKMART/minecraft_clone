@@ -67,6 +67,7 @@ void Player::update(float deltaTime)
 }
 void Player::breakBlock(ChunkManager& chunkManager)
 {
+	Timer block_break("block_breaking");
 	Camera* cam = ecs.get_component<Camera>(camera);
 	Transform* trans = ecs.get_component<Transform>(camera);
 
@@ -95,6 +96,7 @@ void Player::breakBlock(ChunkManager& chunkManager)
 }
 void Player::placeBlock(ChunkManager& chunkManager)
 {
+	Timer block_place("block_placing");
 	Camera* cam = ecs.get_component<Camera>(camera);
 	Transform* trans = ecs.get_component<Transform>(camera);
 
