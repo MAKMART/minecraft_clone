@@ -1,13 +1,12 @@
-#pragma once
+module;
 #include <glad/glad.h>
-//#include <cstddef>
 #include <cassert>
+export module ssbo;
 
-class SSBO {
+export class SSBO {
 public:
     SSBO() = default;
-    SSBO(const void* data, std::size_t size, GLbitfield flags = GL_DYNAMIC_STORAGE_BIT) noexcept
-        : m_size(size), m_flags(flags)
+    SSBO(const void* data, std::size_t size, GLbitfield flags = GL_DYNAMIC_STORAGE_BIT) noexcept : m_size(size), m_flags(flags)
     {
         glCreateBuffers(1, &m_id);
         glNamedBufferStorage(m_id, size, data, flags);
@@ -125,7 +124,7 @@ public:
 
 private:
     GLuint m_id = 0;
-    size_t m_size = 0;
+	std::size_t m_size = 0;
 	GLbitfield  m_flags = 0;
 	void* m_mapped_ptr = nullptr;
 

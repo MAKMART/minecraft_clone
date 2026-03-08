@@ -1,13 +1,15 @@
-#pragma once
+module;
 #include <optional>
-//#include "chunk/chunk_manager.hpp"
+#include <cmath>
 #if defined(DEBUG)
 #include "graphics/debug_drawer.hpp"
 #endif
+export module raycast;
 
+import core;
 import chunk_manager;
 import glm;
-class raycast
+export class raycast
 {
       public:
 	// Return world-space voxel position

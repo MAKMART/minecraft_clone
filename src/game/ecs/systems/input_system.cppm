@@ -1,6 +1,4 @@
 module;
-//#include "game/ecs/systems/input_system.hpp"
-#include "core/defines.hpp"
 #include "core/input_manager.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
@@ -8,7 +6,7 @@ module;
 
 export module input_system;
 
-
+import core;
 import ecs;
 import ecs_components;
 

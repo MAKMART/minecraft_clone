@@ -1,5 +1,4 @@
 module;
-#include "core/aabb.hpp"
 #include <glad/glad.h>
 #include <array>               // std::array<FrustumPlane, 6>
 #include <cstdint>             // UINT32_MAX (used in CameraController + Transform)
@@ -10,6 +9,7 @@ export module ecs_components;
 
 import glm;
 import ecs;
+import aabb;
 
 // This is just a tag component to handle whether a camera should be the main one which it's matrices should be used for rendering the final image to the framebuffer
 export struct ActiveCamera {};

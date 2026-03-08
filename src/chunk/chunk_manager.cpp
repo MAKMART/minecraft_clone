@@ -1,63 +1,20 @@
-module chunk_manager;
+module;
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
+#include <glad/glad.h>   // Solves GL_TRIANGLES, GLuint, etc.
+#include <cstdlib>       // Solves std::exit
+#include <algorithm>     // Solves std::sort
+#include <cmath>
+#include <cstdint>       // Solves std::uint8_t inside the .cpp
+#include <vector>
+#include <memory>
+#include "core/timer.hpp"
+module chunk_manager;
 
-#include "core/defines.hpp"
+import core;
 import ecs_components;
-
-ChunkManager::ChunkManager()
-	: shader("Chunk", CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY),
-	waterShader("Water", WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY),
-	voxel_buffer("voxel_buffer", SHADERS_DIRECTORY / "voxel_buffer.comp"),
-	write_faces("write_faces", SHADERS_DIRECTORY / "write_faces.comp"),
-	merged_offsets("merged_offsets", SHADERS_DIRECTORY / "merged_offsets.comp"),
-	prefix_sum("prefix_sum", SHADERS_DIRECTORY / "prefix_sum.comp"),
-	indirect("indirect", SHADERS_DIRECTORY / "indirect_buffer_fill.comp"),
-	// Could be PersistentWrite
-	global_faces(SSBO::Dynamic(nullptr, MAX_FACES_BUFFER_BYTES)),  // or just Dynamic
-	global_indirect(SSBO::Dynamic(nullptr, 4096 * sizeof(DrawArraysIndirectCommand))),  // generous initial size
-	prefix(SSBO::PersistentWrite(nullptr, Chunk::TOTAL_FACES * sizeof(uint))),
-	face_flags(SSBO::PersistentWrite(nullptr, flag_words * sizeof(uint))),
-	group_totals(SSBO::PersistentWrite(nullptr, num_workgroups * sizeof(uint))),
-	model_ssbo(SSBO::Dynamic(nullptr, model_ssbo_capacity)),
-	temp_faces(SSBO::PersistentWrite(nullptr, Chunk::TOTAL_FACES * sizeof(face_gpu)))
-{
-
-	if constexpr (CHUNK_SIZE.x <= 0 || CHUNK_SIZE.y <= 0 || CHUNK_SIZE.z <= 0) {
-		log::system_error("ChunkManager", "CHUNK_SIZE < 0");
-		std::exit(1);
-	}
-	if constexpr ((CHUNK_SIZE.x & (CHUNK_SIZE.x - 1)) != 0 || (CHUNK_SIZE.y & (CHUNK_SIZE.y - 1)) != 0 || (CHUNK_SIZE.z & (CHUNK_SIZE.z - 1)) != 0) {
-		log::system_error("ChunkManager", "CHUNK_SIZE must be a power of 2");
-		std::exit(1);
-	}
-
-	/*
-	fractal_node = FastNoise::New<FastNoise::FractalFBm>();
-	fractal_node->SetSource(FastNoise::New<FastNoise::Simplex>());
-	fractal_node->SetOctaveCount(5);   // CRITICAL: This adds the "detail" layers
-	fractal_node->SetGain(0.5f);       // How much each smaller layer affects the height
-	fractal_node->SetLacunarity(2.0f); // The frequency multiplier for each layer
-	*/
-	voxel_buffer.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
-	prefix_sum.setUInt("total_faces", Chunk::TOTAL_FACES);
-	write_faces.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
-	write_faces.setUInt("total_faces", Chunk::TOTAL_FACES);
-	shader.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
-	merged_offsets.setUInt("num_groups", num_workgroups);
-	merged_offsets.setUInt("total_faces", Chunk::TOTAL_FACES);
-
-	free_blocks.emplace_back(0, MAX_FACES_BUFFER_BYTES);
-	opaqueChunks.reserve(chunks.size());
-	transparentChunks.reserve(chunks.size());
-	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
-	temp_indirect = SSBO::PersistentWrite(&cmd, sizeof(DrawArraysIndirectCommand));
-}
-ChunkManager::~ChunkManager() noexcept
-{
-	chunks.clear();
-}
+import chunk;
 
 void ChunkManager::build_lists(const Transform& ts, const FrustumVolume& fv) noexcept 
 {
@@ -68,7 +25,7 @@ void ChunkManager::build_lists(const Transform& ts, const FrustumVolume& fv) noe
 
 	for (const auto& [pos, chunk_ptr] : chunks) {
 		Chunk* c = chunk_ptr.get();
-		if (c->visible_face_count > 0 && isAABBInsideFrustum(c->getAABB(), fv)) {
+		if (c->visible_face_count > 0 && isAABBInsideFrustum(c->aabb, fv)) {
 			//if (chunk->isTransparent())
 			//transparentChunks.emplace_back(chunk.get());
 			//else
@@ -80,7 +37,7 @@ void ChunkManager::build_lists(const Transform& ts, const FrustumVolume& fv) noe
 					.first = (GLuint)(c->faces_offset / sizeof(face_gpu)) * 6,  // vertex offset in faces buffer
 					.baseInstance = (GLuint)commands.size()
 					});
-			model_data.emplace_back(c->getModelMatrix());
+			model_data.emplace_back(c->model);
 		}
 	}
 
@@ -94,25 +51,12 @@ void ChunkManager::build_lists(const Transform& ts, const FrustumVolume& fv) noe
 	if (!transparentChunks.empty()) {
 		std::sort(transparentChunks.begin(), transparentChunks.end(),
 				[&](const auto& a, const auto& b) {
-				float distA = glm::distance(ts.pos, a->getAABB().center());
-				float distB = glm::distance(ts.pos, b->getAABB().center());
+				float distA = glm::distance(ts.pos, a->aabb.center());
+				float distB = glm::distance(ts.pos, b->aabb.center());
 				return distA > distB; // farthest first
 				});
 
 	}
-}
-void ChunkManager::render_opaque(const Transform& ts, const FrustumVolume& fv) noexcept {
-	build_lists(ts, fv);  // Rebuild indirect every frame (or only if dirty/camera moved)
-
-	if (opaqueChunks.empty()) return;
-
-	shader.use();
-	global_faces.bind_to_slot(7);
-	model_ssbo.bind_to_slot(10);
-	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, global_indirect.id());
-
-	glMultiDrawArraysIndirect(GL_TRIANGLES, 0, opaqueChunks.size(), 0);  // stride=0 for tight pack
-	g_drawCallCount++;
 }
 void ChunkManager::update_mesh(Chunk *chunk) noexcept 
 {
@@ -127,7 +71,7 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 		chunk->visible_face_count = 0;
 		return;
 	} else if (chunk->block_ssbo.id() && chunk->changed)
-		chunk->block_ssbo.update_data(chunk->get_block_data(), sizeof(Block) * Chunk::SIZE);
+		chunk->block_ssbo.update_data(chunk->block_types, sizeof(Block) * Chunk::SIZE);
 
 	glClearNamedBufferData(face_flags.id(), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
@@ -155,7 +99,7 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 	glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 
 	auto* cmd = temp_indirect.mapped<DrawArraysIndirectCommand>();
-	uint32_t new_face_count = cmd->count / 6;
+	std::uint32_t new_face_count = cmd->count / 6;
 
 	// 1. Release old memory
 	deallocate_faces(chunk->faces_offset, chunk->current_mesh_bytes);
@@ -218,50 +162,6 @@ void ChunkManager::deallocate_faces(GLintptr offset, GLsizeiptr size) {
             ++i;
         }
     }
-}
-void ChunkManager::update_meshes() noexcept
-{
-	if (dirty_chunks.empty()) return;
-	
-	face_flags.bind_to_slot(2);
-	prefix.bind_to_slot(5);
-	group_totals.bind_to_slot(6);
-	temp_faces.bind_to_slot(7);
-	for (auto& chunk : dirty_chunks) {
-			update_mesh(chunk);
-			chunk->in_dirty_list = false;
-			chunk->changed = false;
-	}
-	dirty_chunks.clear();
-}
-bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType) noexcept
-{
-	Chunk* chunk = getChunk(world_pos);
-	if (!chunk)
-		return false;
-	glm::ivec3 localPos = Chunk::world_to_local(world_pos);
-
-	chunk->set_block_type(localPos.x, localPos.y, localPos.z, newType);
-	if (!chunk->in_dirty_list) {
-		dirty_chunks.emplace_back(chunk);
-		chunk->in_dirty_list = true;
-	}
-	return true;
-}
-Chunk* ChunkManager::getChunk(glm::vec3 world_pos) const noexcept
-{
-#if defined(TRACY_ENABLE)
-	ZoneScoped;
-#endif
-	auto it = chunks.find(Chunk::world_to_chunk(world_pos));
-	if (it != chunks.end())
-		return it->second.get();
-	else {
-#if defined(DEBUG)
-		log::system_error("ChunkManager", "Chunk at {} not found!", glm::to_string(world_pos));
-#endif
-		return nullptr;
-	}
 }
 void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int renderDistance) noexcept
 {
@@ -330,13 +230,14 @@ void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int rende
 				constexpr int beachDepth = 1; // How wide the beach is vertically
 				constexpr int seaLevel = 5;
 
-				glm::vec3 chunk_world_origin = Chunk::chunk_to_world(it->second->get_pos());
+				glm::vec3 chunk_world_origin = Chunk::chunk_to_world(it->second->position);
 
 				// 2. Calculate world origin for this chunk
 				//glm::vec3 world_origin = chunk_to_world(this->position);
 
 				// 3. Generate noise for this specific chunk's area in world space
-				auto min_max = noise.gen_grid_2d(chunk_world_origin);
+				auto min_max = noise.gen_grid_2d({chunk_world_origin.x, chunk_world_origin.z});
+				//noise.gen_grid_2d({chunk_world_origin.x, chunk_world_origin.z});
 
 				float safe_min = std::max(min_max.min, -1.1f);
 				float safe_max = std::min(min_max.max,  1.1f);
@@ -372,7 +273,7 @@ void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int rende
 								if (ly == local_surface_y) type = Block::blocks::GRASS;
 								else if (ly >= local_surface_y - DIRT_DEPTH) type = Block::blocks::DIRT;
 								else type = Block::blocks::STONE;
-								++non_air_count;
+								++it->second->non_air_count;
 							}
 							it->second->block_types[idx] = static_cast<std::uint8_t>(type);
 						}
@@ -398,43 +299,10 @@ void ChunkManager::unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unl
     for (auto it = chunks.begin(); it != chunks.end();)
     {
 		glm::vec3 distance = glm::vec3(it->first - playerChunkPos);
-        if (glm::length2(distance) > unloadDistSquared) {
+        if ((distance.x * distance.x + distance.y * distance.y + distance.z * distance.z) > unloadDistSquared) {
 			deallocate_faces(it->second->faces_offset, it->second->current_mesh_bytes);
             it = chunks.erase(it);
 		} else
             ++it;
     }
 }
-
-void ChunkManager::generate_chunks(glm::vec3 playerPos, unsigned int renderDistance) noexcept
-{
-#if defined(TRACY_ENABLE)
-	ZoneScoped;
-#endif
-	glm::ivec3 playerChunk{Chunk::world_to_chunk(playerPos)};
-
-	if (playerChunk != last_player_chunk_pos) {
-		load_around_pos(playerChunk, renderDistance);
-		unload_around_pos(playerChunk, renderDistance + 1);
-		last_player_chunk_pos = playerChunk;
-	}
-	update_meshes();
-}
-bool ChunkManager::isAABBInsideFrustum(const AABB& aabb, const FrustumVolume& fv) noexcept {
-	for (const auto& plane : fv.planes) { // assuming you store planes publicly or via accessor
-		glm::vec3 normal = plane.normal();
-
-		// Get the positive vertex along the plane normal
-		glm::vec3 p = aabb.min;
-		if (normal.x >= 0) p.x = aabb.max.x;
-		if (normal.y >= 0) p.y = aabb.max.y;
-		if (normal.z >= 0) p.z = aabb.max.z;
-
-		// Distance from plane to positive vertex
-		float distance = glm::dot(normal, p) + plane.offset();
-		if (distance < 0)
-			return false; // AABB is completely outside this plane
-	}
-	return true; // Intersects or is fully inside
-}
-

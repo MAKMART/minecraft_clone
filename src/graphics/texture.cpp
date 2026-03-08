@@ -2,9 +2,10 @@
 #include <string>
 #include <bit>
 #include <utility>
-#include "core/logger.hpp"
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include <stb_image.h>
+
+import logger;
 
 
 Texture::Texture() noexcept : ID(0), width(0), height(0)

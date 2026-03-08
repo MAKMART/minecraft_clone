@@ -3,10 +3,10 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <array>
-#include "core/window_context.hpp"
 #include <cassert>
 
 import glm;
+import window_context;
 
 class InputManager
 {
@@ -26,7 +26,19 @@ class InputManager
 	InputManager& operator=(InputManager&&)      = delete;
 
 	// Remember to call this at the end of whatever input pooling that you do trough isPressed/isHeld etc
-	void update();
+	void update() noexcept
+	{
+		_mouseDelta                = glm::vec2(0.0f); // reset after each frame
+		_scroll                    = glm::vec2(0.0f);
+		for (auto& key : _keyStates) {
+			if (key == KeyState::PRESSED)  key = KeyState::DOWN;
+			if (key == KeyState::RELEASED) key = KeyState::UP;
+		}
+		for (auto& btn : _mouseButtonStates) {
+			if (btn == KeyState::PRESSED)  btn = KeyState::DOWN;
+			if (btn == KeyState::RELEASED) btn = KeyState::UP;
+		}
+	}
 
 	// --- Keyboard Input ---
 	[[nodiscard]] inline bool isPressed(int_fast16_t key) const noexcept

@@ -1,19 +1,17 @@
 module;
-//#include "game/ecs/systems/movement_physics_system.hpp"
-#include "core/defines.hpp"
-#include "core/logger.hpp"
-#include "core/aabb.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
-//#include "chunk/chunk_manager.hpp"
-
+#include <cmath>
 export module movement_physics_system;
 
+import core;
 import ecs;
 import ecs_components;
 import chunk_manager;
 import glm;
+import aabb;
+import logger;
 
 // Optimized collision check: integer-based, minimal floating-point, early exits
 inline bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManager& chunkManager)
@@ -96,9 +94,8 @@ export void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float 
             if (ps.current == PlayerMovementState::Jumping && vel.value.y <= 0.0f) {
                 ps.current = PlayerMovementState::Falling;
             }
-
             if (ps.current == PlayerMovementState::Falling && col.is_on_ground) {
-                ps.current = (glm::length2(intent.wish_dir) > 0.01f && cfg.can_walk)
+                ps.current = ((intent.wish_dir.x * intent.wish_dir.x + intent.wish_dir.y * intent.wish_dir.y + intent.wish_dir.z * intent.wish_dir.z) > 0.01f && cfg.can_walk)
                     ? PlayerMovementState::Walking
                     : PlayerMovementState::Idle;
             }

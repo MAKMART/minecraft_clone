@@ -3,11 +3,11 @@
 #include <cstring>
 #include <RmlUi/Core/Types.h>
 #include "RmlUi/Debugger/Debugger.h"
-#include "core/defines.hpp"
 #include <GLFW/glfw3.h>
 #include "graphics/shader.hpp"
-#include "core/logger.hpp"
 
+import core;
+import logger;
 using namespace Rml::Input;
 UI::UI(int width, int height, std::filesystem::path fontPath) noexcept : viewport_width(width), viewport_height(height)
 {

@@ -1,8 +1,9 @@
-#pragma once
-import glm;
+module;
 #include <limits>
+export module aabb;
 
-struct AABB {
+import glm;
+export struct AABB {
 	glm::vec3 min;
 	glm::vec3 max;
 

@@ -1,9 +1,9 @@
 #pragma once
 #include "graphics/renderer/vertex_buffer.hpp"
-#include "core/aabb.hpp"
 #include <vector>
 #include "shader.hpp"
 
+import aabb;
 class DebugDrawer
 {
       public:

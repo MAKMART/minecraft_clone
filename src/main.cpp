@@ -27,29 +27,32 @@
 
 
 
-#define GLM_ENABLE_EXPERIMENTAL
+#define GLM_GTC_INLINE_NAMESPACE to inline glm::gtc into glm
+#define GLM_EXT_INLINE_NAMESPACE to inline glm::ext into glm
+#define GLM_GTX_INLINE_NAMESPACE to inline glm::gtx into glm
 #if defined(TRACY_ENABLE)
 #include "tracy/Tracy.hpp"
 #endif
-#include "core/defines.hpp"
-#include "core/window_context.hpp"
-#include "game/player.hpp"
+
+#include <stb_image.h>
 #include "graphics/shader.hpp"
 #include "graphics/renderer/vertex_buffer.hpp"
 #include "graphics/renderer/framebuffer.hpp"
 #include "graphics/renderer/index_buffer.hpp"
-//#include "graphics/renderer/framebuffer_manager.hpp"
 #include "ui/ui.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <memory>
 #include <cstdlib>
+#include <cmath>
 #include "core/timer.hpp"
-#include "core/logger.hpp"
-#include "core/raycast.hpp"
+#include "core/input_manager.hpp"
 
 
+import core;
+import raycast;
+import logger;
 import ecs;
 import ecs_components;
 import camera_controller_system;
@@ -64,6 +67,9 @@ import chunk_renderer_system;
 import framebuffer_manager;
 import chunk_manager;
 import glm;
+import window_context;
+import player;
+import aabb;
 
 std::uint64_t  nbFrames  = 0;
 f32 deltaTime = 0.0f;
@@ -151,6 +157,7 @@ int main()
 	}
 #endif
 
+	/*
 	log::structured(log::level::INFO,
 	                "\nSIZES",{
 					 {"\nInput Manager", SIZE_OF(InputManager)},
@@ -161,6 +168,7 @@ int main()
 	                 {"\nUI", SIZE_OF(UI)},
 	                 {"\nEntity", SIZE_OF(Entity)}
 					 });
+					 */
 	int fb_width, fb_height;
 	glfwGetFramebufferSize(context->window, &fb_width, &fb_height);
 
@@ -668,7 +676,7 @@ int main()
 				if (!chunkPtr)
 					continue; // safety
 
-				AABB chunkBox = chunkPtr->getAABB();
+				AABB chunkBox = chunkPtr->aabb;
 
 				// Color for chunk boxes, maybe a translucent blue-ish?
 				glm::vec3 chunkColor(0.3f, 0.5f, 1.0f);

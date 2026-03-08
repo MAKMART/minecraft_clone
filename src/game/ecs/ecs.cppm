@@ -1,9 +1,4 @@
 module;
-#if defined(DEBUG)
-#include "core/logger.hpp"
-#endif
-
-
 #include <cassert>
 #include <vector>
 #include <cstdint>
@@ -13,13 +8,14 @@ module;
 #include <cstddef>
 #include <cstdint>
 #include <utility>
-
-
-#include "core/defines.hpp"
 export module ecs;
 
 // 'export import' makes 'Entity' visible to main.cpp
 export import :entity;
+#if defined(DEBUG)
+import logger;
+#endif
+import core;
 
 
 export struct IComponentStorage {

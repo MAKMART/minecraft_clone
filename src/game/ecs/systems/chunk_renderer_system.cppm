@@ -8,6 +8,7 @@ module;
 
 export module chunk_renderer_system;
 
+import core;
 import ecs;
 import ecs_components;
 import framebuffer_manager;

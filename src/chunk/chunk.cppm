@@ -1,16 +1,15 @@
 module;
-#include "core/aabb.hpp"
-#include "core/defines.hpp"
-//#include <FastNoise/FastNoise.h>
-#include "graphics/renderer/shader_storage_buffer.hpp"
-#include <GLFW/glfw3.h>
 #include <glad/glad.h>
-#include "core/logger.hpp"
+#include <GLFW/glfw3.h>
 #include "graphics/shader.hpp"
 #include <bit>
 export module chunk;
 
+import core;
 import glm;
+import aabb;
+import logger;
+import ssbo;
 
 export struct DrawArraysIndirectCommand {
   GLuint count;         // vertices to draw
@@ -105,10 +104,10 @@ export struct Block {
 };
 static_assert(sizeof(Block) == sizeof(std::uint8_t));
 
-struct face_gpu {
-	uint packed;
+export struct face_gpu {
+	std::uint8_t packed;
 };
-static_assert(sizeof(face_gpu) == sizeof(uint));
+static_assert(sizeof(face_gpu) == sizeof(std::uint8_t));
 
 export class Chunk {
 public:

@@ -1,4 +1,4 @@
-#pragma once
+module;
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -11,8 +11,9 @@
 #include <map>
 #include <format>
 #include <print>
+export module logger;
 
-class log
+export class log
 {
       public:
 	enum class level { INFO = 0, WARNING = 1, ERROR = 2 };
