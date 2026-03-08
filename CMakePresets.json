@@ -1,9 +1,9 @@
 {
-	"version": 3,
+	"version": 10,
 	"cmakeMinimumRequired": {
-		"major": 3,
-		"minor": 30,
-		"patch": 0
+		"major": 4,
+		"minor": 2,
+		"patch": 3
 	},
 	"configurePresets": [
 		{
@@ -16,8 +16,8 @@
 				"CMAKE_BUILD_TYPE": "Debug",
 				"ENABLE_TRACY": "OFF",
 				"ENABLE_UNITY_BUILD": "OFF",
-				"CMAKE_C_COMPILER_LAUNCHER": "sccache",
-				"CMAKE_CXX_COMPILER_LAUNCHER": "sccache"
+				"CMAKE_C_COMPILER_LAUNCHER": "",
+				"CMAKE_CXX_COMPILER_LAUNCHER": ""
 			}
 		},
 		{
