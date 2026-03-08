@@ -12,9 +12,9 @@ Since this is meant for me to learn programming, don't expect high-quality stuff
 
 ## Dependencies 🔧
 
-To build this project, you’ll need:
+To build this project, you'll need:
 
-* [CMake](https://cmake.org/download/) `(>= 3.30)`
+* [CMake](https://cmake.org/download/) `(>= 4.2.3)`
 * [Ninja](https://github.com/ninja-build/ninja)
 * [A C++ compiler](https://isocpp.org/get-started)
 * [sccache](https://github.com/mozilla/sccache)
