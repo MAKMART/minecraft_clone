@@ -25,7 +25,6 @@ layout(std430, binding = 7) writeonly buffer face_ssbo {
 };
 
 // Uniforms
-uniform uvec3 CHUNK_SIZE;
 uniform uint total_faces;
 
 ivec3 dirs[6] = ivec3[](
@@ -39,9 +38,6 @@ uint get_voxel(uint idx) {
     uint element = voxels[idx / 4u];
     uint shift   = (idx % 4u) * 8u;
     return (element >> shift) & 0xFFu;
-}
-uint get_index(uint x, uint y, uint z) {
-	return x + (y * CHUNK_SIZE.x) + (z * CHUNK_SIZE.x * CHUNK_SIZE.y);
 }
 
 uint pack_face(uint voxel_index, uint face_id, uint block_type)

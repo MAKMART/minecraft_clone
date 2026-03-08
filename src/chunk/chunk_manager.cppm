@@ -2,10 +2,9 @@ module;
 #include <memory>
 #include <unordered_map>
 #include <vector>
-#include "graphics/shader.hpp"
 #include "graphics/texture.hpp"
+#include "graphics/shader.hpp"
 #include "core/timer.hpp"
-
 export module chunk_manager;
 
 import core;
@@ -54,22 +53,12 @@ export class ChunkManager
 			  temp_faces(SSBO::PersistentWrite(nullptr, Chunk::TOTAL_FACES * sizeof(face_gpu)))
 	{
 
-		if constexpr (CHUNK_SIZE.x <= 0 || CHUNK_SIZE.y <= 0 || CHUNK_SIZE.z <= 0) {
-			log::system_error("ChunkManager", "CHUNK_SIZE < 0");
-			std::exit(1);
-		}
-		if constexpr ((CHUNK_SIZE.x & (CHUNK_SIZE.x - 1)) != 0 || (CHUNK_SIZE.y & (CHUNK_SIZE.y - 1)) != 0 || (CHUNK_SIZE.z & (CHUNK_SIZE.z - 1)) != 0) {
-			log::system_error("ChunkManager", "CHUNK_SIZE must be a power of 2");
-			std::exit(1);
-		}
-
+		shader.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
 		voxel_buffer.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
 		prefix_sum.setUInt("total_faces", Chunk::TOTAL_FACES);
-		write_faces.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
 		write_faces.setUInt("total_faces", Chunk::TOTAL_FACES);
-		shader.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
-		merged_offsets.setUInt("num_groups", num_workgroups);
 		merged_offsets.setUInt("total_faces", Chunk::TOTAL_FACES);
+		merged_offsets.setUInt("num_groups", num_workgroups);
 
 		free_blocks.emplace_back(0, MAX_FACES_BUFFER_BYTES);
 		opaqueChunks.reserve(chunks.size());

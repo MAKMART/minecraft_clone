@@ -10,6 +10,8 @@ module;
 #if defined(DEBUG)
 #include "graphics/debug_drawer.hpp"
 #endif
+#include "core/platform.hpp"
+#include <iostream>
 export module core;
 
 
@@ -92,6 +94,17 @@ export {
 	float GRAVITY = 9.80665f;
 	// WARNING: CHUNK_SIZE ≤ 32 because of how the voxel faces are packed in the GPU buffer
 	inline constexpr glm::ivec3 CHUNK_SIZE{16};
+	STATIC_ASSERT(
+			CHUNK_SIZE.x > 0 && CHUNK_SIZE.y > 0 && CHUNK_SIZE.z > 0,
+			"CHUNK_SIZE must be positive"
+			);
+
+	STATIC_ASSERT(
+			(CHUNK_SIZE.x & (CHUNK_SIZE.x - 1)) == 0 &&
+			(CHUNK_SIZE.y & (CHUNK_SIZE.y - 1)) == 0 &&
+			(CHUNK_SIZE.z & (CHUNK_SIZE.z - 1)) == 0,
+			"CHUNK_SIZE must be a power of two"
+			);
 	inline constexpr int MAX_ENTITIES = 10'000;
 
 	// Utils for rendering

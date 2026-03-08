@@ -71,7 +71,7 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 		chunk->visible_face_count = 0;
 		return;
 	} else if (chunk->block_ssbo.id() && chunk->changed)
-		chunk->block_ssbo.update_data(chunk->block_types, sizeof(Block) * Chunk::SIZE);
+		chunk->block_ssbo.update_data(chunk->block_types, sizeof(std::uint8_t) * Chunk::SIZE);
 
 	glClearNamedBufferData(face_flags.id(), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
@@ -99,6 +99,7 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 	glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 
 	auto* cmd = temp_indirect.mapped<DrawArraysIndirectCommand>();
+	if (!cmd) log::system_error("Chunk_Manager", "temp_indirect.mapped<DrawArraysIndirectCommand>() returned nullptr");
 	std::uint32_t new_face_count = cmd->count / 6;
 
 	// 1. Release old memory
