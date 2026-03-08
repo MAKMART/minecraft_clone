@@ -1,8 +1,9 @@
 #include "graphics/debug_drawer.hpp"
 #include <glad/glad.h>
-#include "core/defines.hpp"
-#include "core/logger.hpp"
+#include <cmath>
 
+import core;
+import logger;
 DebugDrawer::DebugDrawer()
 {
 	// TODO: Adjust paths

@@ -1,17 +1,14 @@
 #pragma once
 #include <cassert>
-#include <string>
 #include <glad/glad.h>
 #include <filesystem>
-#include <stdexcept>
-#include "core/logger.hpp"
 
 class Texture
 {
       public:
-	Texture();
+	Texture() noexcept;
 	// Constructor for loading a texture from file.
-	Texture(const std::filesystem::path& path, GLenum format, GLenum wrapMode, GLenum filterMode);
+	Texture(const std::filesystem::path& path, GLenum format, GLenum wrapMode, GLenum filterMode) noexcept;
 
 	// Delete copy semantics (prevent copying)
 	Texture(const Texture&)            = delete;
@@ -21,7 +18,7 @@ class Texture
 	Texture(Texture&& other) noexcept;
 	Texture& operator=(Texture&& other) noexcept;
 
-	~Texture();
+	~Texture() noexcept;
 
 	// Create an empty texture suitable for framebuffer attachments.
 	// 'internalFormat' should be a sized internal format (e.g. GL_RGBA8 or GL_DEPTH24_STENCIL8).
@@ -29,21 +26,16 @@ class Texture
 	// 'dataType' is the type of the pixel data (e.g. GL_UNSIGNED_BYTE or GL_UNSIGNED_INT_24_8).
 	bool createEmpty(int width, int height, GLenum internalFormat);
 
-	void        Bind(int unit) const;
-	static void Unbind(int unit);
+	void Bind(int unit) const noexcept;
+	static void Unbind(int unit) noexcept { glBindTextureUnit(unit, 0); }
 
-	GLuint getID() const
-	{
-		if (ID == 0)
-			log::system_error("Texture", "Trying to get invalid ID == 0");
-		return ID;
-	}
-	int getWidth() const
-	{
+	[[nodiscard]] GLuint getID() const noexcept;
+
+	[[nodiscard]] inline int getWidth() const noexcept {
 		assert(ID != 0 && "getHeight() on Texture with ID = 0");
 		return width;
 	}
-	int getHeight() const
+	[[nodiscard]] inline int getHeight() const noexcept
 	{
 		assert(ID != 0 && "getHeight() on Texture with ID = 0");
 		return height;
@@ -51,5 +43,5 @@ class Texture
 
       private:
 	GLuint ID = 0;
-	int    width, height;
+	int width, height;
 };

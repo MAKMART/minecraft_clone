@@ -27,61 +27,49 @@
 
 
 
-
-
-
-
-#include "game/ecs/components/debug_camera_controller.hpp"
-#include "game/ecs/components/movement_config.hpp"
-#define GLM_ENABLE_EXPERIMENTAL
-#include "game/ecs/systems/debug_camera_system.hpp"
-#include "game/ecs/systems/camera_system.hpp"
-#include "game/ecs/systems/chunk_renderer_system.hpp"
-#include "game/ecs/systems/frustum_volume_system.hpp"
+#define GLM_GTC_INLINE_NAMESPACE to inline glm::gtc into glm
+#define GLM_EXT_INLINE_NAMESPACE to inline glm::ext into glm
+#define GLM_GTX_INLINE_NAMESPACE to inline glm::gtx into glm
 #if defined(TRACY_ENABLE)
 #include "tracy/Tracy.hpp"
 #endif
-#include "core/defines.hpp"
-#include "core/window_context.hpp"
-#include "game/player.hpp"
-#include "game/ecs/components/input.hpp"
+
+#include <stb_image.h>
 #include "graphics/shader.hpp"
+#include "graphics/renderer/vertex_buffer.hpp"
 #include "graphics/renderer/framebuffer.hpp"
 #include "graphics/renderer/index_buffer.hpp"
 #include "ui/ui.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <memory>
 #include <cstdlib>
+#include <cmath>
 #include "core/timer.hpp"
-#include "core/logger.hpp"
-#include "chunk/chunk_manager.hpp"
-#include "game/ecs/ecs.hpp"
-#include "game/ecs/components/position.hpp"
-#include "game/ecs/components/velocity.hpp"
-#include "game/ecs/components/transform.hpp"
-#include "game/ecs/components/collider.hpp"
-#include "game/ecs/components/input.hpp"
-#include "game/ecs/components/player_mode.hpp"
-#include "game/ecs/components/player_state.hpp"
-#include "game/ecs/components/camera.hpp"
-#include "game/ecs/components/render_target.hpp"
-#include "game/ecs/components/debug_camera.hpp"
-#include "game/ecs/components/camera_controller.hpp"
-#include "game/ecs/components/active_camera.hpp"
-#include "game/ecs/components/temporal_camera.hpp"
-#include "game/ecs/systems/movement_intent_system.hpp"
-#include "game/ecs/systems/camera_controller_system.hpp"
-#include "game/ecs/systems/input_system.hpp"
-#include "game/ecs/systems/movement_physics_system.hpp"
-#include "game/ecs/systems/frustum_volume_system.hpp"
-#include "game/ecs/systems/temporal_camera_system.hpp"
-#include "graphics/renderer/framebuffer_manager.hpp"
-#include "core/raycast.hpp"
+#include "core/input_manager.hpp"
+
+
+import core;
+import raycast;
+import logger;
+import ecs;
+import ecs_components;
+import camera_controller_system;
+import temporal_camera_system;
+import movement_physics_system;
+import movement_intent_system;
+import input_system;
+import frustum_volume_system;
+import debug_camera_system;
+import camera_system;
+import chunk_renderer_system;
+import framebuffer_manager;
+import chunk_manager;
+import glm;
+import window_context;
+import player;
+import aabb;
 
 std::uint64_t  nbFrames  = 0;
 f32 deltaTime = 0.0f;
@@ -169,6 +157,7 @@ int main()
 	}
 #endif
 
+	/*
 	log::structured(log::level::INFO,
 	                "\nSIZES",{
 					 {"\nInput Manager", SIZE_OF(InputManager)},
@@ -179,6 +168,7 @@ int main()
 	                 {"\nUI", SIZE_OF(UI)},
 	                 {"\nEntity", SIZE_OF(Entity)}
 					 });
+					 */
 	int fb_width, fb_height;
 	glfwGetFramebufferSize(context->window, &fb_width, &fb_height);
 
@@ -210,10 +200,11 @@ int main()
 			}));
 #endif
 	ChunkManager manager;
+	manager.generate_chunks({0.0f, 0.0f, 0.0f}, 5u);
     Texture Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 	FramebufferManager fb_manager;
 	g_fb_manager = &fb_manager;
-	Player player(ecs, glm::vec3{0.0f, 19.0f, 0.0f}, context->getWidth(), context->getHeight());
+	Player player(ecs, {0.1f, 250.0f, 0.1f}, context->getWidth(), context->getHeight());
 	g_player = &player;
 	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), MAIN_FONT_DIRECTORY);
 	ui->SetViewportSize(context->getWidth(), context->getHeight());
@@ -306,6 +297,7 @@ int main()
 	float uMax = ((col + 1) * cellWidth) / textureWidth;
 	float vMax = 1.0f - (row * cellHeight) / textureHeight;
 	crosshairSize = std::floor(cellWidth * 3.5f);
+
 	float verts[] = {
 		-crosshairSize, -crosshairSize, 0.0f, uMin, vMin,
 		crosshairSize, -crosshairSize, 0.0f, uMax, vMin,
@@ -365,7 +357,6 @@ int main()
 			5 * sizeof(float)   // stride
 			);
 
-	manager.generate_chunks(player.getPos(), player.render_distance);
 	while (!glfwWindowShouldClose(context->window)) {
 		float currentFrame = static_cast<float>(glfwGetTime());
 		deltaTime          = currentFrame - lastFrame;
@@ -462,6 +453,7 @@ int main()
 			if (input.isMousePressed(DEFENSE_BUTTON) && player.canPlaceBlocks && camera == player.getCamera()) {
 				player.placeBlock(manager);
 			}
+#if defined(DEBUG)
 			if (camera == debug_cam) {
 				Transform* trans = ecs.get_component<Transform>(camera);
 				if (!trans)
@@ -509,6 +501,7 @@ int main()
 				}
 			
 			}
+#endif
 
 
 			float scrollY = input.getScroll().y;
@@ -564,11 +557,13 @@ int main()
 		if (input.isHeld(GLFW_KEY_M))
 			crosshair_size -= 0.1f;
 
+#if defined(DEBUG)
 		if (input.isPressed(GLFW_KEY_ENTER) && camera == debug_cam) {
 			ecs.get_component<Transform>(player.getSelf())->pos = ecs.get_component<Transform>(debug_cam)->pos;
 			ecs.get_component<Velocity>(player.getSelf())->value = ecs.get_component<Velocity>(debug_cam)->value;
 		
 		}
+#endif
 		
 		
 
@@ -626,7 +621,7 @@ int main()
 		CameraController* ctrl = ecs.get_component<CameraController>(player.getCamera());
 		manager.generate_chunks(player.getPos(), player.render_distance);
 
-		movement_intent_system(ecs, camera);
+		movement_intent_system(ecs, cam);
 		movement_physics_system(ecs, manager, deltaTime);
 		camera_controller_system(ecs, player.getSelf());
 #if defined(DEBUG)
@@ -640,7 +635,7 @@ int main()
 
 		glClearDepth(0.0f);
 		glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
-		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT);
 
 
 
@@ -681,7 +676,7 @@ int main()
 				if (!chunkPtr)
 					continue; // safety
 
-				AABB chunkBox = chunkPtr->getAABB();
+				AABB chunkBox = chunkPtr->aabb;
 
 				// Color for chunk boxes, maybe a translucent blue-ish?
 				glm::vec3 chunkColor(0.3f, 0.5f, 1.0f);
@@ -707,7 +702,7 @@ int main()
 			//manager.getShader().checkAndReloadIfModified();
 			manager.getShader().setMat4("projection", cam->projectionMatrix);
 			manager.getShader().setMat4("view", cam->viewMatrix);
-			manager.getShader().setFloat("time", (float)glfwGetTime());
+			//manager.getShader().setFloat("time", (float)glfwGetTime());
 			Atlas.Bind(0);
 			manager.getShader().use();
 			// Whatever VAO'll work
@@ -775,7 +770,10 @@ int main()
 #endif
 
 		// NOTE: Make sure to have a VAO bound when making this draw call!!
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		DrawArraysWrapper(GL_TRIANGLES, 0, 3);
+		if (WIREFRAME_MODE)
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		glBindVertexArray(0);
 
 		// --- UI Pass --- (now rendered BEFORE ImGui)
@@ -961,7 +959,6 @@ int main()
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
 	context.reset();
-	glfwTerminate();
 
 }
 

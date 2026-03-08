@@ -5,13 +5,14 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <filesystem>
 #include <unordered_map>
 #include <mutex>
 #include <filesystem>
-#include "core/logger.hpp"
+
+
+import glm;
+import logger;
 
 class Shader
 {

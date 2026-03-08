@@ -150,6 +150,7 @@ void main()
   vec4 worldPos = models[gl_BaseInstance] * vec4(position, 1.0);
 
   // WATER EFFECTS
+  /*
   if (block_type == 5u || block_type == 4u) {
       // Wobble parameters
       float wobbleStrength = 0.1;
@@ -160,6 +161,7 @@ void main()
       worldPos.y += sin(worldPos.x * wobbleFrequency + time * wobbleSpeed) * wobbleStrength;
       worldPos.y += cos(worldPos.z * wobbleFrequency + time * wobbleSpeed) * wobbleStrength;
   }
+  */
 
   // END
 
@@ -194,6 +196,5 @@ void main()
   }
   
   TexCoord = vec2(u, v) / cellSize + localUV / cellSize;
-  //TexCoord = localUV / cellSize;
   gl_Position = projection * view * worldPos;
 }

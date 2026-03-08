@@ -3,8 +3,9 @@
  */
 #include <chrono>
 #include "transitions.hpp"
-#include <glm/gtc/quaternion.hpp>
 #include <new>
+
+import glm;
 using namespace Interpolation;
 template <typename T>
 struct Interpolated {

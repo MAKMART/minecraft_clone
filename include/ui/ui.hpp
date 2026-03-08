@@ -16,7 +16,6 @@
 #include "graphics/texture.hpp"
 #include "graphics/renderer/vertex_buffer.hpp"
 #include "graphics/renderer/index_buffer.hpp"
-#include "graphics/renderer/framebuffer_manager.hpp"
 #include <functional>
 
 class LambdaEventListener : public Rml::EventListener {
@@ -70,17 +69,14 @@ class UI : public Rml::RenderInterface
 	Rml::Input::KeyIdentifier MapKey(int glfw_key) noexcept;
 	Rml::ElementDocument* LoadDocument(const std::string& name, const std::filesystem::path& path) noexcept;
     void ShowDocument(const std::string& name, bool show = true) noexcept;
-	void HideAllDocuments() noexcept {
-		for(const auto& [name, doc] : documents)
-			doc->Hide();
-	}
-    void CloseDocument(const std::string& name) noexcept;
+	void HideAllDocuments() noexcept;
+	void CloseDocument(const std::string& name) noexcept;
 	Rml::ElementDocument* GetDocument(const std::string& name) noexcept { return documents[name]; };
 	int GetKeyModifiers() noexcept;
 	void SetViewportSize(int width, int height) noexcept;
 	void render() noexcept;
 
-	[[nodiscard]] Rml::Context *get_context() const noexcept { return context; };
+	[[nodiscard]] inline Rml::Context *get_context() const noexcept { return context; };
 
 	~UI() noexcept;
 
@@ -97,22 +93,11 @@ class UI : public Rml::RenderInterface
 
 	void ReleaseTexture(Rml::TextureHandle texture) override;
 
-	void EnableScissorRegion(bool enable) override {
-		if (enable)
-			glEnable(GL_SCISSOR_TEST);
-		else
-			glDisable(GL_SCISSOR_TEST);
-	}
+	void EnableScissorRegion(bool enable) override;
+
 	void SetScissorRegion(Rml::Rectanglei region) override;
 
-
-	void EnableClipMask(bool enable) override {
-		clip_mask_enabled = enable;
-		if (enable)
-			glEnable(GL_STENCIL_TEST);
-		else
-			glDisable(GL_STENCIL_TEST);
-	}
+	void EnableClipMask(bool enable) override;
 
 	void RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation) override;
 

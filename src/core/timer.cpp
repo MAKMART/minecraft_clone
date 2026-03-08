@@ -1,8 +1,8 @@
 #include "core/timer.hpp"
 #include <chrono>
 #include <imgui.h>
-#include "core/logger.hpp"
 
+import logger;
 TimingHistory  g_TimingHistory;
 ImGuiTimerData g_TimerData;
 

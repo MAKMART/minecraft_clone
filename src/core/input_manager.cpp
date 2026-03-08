@@ -1,19 +1,5 @@
 #include "core/input_manager.hpp"
 
-// Remember to call this at the end of whatever input pooling that you do trough isPressed/isHeld etc
-void InputManager::update()
-{
-	_mouseDelta                = glm::vec2(0.0f); // reset after each frame
-	_scroll                    = glm::vec2(0.0f);
-	for (auto& key : _keyStates) {
-		if (key == KeyState::PRESSED)  key = KeyState::DOWN;
-		if (key == KeyState::RELEASED) key = KeyState::UP;
-	}
-	for (auto& btn : _mouseButtonStates) {
-		if (btn == KeyState::PRESSED)  btn = KeyState::DOWN;
-		if (btn == KeyState::RELEASED) btn = KeyState::UP;
-	}
-}
 void InputManager::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	auto* ctx = static_cast<WindowContext*>(glfwGetWindowUserPointer(window));

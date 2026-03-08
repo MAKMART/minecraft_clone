@@ -1,9 +1,9 @@
 #pragma once
 #include "graphics/renderer/vertex_buffer.hpp"
-#include "core/aabb.hpp"
 #include <vector>
 #include "shader.hpp"
 
+import aabb;
 class DebugDrawer
 {
       public:
@@ -19,9 +19,7 @@ class DebugDrawer
 	struct DebugAABB {
 		AABB      box;
 		glm::vec3 color;
-		DebugAABB(const AABB& b, const glm::vec3& c) : box(b), color(c)
-		{
-		}
+		DebugAABB(const AABB& b, const glm::vec3& c) : box(b), color(c) {}
 	};
 
 	struct DebugOBB {
@@ -29,9 +27,7 @@ class DebugDrawer
 		glm::vec3 halfExtents;
 		glm::vec3 color;
 		DebugOBB(const glm::mat4& t, const glm::vec3& h, const glm::vec3& c)
-		    : transform(t), halfExtents(h), color(c)
-		{
-		}
+		    : transform(t), halfExtents(h), color(c) {}
 	};
 	std::vector<DebugAABB> aabbs;
 	std::vector<DebugOBB>  obbs;
