@@ -1,16 +1,10 @@
 #include "game/player.hpp"
-#include "core/defines.hpp"
-#include "game/ecs/components/frustum_volume.hpp"
-#include "glm/ext/matrix_transform.hpp"
-#include <optional>
-#include "core/raycast.hpp"
-#include "game/ecs/components/active_camera.hpp"
-#include "game/ecs/components/temporal_camera.hpp"
-#include "game/ecs/components/render_target.hpp"
-#include "core/timer.hpp"
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
+
+import ecs;
+import ecs_components;
 
 Player::Player(ECS& ecs, glm::vec3 spawnPos, int width, int height)
     : ecs(ecs), playerHeight(1.8f), input(InputManager::get())

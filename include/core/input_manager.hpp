@@ -4,7 +4,9 @@
 #include <GLFW/glfw3.h>
 #include <array>
 #include "core/window_context.hpp"
-#include <glm/glm.hpp>
+#include <cassert>
+
+import glm;
 
 class InputManager
 {

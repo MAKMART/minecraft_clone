@@ -1,11 +1,12 @@
 #pragma once
-#include <glm/glm.hpp>
 #include <optional>
-#include "chunk/chunk_manager.hpp"
+//#include "chunk/chunk_manager.hpp"
 #if defined(DEBUG)
 #include "graphics/debug_drawer.hpp"
 #endif
 
+import chunk_manager;
+import glm;
 class raycast
 {
       public:

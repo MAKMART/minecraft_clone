@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 #include "core/defines.hpp"
 #include "core/logger.hpp"
+#include <cmath>
 
 DebugDrawer::DebugDrawer()
 {

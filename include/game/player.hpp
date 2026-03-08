@@ -1,25 +1,18 @@
 #pragma once
 #include <cassert>
 #include <memory>
-#include <optional>
 #include <glad/glad.h>
 #include "core/defines.hpp"
 #include "core/input_manager.hpp"
-#include "chunk/chunk_manager.hpp"
+//#include "chunk/chunk_manager.hpp"
 #include "core/aabb.hpp"
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/string_cast.hpp>
-#include "game/ecs/ecs.hpp"
-#include "game/ecs/components/velocity.hpp"
-#include "game/ecs/components/player_state.hpp"
-#include "game/ecs/components/player_mode.hpp"
-#include "game/ecs/components/input.hpp"
-#include "game/ecs/components/collider.hpp"
-#include "game/ecs/components/transform.hpp"
-#include "game/ecs/components/camera.hpp"
-#include "game/ecs/components/camera_controller.hpp"
-#include "game/ecs/components/movement_intent.hpp"
-#include "game/ecs/components/movement_config.hpp"
+#include "core/raycast.hpp"
+#include "core/timer.hpp"
+
+import ecs;
+import ecs_components;
+import chunk_manager;
+import glm;
 
 class Player
 {

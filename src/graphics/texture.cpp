@@ -1,14 +1,17 @@
 #include "graphics/texture.hpp"
-#include <stdexcept>
 #include <string>
+#include <bit>
+#include <utility>
+#include "core/logger.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-Texture::Texture() : ID(0), width(0), height(0)
+
+Texture::Texture() noexcept : ID(0), width(0), height(0)
 {
 }
 
-Texture::Texture(const std::filesystem::path& path, GLenum format, GLenum wrapMode, GLenum filterMode)
+Texture::Texture(const std::filesystem::path& path, GLenum format, GLenum wrapMode, GLenum filterMode) noexcept
 {
 
 	static bool flipOnce = []() {
@@ -40,7 +43,7 @@ Texture::Texture(const std::filesystem::path& path, GLenum format, GLenum wrapMo
 			break;
 
 		default:
-			throw std::runtime_error("Unsupported texture format");
+			log::system_error("Texture", "Unsupported texture format: {}", format);
 	}
 
 	glCreateTextures(GL_TEXTURE_2D, 1, &ID);
@@ -59,9 +62,11 @@ Texture::Texture(const std::filesystem::path& path, GLenum format, GLenum wrapMo
 		std::exit(1);
 	}
 	// Allocate immutable storage
-	int levels = 1;
-	int size = std::max(width, height);
-	while (size >>= 1) ++levels;
+	auto max_dim = std::max(width, height);
+	assert(max_dim > 0);
+
+	int levels = std::bit_width(static_cast<unsigned>(max_dim));
+
 	glTextureStorage2D(ID, levels, internal_format, width, height);
 
 	// Upload texture data
@@ -74,7 +79,8 @@ Texture::Texture(const std::filesystem::path& path, GLenum format, GLenum wrapMo
 	glTextureParameteri(ID, GL_TEXTURE_WRAP_S, wrapMode);
 	glTextureParameteri(ID, GL_TEXTURE_WRAP_T, wrapMode);
 	glTextureParameteri(ID, GL_TEXTURE_MIN_FILTER, filterMode);
-	glTextureParameteri(ID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTextureParameteri(ID, GL_TEXTURE_MAG_FILTER,
+			(filterMode == GL_NEAREST || filterMode == GL_NEAREST_MIPMAP_NEAREST) ? GL_NEAREST : GL_LINEAR);
 	stbi_image_free(data);
 }
 // Move constructor
@@ -89,21 +95,15 @@ Texture::Texture(Texture&& other) noexcept
 // Move assignment operator
 Texture& Texture::operator=(Texture&& other) noexcept
 {
-	if (this != &other) {
-		if (ID != 0) {
-			glDeleteTextures(1, &ID);
-		}
-		ID     = other.ID;
-		width  = other.width;
-		height = other.height;
-
-		other.ID     = 0; // Steal ownership, reset old
-		other.width  = 0;
-		other.height = 0;
+	if (ID != 0) {
+		glDeleteTextures(1, &ID);
 	}
+	ID = std::exchange(other.ID, 0);
+	width = std::exchange(other.width, 0);
+	height = std::exchange(other.height, 0);
 	return *this;
 }
-Texture::~Texture()
+Texture::~Texture() noexcept
 {
 	if (ID != 0) {
 		glDeleteTextures(1, &ID);
@@ -130,6 +130,8 @@ bool Texture::createEmpty(int width, int height, GLenum internalFormat)
 	}
 	glTextureStorage2D(ID, 1, internalFormat, width, height);
 
+	glTextureParameteri(ID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTextureParameteri(ID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTextureParameteri(ID, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTextureParameteri(ID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -138,7 +140,7 @@ bool Texture::createEmpty(int width, int height, GLenum internalFormat)
 	return true;
 }
 
-void Texture::Bind(int unit) const
+void Texture::Bind(int unit) const noexcept
 {
 	if (ID == 0) {
 		log::system_warn("Texture", "Attempt to bind invalid texture ID 0 on unit {}", std::to_string(unit));
@@ -146,7 +148,11 @@ void Texture::Bind(int unit) const
 	}
 	glBindTextureUnit(unit, ID);
 }
-void Texture::Unbind(int unit)
+GLuint Texture::getID() const noexcept
 {
-	glBindTextureUnit(unit, 0); // Unbind from the last used unit
+	if (ID == 0) {
+		log::system_error("Texture", "Trying to get invalid ID == 0");
+		return 0;
+	}
+	return ID;
 }

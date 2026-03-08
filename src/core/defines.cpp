@@ -1,7 +1,7 @@
 #include "core/defines.hpp"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
+
 
 // Controls
 uint_fast16_t FORWARD_KEY        = GLFW_KEY_W;

@@ -1,12 +1,14 @@
 #pragma once
 #include "graphics/debug_drawer.hpp"
-#include "glm/ext/vector_int3.hpp"
+//#include "glm/ext/vector_int3.hpp"
 #include <cstdint>
 #include <filesystem>
 #include <string>
 #include <cstddef>
 #include <cstdio>
 #include <string_view>
+
+import glm;
 
 #ifndef GL_TYPES_DEFINED
 #define GL_TYPES_DEFINED
@@ -75,7 +77,7 @@ extern std::filesystem::path MAIN_DOC_DIRECTORY;
 // World Attributes
 extern float     GRAVITY;
 // WARNING: CHUNK_SIZE ≤ 32 because of how the voxel faces are packed in the GPU buffer
-inline constexpr static glm::ivec3 CHUNK_SIZE{16};
+inline constexpr glm::ivec3 CHUNK_SIZE{16};
 inline constexpr int MAX_ENTITIES = 10'000;
 
 // Utils for rendering

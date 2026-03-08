@@ -70,6 +70,10 @@ void UI::ShowDocument(const std::string& name, bool show) noexcept
         else it->second->Hide();
     }
 }
+void UI::HideAllDocuments() noexcept {
+	for(const auto& [name, doc] : documents)
+		doc->Hide();
+}
 
 void UI::CloseDocument(const std::string& name) noexcept
 {
@@ -272,6 +276,13 @@ void UI::ReleaseTexture(Rml::TextureHandle handle)
 		log::system_error("UI", "Warning: Attempt to release invalid texture handle {}", handle);
 	}
 }
+void UI::EnableScissorRegion(bool enable)
+{
+	if (enable)
+		glEnable(GL_SCISSOR_TEST);
+	else
+		glDisable(GL_SCISSOR_TEST);
+}
 void UI::SetScissorRegion(Rml::Rectanglei region)
 {
 	if (region.Valid())
@@ -286,6 +297,14 @@ void UI::SetScissorRegion(Rml::Rectanglei region)
 
 		glScissor(x, y, region.Width(), region.Height());
 	}
+}
+void UI::EnableClipMask(bool enable)
+{
+	clip_mask_enabled = enable;
+	if (enable)
+		glEnable(GL_STENCIL_TEST);
+	else
+		glDisable(GL_STENCIL_TEST);
 }
 
 void UI::RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation)

@@ -1,9 +1,10 @@
 #pragma once
 #include <glad/glad.h>
-#include "game/ecs/components/render_target.hpp"
-#include <assert.h>
+#include <cassert>
 #include <vector>
 #include <span>
+
+import ecs_components;
 
 struct framebuffer_attachment {
     GLuint id = 0;
