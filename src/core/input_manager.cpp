@@ -1,5 +1,47 @@
-#include "core/input_manager.hpp"
+module;
+#include <cstdint>
+#include <GLFW/glfw3.h>
+#include <array>
+#include <cassert>
+module input_manager;
 
+void InputManager::update() noexcept
+{
+	_mouseDelta                = glm::vec2(0.0f); // reset after each frame
+	_scroll                    = glm::vec2(0.0f);
+	for (auto& key : _keyStates) {
+		if (key == KeyState::PRESSED)  key = KeyState::DOWN;
+		if (key == KeyState::RELEASED) key = KeyState::UP;
+	}
+	for (auto& btn : _mouseButtonStates) {
+		if (btn == KeyState::PRESSED)  btn = KeyState::DOWN;
+		if (btn == KeyState::RELEASED) btn = KeyState::UP;
+	}
+}
+void InputManager::setContext(WindowContext* context) noexcept
+{
+	_context = context;
+	if (_context && _context->window) {
+		registerCallbacks();
+	}
+	if (mouseTrackingEnabled) {
+		// Hide cursor and capture it (disable OS cursor)
+		glfwSetInputMode(_context->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	} else {
+		// Show cursor and release capture (enable OS cursor)
+		glfwSetInputMode(_context->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+	}
+
+}
+void InputManager::registerCallbacks() noexcept
+{
+	GLFWwindow* win = _context->window;
+	glfwSetKeyCallback(win, key_callback);
+	glfwSetMouseButtonCallback(win, mouse_button_callback);
+	glfwSetCursorPosCallback(win, cursor_pos_callback);
+	glfwSetScrollCallback(win, scroll_callback);
+	glfwSetWindowFocusCallback(win, window_focus_callback);
+}
 void InputManager::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	auto* ctx = static_cast<WindowContext*>(glfwGetWindowUserPointer(window));

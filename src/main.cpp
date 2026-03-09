@@ -2,26 +2,10 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 /*
  *
  * TODO: IMPLEMENT THE APPSTATE AND THE MAIN MENU WITH THE NEW UI SYSTEM
  */
-
-
-
-
 
 
 
@@ -32,7 +16,6 @@
 #endif
 
 #include <stb_image.h>
-#include "graphics/shader.hpp"
 #include "graphics/renderer/vertex_buffer.hpp"
 #include "graphics/renderer/framebuffer.hpp"
 #include "graphics/renderer/index_buffer.hpp"
@@ -44,10 +27,13 @@
 #include <cstdlib>
 #include <cmath>
 #include "core/timer.hpp"
-#include "core/input_manager.hpp"
+#include <GLFW/glfw3.h>
+#include <iostream>
 
 
+import shader;
 import core;
+import input_manager;
 import raycast;
 import logger;
 import ecs;
@@ -66,6 +52,7 @@ import chunk_manager;
 import glm;
 import window_context;
 import player;
+import debug_drawer;
 import aabb;
 
 std::uint64_t  nbFrames  = 0;
@@ -189,7 +176,7 @@ int main()
 	ecs.emplace_component<MovementIntent>(debug_cam);
 	ecs.emplace_component<DebugCamera>(debug_cam);
 	ecs.emplace_component<DebugCameraController>(debug_cam);
-	ecs.emplace_component<RenderTarget>(debug_cam, RenderTarget(context->getWidth(), context->getHeight(), {
+	ecs.emplace_component<RenderTarget>(debug_cam, RenderTarget(context->get_width(), context->get_height(), {
 			{ framebuffer_attachment_type::color, GL_RGBA16F }, // albedo
 			//{ framebuffer_attachment_type::color, GL_RGBA16F }, // normal
 			{ framebuffer_attachment_type::color, GL_RG16F   }, // material
@@ -201,10 +188,10 @@ int main()
     Texture Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 	FramebufferManager fb_manager;
 	g_fb_manager = &fb_manager;
-	Player player(ecs, {0.1f, 250.0f, 0.1f}, context->getWidth(), context->getHeight());
+	Player player(ecs, {0.1f, 250.0f, 0.1f}, context->get_width(), context->get_height());
 	g_player = &player;
-	ui     = std::make_unique<UI>(context->getWidth(), context->getHeight(), MAIN_FONT_DIRECTORY);
-	ui->SetViewportSize(context->getWidth(), context->getHeight());
+	ui     = std::make_unique<UI>(context->get_width(), context->get_height(), MAIN_FONT_DIRECTORY);
+	ui->SetViewportSize(context->get_width(), context->get_height());
 
 	// Cubemap
 	GLuint cube_id;
@@ -477,7 +464,7 @@ int main()
 						glm::ivec3 hitBlockPos = hitResult->first;
 						glm::ivec3 normal      = hitResult->second;
 						glm::ivec3 placePos = hitBlockPos + (-normal);
-						glm::ivec3 localBlockPos = Chunk::world_to_local(placePos);
+						glm::ivec3 localBlockPos = world_to_local(placePos);
 
 						if (manager.getChunk(placePos)->get_block_type(localBlockPos.x, localBlockPos.y, localBlockPos.z) != Block::blocks::AIR) {
 							log::error("❌ Target block is NOT air! It's type: {}", Block::toString(manager.getChunk(placePos)->get_block_type(localBlockPos.x, localBlockPos.y, localBlockPos.z)));
@@ -639,19 +626,19 @@ int main()
 
 #if defined(DEBUG)
 		if (debugRender) {
-			getDebugDrawer().addAABB(player.getAABB(), glm::vec3(0.3f, 1.0f, 0.5f));
+			DebugDrawer::get().addAABB(player.getAABB(), glm::vec3(0.3f, 1.0f, 0.5f));
 			Camera* player_cam = ecs.get_component<Camera>(player.getCamera());
 			Transform* player_cam_trans = ecs.get_component<Transform>(player.getCamera());
 			glm::vec3 world_forward = glm::normalize(player_cam_trans->rot * player_cam->forward);
 			glm::vec3 world_up      = glm::normalize(player_cam_trans->rot * player_cam->up);
 			glm::vec3 world_right   = glm::normalize(player_cam_trans->rot * player_cam->right);
-			getDebugDrawer().addRay(player.getPos(), world_forward, {1.0f, 0.0f, 0.0f});
-			getDebugDrawer().addRay(player.getPos(), world_up, {0.0f, 1.0f, 0.0f});
-			getDebugDrawer().addRay(player.getPos(), world_right, {0.0, 0.0f, 1.0f});
+			DebugDrawer::get().addRay(player.getPos(), world_forward, {1.0f, 0.0f, 0.0f});
+			DebugDrawer::get().addRay(player.getPos(), world_up, {0.0f, 1.0f, 0.0f});
+			DebugDrawer::get().addRay(player.getPos(), world_right, {0.0, 0.0f, 1.0f});
 
 			ecs.for_each_components<Camera, Transform>([](Entity e, Camera, Transform& trans){
 					if (!ecs.has_component<ActiveCamera>(e))
-						getDebugDrawer().addAABB(AABB::fromCenterSize(trans.pos, {0.5f, 0.8f, 0.5f}), glm::vec3(1.0f, 0.0f, 1.0f));
+						DebugDrawer::get().addAABB(AABB::fromCenterSize(trans.pos, {0.5f, 0.8f, 0.5f}), glm::vec3(1.0f, 0.0f, 1.0f));
 					});
 
 			float ndc_z = -1.0f; // near plane
@@ -663,9 +650,9 @@ int main()
 
 			glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(player_cam->viewMatrix) * view_space));
 			glm::vec3 cam_pos   = player_cam_trans->pos + glm::vec3(0.1, 0.0, 0.1f);
-			getDebugDrawer().addRay(cam_pos, ray_dir, {1.0f, 0.0f, 0.0f});
+			DebugDrawer::get().addRay(cam_pos, ray_dir, {1.0f, 0.0f, 0.0f});
 			glm::vec3 cam_dir   = glm::normalize(player_cam_trans->rot * cam->forward);
-			getDebugDrawer().addRay(cam_pos, cam_dir, {1.0f, 0.0f, 0.0f});
+			DebugDrawer::get().addRay(cam_pos, cam_dir, {1.0f, 0.0f, 0.0f});
 
 
 			// Add all chunks' bounding boxes
@@ -678,10 +665,10 @@ int main()
 				// Color for chunk boxes, maybe a translucent blue-ish?
 				glm::vec3 chunkColor(0.3f, 0.5f, 1.0f);
 
-				getDebugDrawer().addAABB(chunkBox, chunkColor);
+				DebugDrawer::get().addAABB(chunkBox, chunkColor);
 			}
-			getDebugDrawer().addRay(player.getPos(), glm::normalize(player.getVelocity()), {1.0f, 1.0f, 0.0f});
-			getDebugDrawer().addRay(player.getPos(), glm::normalize(glm::vec3{0.0f, -GRAVITY, 0.0f}), glm::vec3(0.5f, 0.5f, 1.0f));
+			DebugDrawer::get().addRay(player.getPos(), glm::normalize(player.getVelocity()), {1.0f, 1.0f, 0.0f});
+			DebugDrawer::get().addRay(player.getPos(), glm::normalize(glm::vec3{0.0f, -GRAVITY, 0.0f}), glm::vec3(0.5f, 0.5f, 1.0f));
 		}
 #endif
 		// -- Render Player -- (BEFORE UI pass)
@@ -714,7 +701,7 @@ int main()
 		if (debugRender) {
 			ecs.for_each_components<Camera, Transform, RenderTarget, ActiveCamera>([](Entity e, Camera& cam, Transform, RenderTarget, ActiveCamera){
 					glm::mat4 pv = cam.projectionMatrix * cam.viewMatrix;
-					getDebugDrawer().draw(pv);
+					DebugDrawer::get().draw(pv);
 					});
 		}
 #endif
@@ -735,7 +722,7 @@ int main()
 
 
 		framebuffer::bind_default_draw();
-		glViewport(0, 0, context->getWidth(), context->getHeight());
+		glViewport(0, 0, context->get_width(), context->get_height());
 		glDisable(GL_DEPTH_TEST);
 		auto& cur_fb = fb_manager.get(camera);
 		glViewport(0, 0, cur_fb.width(), cur_fb.height());
@@ -823,8 +810,8 @@ int main()
 			ImGui_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
-			glm::ivec3 chunkCoords = Chunk::world_to_chunk(player.getPos());
-			glm::ivec3 localCoords = Chunk::world_to_local(player.getPos());
+			glm::ivec3 chunkCoords = world_to_chunk(player.getPos());
+			glm::ivec3 localCoords = world_to_local(player.getPos());
 			ImGui::Begin("DEBUG", NULL,
 			             ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize |
 			                 ImGuiWindowFlags_::ImGuiWindowFlags_NoMove |

@@ -12,10 +12,40 @@ module;
 #include "core/timer.hpp"
 module chunk_manager;
 
-import core;
-import ecs_components;
-import chunk;
+import logger;
 
+ChunkManager::ChunkManager()
+	: noise(92368123),
+	shader("Chunk", CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY),
+	waterShader("Water", WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY),
+	voxel_buffer("voxel_buffer", SHADERS_DIRECTORY / "voxel_buffer.comp"),
+	write_faces("write_faces", SHADERS_DIRECTORY / "write_faces.comp"),
+	merged_offsets("merged_offsets", SHADERS_DIRECTORY / "merged_offsets.comp"),
+	prefix_sum("prefix_sum", SHADERS_DIRECTORY / "prefix_sum.comp"),
+	indirect("indirect", SHADERS_DIRECTORY / "indirect_buffer_fill.comp"),
+	// Could be PersistentWrite
+	global_faces(SSBO::Dynamic(nullptr, MAX_FACES_BUFFER_BYTES)),  // or just Dynamic
+	global_indirect(SSBO::Dynamic(nullptr, 4096 * sizeof(DrawArraysIndirectCommand))),  // generous initial size
+	prefix(SSBO::PersistentWrite(nullptr, TOTAL_FACES * sizeof(std::uint8_t))),
+	face_flags(SSBO::PersistentWrite(nullptr, flag_words * sizeof(std::uint8_t))),
+	group_totals(SSBO::PersistentWrite(nullptr, num_workgroups * sizeof(std::uint8_t))),
+	model_ssbo(SSBO::Dynamic(nullptr, model_ssbo_capacity)),
+	temp_faces(SSBO::PersistentWrite(nullptr, TOTAL_FACES * sizeof(face_gpu)))
+{
+
+	shader.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
+	voxel_buffer.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
+	prefix_sum.setUInt("total_faces", TOTAL_FACES);
+	write_faces.setUInt("total_faces", TOTAL_FACES);
+	merged_offsets.setUInt("total_faces", TOTAL_FACES);
+	merged_offsets.setUInt("num_groups", num_workgroups);
+
+	free_blocks.emplace_back(0, MAX_FACES_BUFFER_BYTES);
+	opaqueChunks.reserve(chunks.size());
+	transparentChunks.reserve(chunks.size());
+	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
+	temp_indirect = SSBO::PersistentWrite(&cmd, sizeof(DrawArraysIndirectCommand));
+}
 void ChunkManager::build_lists(const Transform& ts, const FrustumVolume& fv) noexcept 
 {
 	std::vector<DrawArraysIndirectCommand> commands;		
@@ -58,6 +88,63 @@ void ChunkManager::build_lists(const Transform& ts, const FrustumVolume& fv) noe
 
 	}
 }
+
+void ChunkManager::render_opaque(const Transform& ts, const FrustumVolume& fv) noexcept {
+	build_lists(ts, fv);  // Rebuild indirect every frame (or only if dirty/camera moved)
+
+	if (opaqueChunks.empty()) return;
+
+	shader.use();
+	global_faces.bind_to_slot(7);
+	model_ssbo.bind_to_slot(10);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, global_indirect.id());
+
+	MultiDrawArraysIndirectWrapper(GL_TRIANGLES, 0, opaqueChunks.size(), 0);  // stride=0 for tight pack
+}
+bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType) noexcept
+{
+	Chunk* chunk = getChunk(world_pos);
+	if (!chunk)
+		return false;
+	glm::ivec3 localPos = world_to_local(world_pos);
+
+	chunk->set_block_type(localPos.x, localPos.y, localPos.z, newType);
+	if (!chunk->in_dirty_list) {
+		dirty_chunks.emplace_back(chunk);
+		chunk->in_dirty_list = true;
+	}
+	return true;
+}
+
+void ChunkManager::generate_chunks(glm::vec3 playerPos, unsigned int renderDistance) noexcept
+{
+#if defined(TRACY_ENABLE)
+	ZoneScoped;
+#endif
+	glm::ivec3 playerChunk{world_to_chunk(playerPos)};
+
+	if (playerChunk != last_player_chunk_pos) {
+		load_around_pos(playerChunk, renderDistance);
+		unload_around_pos(playerChunk, renderDistance + 1);
+		last_player_chunk_pos = playerChunk;
+	}
+	update_meshes();
+}
+Chunk* ChunkManager::getChunk(glm::ivec3 world_pos) const noexcept
+{
+#if defined(TRACY_ENABLE)
+	ZoneScoped;
+#endif
+	auto it = chunks.find(world_to_chunk(world_pos));
+	if (it != chunks.end())
+		return it->second.get();
+	else {
+#if defined(DEBUG)
+		log::system_error("ChunkManager", "Chunk at glm::vec3({}, {}, {}) not found!", world_pos.x, world_pos.y, world_pos.z);
+#endif
+		return nullptr;
+	}
+}
 void ChunkManager::update_mesh(Chunk *chunk) noexcept 
 {
 #if defined(TRACY_ENABLE)
@@ -71,7 +158,7 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 		chunk->visible_face_count = 0;
 		return;
 	} else if (chunk->block_ssbo.id() && chunk->changed)
-		chunk->block_ssbo.update_data(chunk->block_types, sizeof(std::uint8_t) * Chunk::SIZE);
+		chunk->block_ssbo.update_data(chunk->block_types, sizeof(std::uint8_t) * SIZE);
 
 	glClearNamedBufferData(face_flags.id(), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
@@ -231,7 +318,7 @@ void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int rende
 				constexpr int beachDepth = 1; // How wide the beach is vertically
 				constexpr int seaLevel = 5;
 
-				glm::vec3 chunk_world_origin = Chunk::chunk_to_world(it->second->position);
+				glm::vec3 chunk_world_origin = chunk_to_world(it->second->position);
 
 				// 2. Calculate world origin for this chunk
 				//glm::vec3 world_origin = chunk_to_world(this->position);

@@ -1,5 +1,4 @@
 module;
-//#include "framebuffer.hpp"
 #include <unordered_map>
 #include "graphics/renderer/framebuffer.hpp"
 
@@ -32,7 +31,6 @@ export struct FramebufferManager {
 	void destroy(Entity e) {
 		fbs.erase(e);
 	}
-
 
 	private:
 

@@ -10,7 +10,6 @@
 #include <unordered_map>
 #include <glad/glad.h>
 #include <RmlUi/Core/Input.h>
-#include "graphics/shader.hpp"
 #include "ui/system_interface_glfw.hpp"
 #include <filesystem>
 #include "graphics/texture.hpp"
@@ -18,6 +17,8 @@
 #include "graphics/renderer/index_buffer.hpp"
 #include <functional>
 
+import shader;
+import glm;
 class LambdaEventListener : public Rml::EventListener {
 public:
     using Callback = std::function<void(Rml::Event&)>;

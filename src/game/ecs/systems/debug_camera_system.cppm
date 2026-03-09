@@ -1,12 +1,14 @@
 module;
-#include "core/input_manager.hpp"
+#include <GLFW/glfw3.h>
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
 export module debug_camera_system;
+
 import ecs;
 import ecs_components;
 import glm;
+import input_manager;
 
 export void debug_camera_system(ECS& ecs, float dt)
 {

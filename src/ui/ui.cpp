@@ -4,7 +4,6 @@
 #include <RmlUi/Core/Types.h>
 #include "RmlUi/Debugger/Debugger.h"
 #include <GLFW/glfw3.h>
-#include "graphics/shader.hpp"
 
 import core;
 import logger;

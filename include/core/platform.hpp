@@ -25,13 +25,6 @@
     #error "Unknown platform!"
 #endif
 
-// Properly define static assertions
-#if defined(__clang__) || defined(__gcc__)
-#define STATIC_ASSERT _Static_assert
-#else
-#define STATIC_ASSERT static_assert
-#endif
-
 // --- ANSI Escape Codes for CLI Colors ---
 // (Kept as macros because they are often used in format strings)
 #define COLOR_RED     "\033[31m"

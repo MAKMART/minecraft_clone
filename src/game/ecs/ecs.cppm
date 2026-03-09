@@ -29,7 +29,7 @@ class ComponentStorage : public IComponentStorage {
 public:
     void add(Entity e, T comp) {
         if (e.id >= sparse.size()) sparse.resize(e.id + 1, -1);
-        int64_t& slot = sparse[e.id];
+        entity_id& slot = sparse[e.id];
         if (slot == -1) {
             slot = static_cast<int64_t>(dense.size());
             dense.push_back(e);
@@ -61,7 +61,7 @@ public:
         dense[idx] = dense[last];
         data[idx] = std::move(data[last]);
 
-        sparse[dense[idx].id] = static_cast<int64_t>(idx);
+        sparse[dense[idx].id] = static_cast<entity_id>(idx);
 
         dense.pop_back();
         data.pop_back();
@@ -92,7 +92,7 @@ public:
     }
 
 private:
-    std::vector<int64_t> sparse; // entity.id → dense index (-1 if absent)
+    std::vector<entity_id> sparse; // entity.id → dense index (-1 if absent)
     std::vector<Entity> dense;   // packed entities
     std::vector<T> data;         // packed components
 };

@@ -1,14 +1,14 @@
 module;
 #include <optional>
 #include <cmath>
-#if defined(DEBUG)
-#include "graphics/debug_drawer.hpp"
-#endif
 export module raycast;
 
 import core;
 import chunk_manager;
 import glm;
+#if defined(DEBUG)
+import debug_drawer;
+#endif
 export class raycast
 {
       public:
@@ -16,7 +16,7 @@ export class raycast
 	static std::optional<glm::ivec3> voxel(ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance)
 	{
 #if defined (DEBUG)
-		getDebugDrawer().addRay(rayOrigin, rayDirection, {1.0f, 0.0f, 0.0f});
+		DebugDrawer::get().addRay(rayOrigin, rayDirection, {1.0f, 0.0f, 0.0f});
 #endif
 		// Initialize voxel position (world-space)
 		glm::ivec3 worldResult(
@@ -47,10 +47,10 @@ export class raycast
 			Chunk* chunk = chunkManager.getChunk(worldResult);
 
 			if (chunk) {
-				glm::ivec3 localVoxelPos = Chunk::world_to_local(worldResult);
+				glm::ivec3 localVoxelPos = world_to_local(worldResult);
 				int        blockIndex    = chunk->get_index(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
 
-				if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < Chunk::SIZE && chunk->get_block_type(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z) != Block::blocks::AIR) {
+				if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < SIZE && chunk->get_block_type(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z) != Block::blocks::AIR) {
 					return worldResult; // Found a solid block
 				}
 			}
@@ -86,7 +86,7 @@ export class raycast
 	    ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance)
 	{
 #if defined (DEBUG)
-		getDebugDrawer().addRay(rayOrigin, rayDirection, {0.0f, 1.0f, 0.0f});
+		DebugDrawer::get().addRay(rayOrigin, rayDirection, {0.0f, 1.0f, 0.0f});
 #endif
 		glm::ivec3 worldResult = glm::floor(rayOrigin);
 		glm::ivec3 step        = glm::sign(rayDirection); // Step direction (-1 or +1)
@@ -111,10 +111,10 @@ export class raycast
 			Chunk* chunk = chunkManager.getChunk(worldResult);
 
 			if (chunk) {
-				glm::ivec3 localVoxelPos = Chunk::world_to_local(worldResult);
+				glm::ivec3 localVoxelPos = world_to_local(worldResult);
 				int        blockIndex    = chunk->get_index(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z);
 
-				if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < Chunk::SIZE && chunk->get_block_type(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z) != Block::blocks::AIR) {
+				if (blockIndex >= 0 && static_cast<size_t>(blockIndex) < SIZE && chunk->get_block_type(localVoxelPos.x, localVoxelPos.y, localVoxelPos.z) != Block::blocks::AIR) {
 					return std::make_pair(worldResult, worldResult - lastVoxel);
 				}
 			}

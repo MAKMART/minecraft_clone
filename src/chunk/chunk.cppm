@@ -1,8 +1,8 @@
 module;
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "graphics/shader.hpp"
 #include <bit>
+#include <cstdint>
 export module chunk;
 
 import core;
@@ -10,6 +10,7 @@ import glm;
 import aabb;
 import logger;
 import ssbo;
+import shader;
 
 export struct DrawArraysIndirectCommand {
   GLuint count;         // vertices to draw
@@ -127,11 +128,11 @@ public:
 	}
   ~Chunk() = default;
 
-  Block::blocks get_block_type(int x, int y, int z) const noexcept {
-	  return static_cast<Block::blocks>(block_types[x + (y << logSizeX) + (z << (logSizeX + logSizeY))]);
+  Block::blocks get_block_type(const int& x, const int& y, const int& z) const noexcept {
+	  return static_cast<Block::blocks>(block_types[x + (y << LOG_SIZE.x) + (z << (LOG_SIZE.x + LOG_SIZE.y))]);
   }
   void set_block_type(int x, int y, int z, Block::blocks type) noexcept {
-	  int index = x + (y << logSizeX) + (z << (logSizeX + logSizeY));
+	  int index = get_index(x, y, z);
 	  if (block_types[index] != static_cast<std::uint8_t>(type)) {
 		  if (block_types[index] == static_cast<std::uint8_t>(Block::blocks::AIR) &&
 				  type != Block::blocks::AIR)
@@ -145,34 +146,15 @@ public:
 	  }
   }
 
-  inline int get_index(int x, int y, int z) const noexcept {
-    return x + (y << logSizeX) + (z << (logSizeX + logSizeY));
+  inline int get_index(const int& x, const int& y, const int& z) const noexcept {
+    return x + (y << LOG_SIZE.x) + (z << (LOG_SIZE.x + LOG_SIZE.y));
   }
 
   bool has_any_blocks() const noexcept { return non_air_count > 0; }
 
-  constexpr static int SIZE = CHUNK_SIZE.x * CHUNK_SIZE.y * CHUNK_SIZE.z;
-  constexpr static int TOTAL_FACES = SIZE * 6;
-  constexpr static int logSizeX = std::countr_zero(static_cast<unsigned>(CHUNK_SIZE.x));
-  constexpr static int logSizeY = std::countr_zero(static_cast<unsigned>(CHUNK_SIZE.y));
-
-  static inline glm::ivec3 world_to_chunk(const glm::vec3 &world_pos) noexcept {
-	  return glm::ivec3(glm::floor(world_pos / glm::vec3(CHUNK_SIZE)));
-  }
-
-  static inline glm::ivec3 world_to_local(const glm::vec3 &world_pos) noexcept {
-	glm::vec3 chunk_origin = chunk_to_world(world_to_chunk(world_pos));
-	return glm::ivec3(glm::floor(world_pos - chunk_origin));
-  }
-
-  static inline glm::vec3 chunk_to_world(const glm::ivec3 &chunk_pos) noexcept {
-    return glm::vec3(chunk_pos * CHUNK_SIZE);
-  }
-
   inline bool isAir(int x, int y, int z) const noexcept {
     return get_block_type(x, y, z) == Block::blocks::AIR;
   }
-
 
   // The byte offset within the global_faces buffer where this chunk starts
   GLintptr faces_offset = 0; 

@@ -32,7 +32,7 @@ set(CMAKE_CXX_COMPILER clang++)
 #set(CMAKE_CXX_MODULE_STD ON)
 
 
-#set(CMAKE_CXX_COMPILER_LAUNCHER sccache)
+set(CMAKE_CXX_COMPILER_LAUNCHER sccache)
 project("game" VERSION 1.0.1 LANGUAGES C CXX)
 
 # ==== Build Options ====
@@ -63,18 +63,6 @@ find_package(OpenGL REQUIRED)
 if(NOT OpenGL_FOUND)
     message(FATAL_ERROR "OpenGL package not found!")
 endif()
-
-#[[
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    message(STATUS "GCC")
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    message(STATUS "Clang")
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    message(STATUS "MSVC")
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
-    message(STATUS "Intel")
-endif ()
-]]
 
 message(STATUS "Build Type       : ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ Standard     : ${CMAKE_CXX_STANDARD}")
@@ -220,6 +208,7 @@ file(GLOB_RECURSE GAME_CORE_CPP_SOURCES
 	src/chunk/*.cpp
 	src/ui/*.cpp
 	src/game/*.cpp
+	src/game/ecs/systems/*.cpp
 )
 
 target_sources(${PROJECT_NAME}
@@ -254,7 +243,10 @@ target_sources(${PROJECT_NAME}
 		src/core/core.cppm
 		#src/core/timer.cppm MAYBE LATER
 		src/core/window_context.cppm
+		src/core/input_manager.cppm
 		src/graphics/renderer/shader_storage_buffer.cppm
+		src/graphics/debug_drawer.cppm
+		src/graphics/shader.cppm
 		src/game/player.cppm
 )
 
