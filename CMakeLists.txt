@@ -248,6 +248,7 @@ target_sources(${PROJECT_NAME}
 		src/graphics/debug_drawer.cppm
 		src/graphics/shader.cppm
 		src/game/player.cppm
+		src/ui/ui.cppm
 )
 
 

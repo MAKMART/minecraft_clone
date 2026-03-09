@@ -31,7 +31,8 @@ export void debug_camera_system(ECS& ecs, float dt)
             if(ic.crouch)   transform.pos -= cam.up * speed * dt;
 
             // Mouse look
-            glm::vec2 delta = ic.mouse_delta;
+			if (InputManager::get().isMouseTrackingEnabled()) {
+			glm::vec2 delta = ic.mouse_delta;
 			dc.yaw   += -delta.x * dc.sensitivity;
 			dc.pitch += -delta.y * dc.sensitivity;
 			dc.pitch = glm::clamp(dc.pitch, -89.0f, 89.0f);
@@ -39,7 +40,8 @@ export void debug_camera_system(ECS& ecs, float dt)
 			glm::quat qpitch = glm::angleAxis(glm::radians(dc.pitch), glm::vec3(1, 0, 0));
 
 			transform.rot = glm::normalize(qyaw * qpitch);
+			}
 
-            ic.mouse_delta = glm::vec2(0.0f);
+			ic.mouse_delta = glm::vec2(0.0f);
         });
 }

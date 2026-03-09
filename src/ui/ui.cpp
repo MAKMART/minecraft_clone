@@ -1,9 +1,17 @@
-#include "ui/ui.hpp"
+module;
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include <filesystem>
 #include <cstddef>
 #include <cstring>
+#include <RmlUi/Core.h>
 #include <RmlUi/Core/Types.h>
 #include "RmlUi/Debugger/Debugger.h"
-#include <GLFW/glfw3.h>
+#include "ui/system_interface_glfw.hpp"
+#include "graphics/texture.hpp"
+#include "graphics/renderer/vertex_buffer.hpp"
+#include "graphics/renderer/index_buffer.hpp"
+module ui;
 
 import core;
 import logger;

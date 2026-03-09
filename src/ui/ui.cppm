@@ -1,4 +1,4 @@
-#pragma once
+module;
 #include "RmlUi/Core/Context.h"
 #include <RmlUi/Core.h>
 #if defined(DEBUG)
@@ -16,6 +16,7 @@
 #include "graphics/renderer/vertex_buffer.hpp"
 #include "graphics/renderer/index_buffer.hpp"
 #include <functional>
+export module ui;
 
 import shader;
 import glm;
@@ -63,7 +64,7 @@ class FileInterface : public Rml::FileInterface
 	}
 };
 
-class UI : public Rml::RenderInterface
+export class UI : public Rml::RenderInterface
 {
 	public:
 	UI(int width, int height, std::filesystem::path fontPath) noexcept;
@@ -76,6 +77,9 @@ class UI : public Rml::RenderInterface
 	int GetKeyModifiers() noexcept;
 	void SetViewportSize(int width, int height) noexcept;
 	void render() noexcept;
+
+	// Prevent state leaks by covering all possible cases where the whichever Rml::* API could slip through
+	static void set_debugger_visible(bool visible) noexcept { Rml::Debugger::SetVisible(visible); }
 
 	[[nodiscard]] inline Rml::Context *get_context() const noexcept { return context; };
 

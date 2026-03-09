@@ -19,23 +19,24 @@
 #include "graphics/renderer/vertex_buffer.hpp"
 #include "graphics/renderer/framebuffer.hpp"
 #include "graphics/renderer/index_buffer.hpp"
-#include "ui/ui.hpp"
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 #include <memory>
 #include <cstdlib>
 #include <cmath>
-#include "core/timer.hpp"
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include "core/timer.hpp"
+#include "graphics/texture.hpp"
 
 
-import shader;
 import core;
 import input_manager;
 import raycast;
 import logger;
+import shader;
+import ui;
 import ecs;
 import ecs_components;
 import camera_controller_system;
@@ -586,7 +587,7 @@ int main()
 
 		if (input.isPressed(MENU_KEY)) {
 #if defined(DEBUG)
-			Rml::Debugger::SetVisible(input.isMouseTrackingEnabled());
+			UI::set_debugger_visible(input.isMouseTrackingEnabled());
 #endif
 			input.setMouseTrackingEnabled(!input.isMouseTrackingEnabled());
 		}

@@ -31,30 +31,34 @@ bool SystemInterface::LogMessage(Rml::Log::Type type, const Rml::String& message
 {
 	const char* type_str = "";
 	switch (type) {
-	case Rml::Log::Type::LT_ALWAYS:
-		type_str = "ALWAYS";
-		log::system_info("RmlUi", "[{}] {}", type_str, message);
-		break;
-	case Rml::Log::Type::LT_ERROR:
-		type_str = "ERROR";
-		log::system_error("RmlUi", " {}", message);
-		break;
-	case Rml::Log::Type::LT_ASSERT:
-		type_str = "ASSERT";
-		log::system_info("RmlUi", "[{}] {}", type_str, message);
-		break;
-	case Rml::Log::Type::LT_WARNING:
-		type_str = "WARNING";
-		log::system_warn("RmlUi", " {}", message);
-		break;
-	case Rml::Log::Type::LT_INFO:
-		type_str = "INFO";
-		log::system_info("RmlUi", " {}", message);
-		break;
-	case Rml::Log::Type::LT_DEBUG:
-		type_str = "DEBUG";
-		log::system_info("RmlUi", "[{}] {}", type_str, message);
-		break;
+		case Rml::Log::Type::LT_ALWAYS:
+			type_str = "ALWAYS";
+			log::system_info("RmlUi", "[{}] {}", type_str, message);
+			break;
+		case Rml::Log::Type::LT_ERROR:
+			type_str = "ERROR";
+			log::system_error("RmlUi", " {}", message);
+			break;
+		case Rml::Log::Type::LT_ASSERT:
+			type_str = "ASSERT";
+			log::system_info("RmlUi", "[{}] {}", type_str, message);
+			break;
+		case Rml::Log::Type::LT_WARNING:
+			type_str = "WARNING";
+			log::system_warn("RmlUi", " {}", message);
+			break;
+		case Rml::Log::Type::LT_INFO:
+			type_str = "INFO";
+			log::system_info("RmlUi", " {}", message);
+			break;
+		case Rml::Log::Type::LT_DEBUG:
+			type_str = "DEBUG";
+			log::system_info("RmlUi", "[{}] {}", type_str, message);
+			break;
+		case Rml::Log::Type::LT_MAX:
+			break;
+		default:
+			break;
 	}
 	return false; // let RmlUi handle the message too
 }
