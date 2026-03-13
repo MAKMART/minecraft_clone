@@ -1,9 +1,12 @@
-#include "graphics/texture.hpp"
+module;
 //#include <string>
 //#include <bit>
 //#include <utility>
+#include <cassert>
+#include <glad/glad.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+module texture;
 
 import logger;
 import std;
@@ -157,4 +160,13 @@ GLuint Texture::getID() const noexcept
 		return 0;
 	}
 	return ID;
+}
+int Texture::getWidth() const noexcept {
+	assert(ID != 0 && "getHeight() on Texture with ID = 0");
+	return width;
+}
+int Texture::getHeight() const noexcept
+{
+	assert(ID != 0 && "getHeight() on Texture with ID = 0");
+	return height;
 }

@@ -1,9 +1,10 @@
 module;
 //#include <glad/glad.h>
-#include <cstdint>
+//#include <cstdint>
 export module chunk;
 
 import core;
+import std;
 import glm;
 import aabb;
 import logger;
@@ -11,9 +12,9 @@ import ssbo;
 import shader;
 
 // To avoid including glad only for those types
-using GLuint = uint32_t;
-using GLintptr = intptr_t;
-using GLsizeiptr = intptr_t;
+using GLuint = std::uint32_t;
+using GLintptr = std::intptr_t;
+using GLsizeiptr = std::intptr_t;
 
 export struct DrawArraysIndirectCommand {
   GLuint count;         // vertices to draw
@@ -141,7 +142,7 @@ public:
   GLsizeiptr current_mesh_bytes = 0;
 
   // Number of faces currently generated for this chunk
-  uint32_t visible_face_count = 0;
+  std::uint32_t visible_face_count = 0;
 
   // Flags for the ChunkManager's update loop
   bool changed = true;       // Set to true initially to force first GPU upload

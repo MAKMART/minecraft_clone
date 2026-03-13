@@ -1,6 +1,7 @@
-#include "core/timer.hpp"
-#include <chrono>
+module;
 #include <imgui.h>
+module timer;
+//#include <chrono>
 
 import logger;
 TimingHistory  g_TimingHistory;
@@ -8,7 +9,6 @@ ImGuiTimerData g_TimerData;
 
 const int frametime_max = 100;
 std::vector<float> frametimes(frametime_max, 0.0f);
-int frameIndex = 0;
 
 Timer::Timer(const std::string& name) : name(name), start(std::chrono::high_resolution_clock::now()) {}
 

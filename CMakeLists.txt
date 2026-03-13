@@ -247,12 +247,13 @@ target_sources(${PROJECT_NAME}
 		src/core/logger.cppm
 		src/core/raycast.cppm
 		src/core/core.cppm
-		#src/core/timer.cppm MAYBE LATER
+		src/core/timer.cppm
 		src/core/window_context.cppm
 		src/core/input_manager.cppm
 		src/graphics/renderer/shader_storage_buffer.cppm
 		src/graphics/debug_drawer.cppm
 		src/graphics/shader.cppm
+		src/graphics/texture.cppm
 		src/game/player.cppm
 		src/ui/ui.cppm
 )

@@ -10,10 +10,11 @@ module;
 #include <cstdint>       // Solves std::uint8_t inside the .cpp
 #include <vector>
 #include <memory>
-*/
 #include "core/timer.hpp"
+*/
 module chunk_manager;
 
+import timer;
 import logger;
 
 ChunkManager::ChunkManager()

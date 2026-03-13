@@ -1,7 +1,9 @@
 module;
-#include <memory>
+//#include <memory>
+#include <cstdint>
 export module player;
 
+//import std;
 import core;
 import ecs;
 import chunk_manager;

@@ -1,9 +1,15 @@
-#pragma once
+/*
 #include <string>
 #include <unordered_map>
 #include <mutex>
 #include <vector>
 #include <deque>
+*/
+module;
+#include <cuchar>
+export module timer;
+
+import std;
 
 constexpr size_t MaxTimingSamples = 100;
 
@@ -43,9 +49,9 @@ extern ImGuiTimerData g_TimerData;
 // Constants
 extern const int          frametime_max; // Store last 100 frame times
 extern std::vector<float> frametimes;    // Declare without initialization here
-extern int                frameIndex;
+int frameIndex = 0;
 
-class Timer
+export class Timer
 {
       public:
 	Timer(const std::string& name);
@@ -57,5 +63,5 @@ class Timer
 };
 
 // Call this every frame
-void UpdateFrametimeGraph(float deltaTime);
-void RenderTimings();
+export void UpdateFrametimeGraph(float deltaTime);
+export void RenderTimings();

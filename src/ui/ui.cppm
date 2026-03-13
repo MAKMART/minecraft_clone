@@ -12,7 +12,7 @@ module;
 #include <RmlUi/Core/Input.h>
 #include "ui/system_interface_glfw.hpp"
 #include <filesystem>
-#include "graphics/texture.hpp"
+//#include "graphics/texture.hpp"
 #include "graphics/renderer/vertex_buffer.hpp"
 #include "graphics/renderer/index_buffer.hpp"
 #include <functional>
@@ -20,6 +20,7 @@ export module ui;
 
 import shader;
 import glm;
+import texture;
 class LambdaEventListener : public Rml::EventListener {
 public:
     using Callback = std::function<void(Rml::Event&)>;

@@ -8,13 +8,14 @@ module;
 #include <RmlUi/Core/Types.h>
 #include "RmlUi/Debugger/Debugger.h"
 #include "ui/system_interface_glfw.hpp"
-#include "graphics/texture.hpp"
+//#include "graphics/texture.hpp"
 #include "graphics/renderer/vertex_buffer.hpp"
 #include "graphics/renderer/index_buffer.hpp"
 module ui;
 
 import core;
 import logger;
+import texture;
 using namespace Rml::Input;
 UI::UI(int width, int height, std::filesystem::path fontPath) noexcept : viewport_width(width), viewport_height(height)
 {

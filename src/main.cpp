@@ -1,13 +1,10 @@
 
 
 
-
 /*
  *
  * TODO: IMPLEMENT THE APPSTATE AND THE MAIN MENU WITH THE NEW UI SYSTEM
  */
-
-
 
 
 
@@ -27,16 +24,18 @@
 //#include <iostream>
 #include <cstdlib>
 #include <cmath>
-#include "core/timer.hpp"
-#include "graphics/texture.hpp"
+//#include "core/timer.hpp"
+//#include "graphics/texture.hpp"
 
 
 import std;
+import timer;
 import core;
 import input_manager;
 import raycast;
 import logger;
 import shader;
+import texture;
 import ui;
 import ecs;
 import ecs_components;

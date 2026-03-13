@@ -1,9 +1,11 @@
-#pragma once
-#include <cassert>
+module;
 #include <glad/glad.h>
-#include <filesystem>
+//#include <filesystem>
+export module texture;
 
-class Texture
+import std;
+
+export class Texture
 {
       public:
 	Texture() noexcept;
@@ -31,16 +33,8 @@ class Texture
 
 	[[nodiscard]] GLuint getID() const noexcept;
 
-	[[nodiscard]] inline int getWidth() const noexcept {
-		assert(ID != 0 && "getHeight() on Texture with ID = 0");
-		return width;
-	}
-	[[nodiscard]] inline int getHeight() const noexcept
-	{
-		assert(ID != 0 && "getHeight() on Texture with ID = 0");
-		return height;
-	}
-
+	[[nodiscard]] int getWidth() const noexcept;
+	[[nodiscard]] int getHeight() const noexcept;
       private:
 	GLuint ID = 0;
 	int width, height;
