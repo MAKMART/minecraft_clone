@@ -19,18 +19,19 @@
 #include "graphics/renderer/vertex_buffer.hpp"
 #include "graphics/renderer/framebuffer.hpp"
 #include "graphics/renderer/index_buffer.hpp"
+#include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-#include <memory>
+//#include <memory>
+//#include <iostream>
 #include <cstdlib>
 #include <cmath>
-#include <GLFW/glfw3.h>
-#include <iostream>
 #include "core/timer.hpp"
 #include "graphics/texture.hpp"
 
 
+import std;
 import core;
 import input_manager;
 import raycast;
@@ -796,7 +797,7 @@ int main()
 		ImGui::Text("Selected block: ");
 		ImGui::SameLine();
 		ImGui::SetWindowFontScale(1.2f);
-		ImGui::Text(Block::toString(player.selectedBlock));
+		ImGui::Text(Block::toString(static_cast<Block::blocks>(player.selectedBlock)));
 		ImGui::SetWindowFontScale(1.0f);
 		ImGui::SliderInt("Render distance", (int*)&player.render_distance, 0, 30);
 		ImGui::End();
@@ -848,7 +849,7 @@ int main()
 			ImGui::Text("Selected block: ");
 			ImGui::SameLine();
 			ImGui::SetWindowFontScale(1.2f);
-			ImGui::Text("%s", Block::toString(player.selectedBlock));
+			ImGui::Text("%s", Block::toString(static_cast<Block::blocks>(player.selectedBlock)));
 			ImGui::SetWindowFontScale(1.0f);
 			ImGui::Unindent();
 			ImGui::Spacing();

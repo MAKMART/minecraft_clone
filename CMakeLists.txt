@@ -28,18 +28,24 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
+set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -stdlib=libc++")
 # This enables 'import std;' globally for all targets using C++23
 #set(CMAKE_CXX_MODULE_STD ON)
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
+#set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD ON CACHE BOOL "")
+set(CMAKE_CXX_MODULE_STD ON)
+
 
 
 set(CMAKE_CXX_COMPILER_LAUNCHER sccache)
 project("game" VERSION 1.0.1 LANGUAGES C CXX)
 
 # ==== Build Options ====
-option(ENABLE_TRACY "Enable Tracy profiler (Debug only)" ON)
-option(ENABLE_UNITY_BUILD "Enable unity build" ON)
+option(ENABLE_TRACY "Enable Tracy profiler (Debug only)" OFF)
+option(ENABLE_UNITY_BUILD "Enable unity build" OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build everything statically" FORCE)
 
 # ==== Tracy warnings ====
@@ -89,7 +95,7 @@ set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
 set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
 set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
 
-string(REPLACE "-fdeps-format=p1689r5" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+#string(REPLACE "-fdeps-format=p1689r5" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 # ==== RmlUi ====
 set(RMLUI_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
@@ -189,7 +195,7 @@ disable_debug_symbols(freetype)
 # Main executable
 
 add_executable(${PROJECT_NAME})
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
+#target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
 set(OUTPUT_BASE_DIR "${CMAKE_BINARY_DIR}/bin")
 set_target_properties(${PROJECT_NAME}
 	PROPERTIES
@@ -257,7 +263,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_link_options(${PROJECT_NAME} PRIVATE "-fuse-ld=mold")
 else()
     target_link_options(${PROJECT_NAME} PRIVATE "-fuse-ld=mold" "-static-libgcc" "-static-libstdc++")
-    set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
 
@@ -376,6 +381,8 @@ endif()
 target_link_libraries(${PROJECT_NAME} PRIVATE
 	PUBLIC 
 	$<$<BOOL:${ENABLE_TRACY}>:tracy_client>
+	c++
+	c++abi
     glfw
     freetype
     RmlUi::Core

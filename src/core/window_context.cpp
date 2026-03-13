@@ -10,6 +10,7 @@ module window_context;
 // class Renderer;
 //	Maybe implement in future
 import core;
+import std;
 import logger;
 
 WindowContext::WindowContext(int _width, int _height, std::string _title) noexcept : width(_width), height(_height), title(_title) 

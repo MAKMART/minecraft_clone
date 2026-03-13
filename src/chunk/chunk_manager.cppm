@@ -1,9 +1,13 @@
 module;
+/*
 #include <memory>
 #include <unordered_map>
 #include <vector>
+*/
 #include <glad/glad.h>
+#include <climits>
 export module chunk_manager;
+import std;
 
 import core;
 import glm;
@@ -125,25 +129,11 @@ export class ChunkManager
 		// initialize with a value that's != to any reasonable spawn chunk position
 		glm::ivec3 last_player_chunk_pos{INT_MIN};
 
-		const static constexpr uint num_workgroups = (TOTAL_FACES + 255u) / 256u;
-		const static constexpr uint num_scan_groups = (num_workgroups + 255u) / 256u;
-		const static constexpr uint flag_words = (TOTAL_FACES + 31u) / 32u;
+		const static constexpr unsigned int num_workgroups = (TOTAL_FACES + 255u) / 256u;
+		const static constexpr unsigned int num_scan_groups = (num_workgroups + 255u) / 256u;
+		const static constexpr unsigned int flag_words = (TOTAL_FACES + 31u) / 32u;
 
-		void update_meshes() noexcept
-		{
-			if (dirty_chunks.empty()) return;
-
-			face_flags.bind_to_slot(2);
-			prefix.bind_to_slot(5);
-			group_totals.bind_to_slot(6);
-			temp_faces.bind_to_slot(7);
-			for (auto& chunk : dirty_chunks) {
-				update_mesh(chunk);
-				chunk->in_dirty_list = false;
-				chunk->changed = false;
-			}
-			dirty_chunks.clear();
-		}
+		void update_meshes() noexcept;
 		void load_around_pos(glm::ivec3 playerChunkPos, unsigned int renderDistance) noexcept;
 		void unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unloadDistance) noexcept;
 

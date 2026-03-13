@@ -1,7 +1,5 @@
 module;
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <bit>
+//#include <glad/glad.h>
 #include <cstdint>
 export module chunk;
 
@@ -11,6 +9,11 @@ import aabb;
 import logger;
 import ssbo;
 import shader;
+
+// To avoid including glad only for those types
+using GLuint = uint32_t;
+using GLintptr = intptr_t;
+using GLsizeiptr = intptr_t;
 
 export struct DrawArraysIndirectCommand {
   GLuint count;         // vertices to draw
@@ -57,32 +60,6 @@ export struct Block {
     case blocks::SAND:
       return "SAND";
     case blocks::PLANKS:
-      return "PLANKS";
-    default:
-      return "UNKNOWN BLOCK TYPE";
-    }
-  }
-  static constexpr const char *toString(int type) noexcept {
-    switch (type) {
-    case 0:
-      return "AIR";
-    case 1:
-      return "DIRT";
-    case 2:
-      return "GRASS";
-    case 3:
-      return "STONE";
-    case 4:
-      return "LAVA";
-    case 5:
-      return "WATER";
-    case 6:
-      return "WOOD";
-    case 7:
-      return "LEAVES";
-    case 8:
-      return "SAND";
-    case 9:
       return "PLANKS";
     default:
       return "UNKNOWN BLOCK TYPE";
@@ -170,7 +147,6 @@ public:
   bool changed = true;       // Set to true initially to force first GPU upload
   bool in_dirty_list = false; // Prevents adding the same chunk to the dirty list twi
   SSBO block_ssbo;
-  // unused SSBO normals;
   int non_air_count = 0;
   alignas(16) std::uint8_t block_types[SIZE]{};
 

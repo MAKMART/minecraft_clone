@@ -3,6 +3,8 @@ module;
 #include <cassert>
 export module ssbo;
 
+import std;
+
 export class SSBO {
 public:
     SSBO() = default;

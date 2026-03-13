@@ -7,6 +7,7 @@ module chunk_renderer_system;
 
 import core;
 import glm;
+import std;
 
 void chunk_renderer_system(ECS& ecs, ChunkManager& cm, Camera* cam, FrustumVolume& wanted_fv, FramebufferManager& fb)
 {

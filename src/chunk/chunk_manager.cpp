@@ -4,11 +4,13 @@ module;
 #endif
 #include <glad/glad.h>   // Solves GL_TRIANGLES, GLuint, etc.
 #include <cstdlib>       // Solves std::exit
+/*
 #include <algorithm>     // Solves std::sort
 #include <cmath>
 #include <cstdint>       // Solves std::uint8_t inside the .cpp
 #include <vector>
 #include <memory>
+*/
 #include "core/timer.hpp"
 module chunk_manager;
 
@@ -251,6 +253,22 @@ void ChunkManager::deallocate_faces(GLintptr offset, GLsizeiptr size) {
         }
     }
 }
+
+void ChunkManager::update_meshes() noexcept
+{
+	if (dirty_chunks.empty()) return;
+
+	face_flags.bind_to_slot(2);
+	prefix.bind_to_slot(5);
+	group_totals.bind_to_slot(6);
+	temp_faces.bind_to_slot(7);
+	for (auto& chunk : dirty_chunks) {
+		update_mesh(chunk);
+		chunk->in_dirty_list = false;
+		chunk->changed = false;
+	}
+	dirty_chunks.clear();
+}
 void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int renderDistance) noexcept
 {
 #if defined(TRACY_ENABLE)
@@ -281,10 +299,6 @@ void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int rende
 	// Surface layering
 	constexpr int      DIRT_DEPTH            = 3;          // How many layers of dirt under grass
 	constexpr int      BEACH_DEPTH           = 1;          // (currently unused — can be used for sand/gravel later)
-
-
-	// Optional: vertical stretching (make mountains taller / valleys deeper)
-	// constexpr float NOISE_VERTICAL_SQUASH = 1.0f;  // >1 = taller features, <1 = flatter
 
 	// ─────────────────────────────────────────────────────────────
 
@@ -318,14 +332,11 @@ void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int rende
 				constexpr int beachDepth = 1; // How wide the beach is vertically
 				constexpr int seaLevel = 5;
 
-				glm::vec3 chunk_world_origin = chunk_to_world(it->second->position);
-
 				// 2. Calculate world origin for this chunk
-				//glm::vec3 world_origin = chunk_to_world(this->position);
+				glm::vec3 chunk_world_origin = chunk_to_world(it->second->position);
 
 				// 3. Generate noise for this specific chunk's area in world space
 				auto min_max = noise.gen_grid_2d({chunk_world_origin.x, chunk_world_origin.z});
-				//noise.gen_grid_2d({chunk_world_origin.x, chunk_world_origin.z});
 
 				float safe_min = std::max(min_max.min, -1.1f);
 				float safe_max = std::min(min_max.max,  1.1f);
@@ -337,8 +348,7 @@ void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int rende
 				{
 					for (int lx = 0; lx < CHUNK_SIZE.x; ++lx)
 					{
-						// Access noise sequentially to match FastNoise output
-						//float raw = chunk_noise[lz * CHUNK_SIZE.x + lx];
+						// Access noise sequentially
 						float raw = noise.get_noise()[lz * CHUNK_SIZE.x + lx];
 
 						// Normalize using the fixed global range

@@ -1,4 +1,5 @@
 module;
+/*
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -11,8 +12,12 @@ module;
 #include <map>
 #include <format>
 #include <print>
+*/
+#include <stdio.h>
+#include <time.h>
 export module logger;
 
+import std;
 export class log
 {
       public:

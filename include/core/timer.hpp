@@ -53,7 +53,7 @@ class Timer
 
       private:
 	std::string                                    name;
-	std::chrono::high_resolution_clock::time_point start;
+	std::chrono::steady_clock::time_point start;
 };
 
 // Call this every frame
