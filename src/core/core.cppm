@@ -143,18 +143,6 @@ export {
 	extern void MultiDrawArraysIndirectWrapper(GLenum mode, const void *indirect, GLsizei drawcount, GLsizei stride);
 
 
-	extern float   LINE_WIDTH;
-	extern bool    WIREFRAME_MODE;
-	extern bool    DEPTH_TEST;
-	extern uint8_t DEPTH_BITS;
-	extern GLenum  DEPTH_FUNC;
-	extern uint8_t STENCIL_BITS;
-	extern bool    BLENDING;
-	extern bool    V_SYNC;
-	extern bool    FACE_CULLING;
-	extern bool    MSAA;
-	extern uint8_t MSAA_STRENGHT;
-
 	inline std::string pretty_size(std::size_t bytes)
 	{
 		constexpr const char* IEC_UNITS[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};

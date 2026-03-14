@@ -12,6 +12,7 @@ module window_context;
 import core;
 import std;
 import logger;
+import gl_state;
 
 WindowContext::WindowContext(int _width, int _height, std::string _title) noexcept : width(_width), height(_height), title(_title) 
 {
@@ -83,9 +84,6 @@ void WindowContext::create_window()
 		// XWayland-safe
 		glfwWindowHint(GLFW_SAMPLES, 0);
 		glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
-	} else {
-		// Wayland / EGL
-		glfwWindowHint(GLFW_SAMPLES, MSAA_STRENGHT);
 	}
 
 	//glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE); // !!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!
@@ -93,8 +91,8 @@ void WindowContext::create_window()
 	//glfwWindowHint(GLFW_SAMPLES, MSAA_STRENGHT);
 
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-	glfwWindowHint(GLFW_DEPTH_BITS, DEPTH_BITS);
-	glfwWindowHint(GLFW_STENCIL_BITS, STENCIL_BITS);
+	//glfwWindowHint(GLFW_DEPTH_BITS, DEPTH_BITS);
+	//glfwWindowHint(GLFW_STENCIL_BITS, STENCIL_BITS);
 	if (platform != GLFW_PLATFORM_X11) {
 		glfwWindowHint(GLFW_CONTEXT_ROBUSTNESS, GLFW_LOSE_CONTEXT_ON_RESET);
 	}
@@ -181,28 +179,13 @@ void WindowContext::create_window()
 		log::error("Failed to set window icon, OpenGL error: {}", errorMessage);
 	}
 
+	glfwSwapInterval(v_sync ? 1 : 0);
+
+
+	GLState::init_capabilities();
+	GLState::sync();
+
 	glViewport(0, 0, width, height);
-	glfwSwapInterval(V_SYNC ? 1 : 0);
-
-	// OpenGL state setup
-	if (FACE_CULLING) {
-		glFrontFace(GL_CCW);
-		glCullFace(GL_BACK);
-		glEnable(GL_CULL_FACE);
-	}
-	if (DEPTH_TEST) {
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(DEPTH_FUNC);
-	}
-	if (BLENDING) {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	}
-	if (MSAA)
-		glEnable(GL_MULTISAMPLE);
-
-
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 	aspect_ratio = (float)width / (float)height;
 }

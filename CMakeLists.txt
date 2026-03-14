@@ -256,12 +256,14 @@ target_sources(${PROJECT_NAME}
 		src/graphics/texture.cppm
 		src/game/player.cppm
 		src/ui/ui.cppm
+		src/graphics/renderer/gl_state.cppm
 )
 
 
 # ==== Compiler & Linker Logic ====
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_link_options(${PROJECT_NAME} PRIVATE "-fuse-ld=mold")
+	##target_link_options(${PROJECT_NAME} PRIVATE "-v")
 else()
     target_link_options(${PROJECT_NAME} PRIVATE "-fuse-ld=mold" "-static-libgcc" "-static-libstdc++")
 endif()
@@ -378,12 +380,18 @@ elseif(UNIX AND NOT APPLE)
 		endif()
 endif()
 
+target_compile_options(${PROJECT_NAME} PRIVATE
+	-fno-implicit-modules 
+	-fno-implicit-module-maps
+	-fmodules-cache-path=${CMAKE_BINARY_DIR}/clang-modules
+)
+
 # ==== Link Everything ====
 target_link_libraries(${PROJECT_NAME} PRIVATE
 	PUBLIC 
 	$<$<BOOL:${ENABLE_TRACY}>:tracy_client>
-	c++
-	c++abi
+	#c++
+	#c++abi
     glfw
     freetype
     RmlUi::Core

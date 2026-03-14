@@ -31,6 +31,7 @@
 import std;
 import timer;
 import core;
+import gl_state;
 import input_manager;
 import raycast;
 import logger;
@@ -102,18 +103,18 @@ const char* gl_enum_to_string(GLenum e) {
 }
 int main()
 {
-	glm::vec4 backgroundColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	context = std::make_unique<WindowContext>(1920, 1080, std::string(PROJECT_NAME) + std::string(" ") + std::string(PROJECT_VERSION));
 	InputManager::get().setContext(context.get());
 	InputManager::get().setMouseTrackingEnabled(true);
 	auto framebuffer_size_callback_lambda = [](GLFWwindow* window, int width, int height) {
 		// Don't recalculate the projection matrix, skip this frame's rendering, or log a warning
 		if (width <= 0 || height <= 0) return;
+		std::println("width = {}, height = {}", width, height);
 
 		int fb_width, fb_height;
 		glfwGetFramebufferSize(window, &fb_width, &fb_height);
-		std::cout << "fb_width = " << fb_width << " fb_height = " << fb_height << "\n";
-		glViewport(0, 0, fb_width, fb_height);
+		std::println("fb_width = {}, fb_height = {}", fb_width, fb_height);
+		GLState::set_viewport(0, 0, width, height);
 		ImGui::SetNextWindowPos(ImVec2(width/* - 300*/, height), ImGuiCond_Always);
 		auto *active_cam = ecs.get_component<Camera>(get_active_camera(ecs));
 		if (active_cam)
@@ -141,19 +142,6 @@ int main()
 		std::cout << glGetStringi(GL_EXTENSIONS, i) << std::endl;
 	}
 #endif
-
-	/*
-	log::structured(log::level::INFO,
-	                "\nSIZES",{
-					 {"\nInput Manager", SIZE_OF(InputManager)},
-	                 {"\nChunk Manager", SIZE_OF(ChunkManager)},
-	                 {"\nShader", SIZE_OF(Shader)},
-	                 {"\nTexture", SIZE_OF(Texture)},
-	                 {"\nPlayer", SIZE_OF(Player)},
-	                 {"\nUI", SIZE_OF(UI)},
-	                 {"\nEntity", SIZE_OF(Entity)}
-					 });
-					 */
 	int fb_width, fb_height;
 	glfwGetFramebufferSize(context->window, &fb_width, &fb_height);
 
@@ -241,7 +229,7 @@ int main()
 	// Initialize framebuffers for render targets
 	ecs.for_each_component<RenderTarget>([&](Entity e, RenderTarget& rt) {
 			fb_manager.ensure(e, rt);
-			/*
+#if 0
 			for(size_t i = 0; i < rt.attachments.size(); i++) {
 			unsigned int e = (unsigned int)rt.attachments[i].internal_format;
 			std::string s;
@@ -258,7 +246,7 @@ int main()
 			log::info("rt.attachments[{}].internal_format = {}", i, s);
 			}
 			std::cout << "\n";
-			*/
+#endif
 	});
 	// --- CROSSHAIR STUFF ---
 	Shader crossHairshader("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
@@ -312,7 +300,6 @@ int main()
 	ImGui::StyleColorsDark();
 	ImGui_ImplGlfw_InitForOpenGL(context->window, true);
 	ImGui_ImplOpenGL3_Init("#version 460");
-	glLineWidth(LINE_WIDTH);
 
 	GLuint VAO;
 	glCreateVertexArrays(1, &VAO);
@@ -391,13 +378,10 @@ int main()
 			framebuffer_size_callback_lambda(context->window, fb_w, fb_h);
 		}
 
-		if (!input.isMouseTrackingEnabled())
-			glLineWidth(LINE_WIDTH);
-
 		static float scale = 0.01f;
 		if (camera == player.getCamera()) {
-			fb_player.setFloat("near_plane", cam->near_plane);
-			fb_player.setFloat("far_plane", cam->far_plane);
+			//fb_player.setFloat("near_plane", cam->near_plane);
+			//fb_player.setFloat("far_plane", cam->far_plane);
 			fb_player.setFloat("scale", scale);
 		} 
 #if defined(DEBUG)
@@ -472,7 +456,7 @@ int main()
 						}
 
 						//log::info("Placing block at: {}, {}, {}", placePos.x, placePos.y, placePos.z);
-						/*
+#if 0
 						int radius = 2;
 						for(int i = -radius; i < radius; i++) {
 							for(int j = -radius; j < radius; j++) {
@@ -480,7 +464,7 @@ int main()
 									manager.updateBlock(placePos + glm::ivec3(i, j, k), static_cast<Block::blocks>(player.selectedBlock));
 							}
 						}
-						*/
+#endif
 						manager.updateBlock(placePos, static_cast<Block::blocks>(player.selectedBlock));
 					}
 				}
@@ -594,8 +578,7 @@ int main()
 
 #if defined(DEBUG)
 		if (input.isPressed(WIREFRAME_KEY)) {
-			glPolygonMode(GL_FRONT_AND_BACK, WIREFRAME_MODE ? GL_LINE : GL_FILL);
-			WIREFRAME_MODE = !WIREFRAME_MODE;
+			GLState::set_wireframe(!GLState::is_wireframe());
 		}
 #endif
 
@@ -619,8 +602,9 @@ int main()
 		player.update(deltaTime);
 
 		glClearDepth(0.0f);
-		glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
-		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT);
+		GLState::set_depth_test(true);
+		glStencilMask(0xFF); // Ensure we can actually clear the stencil bits
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 
 
@@ -723,10 +707,9 @@ int main()
 
 
 		framebuffer::bind_default_draw();
-		glViewport(0, 0, context->get_width(), context->get_height());
-		glDisable(GL_DEPTH_TEST);
+		GLState::set_depth_test(false);
 		auto& cur_fb = fb_manager.get(camera);
-		glViewport(0, 0, cur_fb.width(), cur_fb.height());
+		GLState::set_viewport(0, 0, cur_fb.width(), cur_fb.height());
 		glBindTextureUnit(0, cur_fb.color_attachment(0));
 		glBindTextureUnit(1, cur_fb.depth_attachment());
 		glActiveTexture(GL_TEXTURE2);
@@ -755,15 +738,17 @@ int main()
 #endif
 
 		// NOTE: Make sure to have a VAO bound when making this draw call!!
+		// Fullscreen triangle covering the whole screen for post-processing and shit like that
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		DrawArraysWrapper(GL_TRIANGLES, 0, 3);
-		if (WIREFRAME_MODE)
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
 		glBindVertexArray(0);
 
 		// --- UI Pass --- (now rendered BEFORE ImGui)
 		if (renderUI/* && camera == player.getCamera()*/) {
-			glDisable(GL_DEPTH_TEST);
+			GLState::set_depth_test(false);
+			GLState::set_wireframe(false);
+			GLState::set_stencil_test(false);
 			// -- Crosshair Pass ---
 				glm::mat4 orthoProj = glm::ortho(0.0f, static_cast<float>(cur_fb.width()), 0.0f, static_cast<float>(cur_fb.height()));
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -807,7 +792,8 @@ int main()
 #if defined(DEBUG)
 		if (renderUI) {
 			// --- ImGui Debug UI Pass ---
-			glDisable(GL_DEPTH_TEST);
+			GLState::set_depth_test(false);
+			GLState::set_wireframe(false);
 			ImGui_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
@@ -901,8 +887,12 @@ int main()
 					if (ImGui::TreeNode("Miscellaneous")) {
 						ImGui::SliderInt("Render distance", (int*)&player.render_distance, 0, 30);
 						ImGui::SliderFloat("GRAVITY", &GRAVITY, -30.0f, 20.0f);
+						glm::vec4 backgroundColor{};
 						ImGui::SliderFloat3("BACKGROUND COLOR", &backgroundColor.r, 0.0f, 1.0f);
-						ImGui::SliderFloat("LINE_WIDTH", &LINE_WIDTH, 0.001f, 9.0f);
+						GLState::set_clear_color(backgroundColor);
+						static float _____width = GLState::get_line_width();
+						ImGui::SliderFloat("LINE_WIDTH", &_____width, 0.001f, 9.0f);
+						GLState::set_line_width(_____width);
 						ImGui::Checkbox("renderTerrain", &renderTerrain);
 						ImGui::Checkbox("renderPlayer", &player.renderSkin);
 						static bool debug = false;
@@ -921,12 +911,6 @@ int main()
 
 		camera_temporal_system(ecs);
 		// other UI things...
-
-		if (DEPTH_TEST) {
-			glEnable(GL_DEPTH_TEST);
-			glDepthFunc(DEPTH_FUNC);
-		}
-		glPolygonMode(GL_FRONT_AND_BACK, WIREFRAME_MODE ? GL_LINE : GL_FILL);
 
 		glBindVertexArray(0);
 		input.update();

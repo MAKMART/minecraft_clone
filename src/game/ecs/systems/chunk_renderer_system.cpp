@@ -6,6 +6,7 @@ module;
 module chunk_renderer_system;
 
 import core;
+import gl_state;
 import glm;
 import std;
 
@@ -18,17 +19,22 @@ void chunk_renderer_system(ECS& ecs, ChunkManager& cm, Camera* cam, FrustumVolum
 	    [&](Entity e, Transform& ts, RenderTarget& rt, ActiveCamera) {
 		const auto& cur_fb = fb.get(e);
 		cur_fb.bind_draw();
-		glViewport(0, 0, cur_fb.width(), cur_fb.height());
-		glClear(DEPTH_TEST ? GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		GLState::set_viewport(0, 0, cur_fb.width(), cur_fb.height());
+		// GLState::get_depth_test() ensures we only clear DEPTH if it's active
+		GLbitfield clear_mask = GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
+		if (GLState::is_depth_test()) {
+		clear_mask |= GL_DEPTH_BUFFER_BIT;
+		}
+		glClear(clear_mask);
 
+		GLState::set_face_culling(true);
+		GLState::set_blending(false);
 		cm.render_opaque(ts, wanted_fv);
 
-		//glDisable(GL_CULL_FACE);
+		//GLState::set_face_culling(false); // Water usually needs both sides or special culling
+		//GLState::set_blending(true);
+		//GLState::set_blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		//cm.render_transparent(ts, wanted_fv);
-
-		//if (FACE_CULLING)
-			//glEnable(GL_CULL_FACE);
-
 	    });
 }

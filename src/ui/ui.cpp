@@ -16,6 +16,7 @@ module ui;
 import core;
 import logger;
 import texture;
+import gl_state;
 using namespace Rml::Input;
 UI::UI(int width, int height, std::filesystem::path fontPath) noexcept : viewport_width(width), viewport_height(height)
 {
@@ -178,16 +179,18 @@ void UI::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f transl
 	shader->setMat4("uModel", final_model);
 	shader->setInt("uHasTexture", texture != 0 ? 1 : 0);
 
+	// Use GLState to manage the specialized UI state
+    GLState::set_blending(true);
+    GLState::set_depth_test(false);
+
 	// Enable stencil testing for masking
 	if (clip_mask_enabled) {
-		glEnable(GL_STENCIL_TEST);
+		GLState::set_stencil_test(true);
 		glStencilFunc(GL_EQUAL, 1, 0xFF);
 		glStencilMask(0x00);
 	} else {
-		glDisable(GL_STENCIL_TEST);
+		GLState::set_stencil_test(false);
 	}
-	glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDisable(GL_DEPTH_TEST);
 	shader->use();
 	if (texture != 0) {
 		auto tex = texture_map.find(texture);
@@ -207,12 +210,9 @@ void UI::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f transl
 		DrawElementsWrapper(GL_TRIANGLES, geo.index_count, GL_UNSIGNED_INT, nullptr);
 	}
 	glBindVertexArray(0);
-	if (BLENDING)
-		glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	if (DEPTH_TEST)
-		glEnable(GL_DEPTH_TEST); glDepthFunc(DEPTH_FUNC);
-	
-	glDisable(GL_STENCIL_TEST);
+	// NOTE: You no longer need to manually "restore" states here if 
+    // the rest of your engine also uses GLState. The next thing to 
+    // render will simply set the state it needs.
 }
 
 void UI::ReleaseGeometry(Rml::CompiledGeometryHandle handle)
@@ -293,17 +293,15 @@ void UI::EnableScissorRegion(bool enable)
 }
 void UI::SetScissorRegion(Rml::Rectanglei region)
 {
-	if (region.Valid())
-		glEnable(GL_SCISSOR_TEST);
-	else
-		glDisable(GL_SCISSOR_TEST);
-
 	if (region.Valid()) {
-		// Some render APIs don't like offscreen positions (WebGL in particular), so clamp them to the viewport.
 		const int x = Rml::Math::Clamp(region.Left(), 0, viewport_width);
 		const int y = Rml::Math::Clamp(viewport_height - region.Bottom(), 0, viewport_height);
 
-		glScissor(x, y, region.Width(), region.Height());
+		// GLState::set_scissor automatically enables GL_SCISSOR_TEST 
+		// and only calls glScissor if the values changed.
+		GLState::set_scissor(x, y, region.Width(), region.Height());
+	} else {
+		GLState::set_scissor_test(false);
 	}
 }
 void UI::EnableClipMask(bool enable)
@@ -332,9 +330,9 @@ void UI::RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometr
 	shader->setMat4("uProjection", projection);
 	shader->setInt("uHasTexture", 0); // Mask geometry doesn't use textures
 
+	GLState::set_stencil_test(true);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
     glDepthMask(GL_FALSE);
-    glEnable(GL_STENCIL_TEST);
 
     uint8_t ref_value = next_stencil_value;
 
@@ -376,10 +374,9 @@ void UI::RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometr
     DrawElementsWrapper(GL_TRIANGLES, geo.index_count, GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);
 
-    // Restore
+	// Restore writes using GLState-friendly logic
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glDepthMask(GL_TRUE);
-    glStencilMask(0x00);
 }
 
 void UI::SetTransform(const Rml::Matrix4f* transform)

@@ -1,4 +1,5 @@
 module;
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <memory>
 #include <string>
@@ -27,6 +28,7 @@ export struct WindowContext {
 	std::string title;
 	float       aspect_ratio;
 	bool        fullscreen = false;
+	bool		v_sync = false;
 	int         windowedWidth, windowedHeight;
 	int         windowedPosX, windowedPosY;
 

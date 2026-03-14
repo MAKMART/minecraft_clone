@@ -7,7 +7,7 @@ module;
 module debug_drawer;
 
 import core;
-import logger;
+//import logger;
 DebugDrawer::DebugDrawer()
 {
 	// TODO: Adjust paths
@@ -164,6 +164,6 @@ void DebugDrawer::checkGLError(const std::string& operation)
 {
 	GLenum err = glGetError();
 	if (err != GL_NO_ERROR) {
-		log::system_error("AABBDebugDrawer", "{} failed: OpenGL error {}", operation, err);
+		//log::system_error("AABBDebugDrawer", "{} failed: OpenGL error {}", operation, err);
 	}
 }

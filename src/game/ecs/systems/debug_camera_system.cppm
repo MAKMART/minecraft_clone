@@ -27,7 +27,7 @@ export void debug_camera_system(ECS& ecs, float dt)
             if(ic.backward) transform.pos -= cam.forward * speed * dt;
             if(ic.left)     transform.pos -= cam.right * speed * dt;
             if(ic.right)    transform.pos += cam.right * speed * dt;
-            if(InputManager::get().isHeld(GLFW_KEY_SPACE))     transform.pos += cam.up * speed * dt;
+            if(ic.jump)     transform.pos += cam.up * speed * dt;
             if(ic.crouch)   transform.pos -= cam.up * speed * dt;
 
             // Mouse look
