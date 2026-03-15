@@ -2,7 +2,6 @@ module;
 //#include <optional>
 //#include <memory>
 #include <FastNoise/FastNoise.h>
-
 export module noise;
 
 import std;

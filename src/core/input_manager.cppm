@@ -1,12 +1,13 @@
 module;
 #include <cstdint>
 #include <GLFW/glfw3.h>
-#include <array>
+//#include <array>
 #include <cassert>
 export module input_manager;
 
 import glm;
 import window_context;
+import std;
 
 export class InputManager
 {

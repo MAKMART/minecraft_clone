@@ -169,9 +169,6 @@ export class log
 			}
 		}
 
-		// Satisfy the fucking buggy linker
-		static std::string_view level_colored(level level) {}
-
 		[[nodiscard]] static char level_to_char(level level) noexcept
 		{
 			switch (level) {

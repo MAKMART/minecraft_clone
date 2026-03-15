@@ -15,10 +15,14 @@ struct framebuffer_attachment {
 
 class framebuffer {
 public:
-    framebuffer() = default;
+    explicit framebuffer() = default;
 
     framebuffer(const framebuffer&)            = delete;
     framebuffer& operator=(const framebuffer&) = delete;
+
+    ~framebuffer() {
+        release();
+    }
 
     framebuffer(framebuffer&& other) noexcept {
         move_from(other);
@@ -32,9 +36,6 @@ public:
         return *this;
     }
 
-    ~framebuffer() {
-        release();
-    }
 
 	bool valid() const {
 		return m_id != 0;
@@ -49,7 +50,7 @@ public:
 			return true;
 		if (m_desc_attachments.size() != rt.attachments.size())
 			return true;
-		for (size_t i = 0; i < rt.attachments.size(); ++i) {
+		for (std::size_t i = 0; i < rt.attachments.size(); ++i) {
 			if (m_desc_attachments[i].type != rt.attachments[i].type ||
 					m_desc_attachments[i].internal_format != rt.attachments[i].internal_format)
 				return true;
@@ -196,7 +197,7 @@ public:
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
     }
 
-    GLuint color_attachment(size_t index) const {
+    GLuint color_attachment(std::size_t index) const {
         return m_color_attachments[index].id;
     }
 
@@ -230,7 +231,7 @@ private:
         }
 
         std::vector<GLenum> buffers(m_color_attachments.size());
-        for (size_t i = 0; i < buffers.size(); ++i)
+        for (std::size_t i = 0; i < buffers.size(); ++i)
             buffers[i] = GL_COLOR_ATTACHMENT0 + i;
 
         glNamedFramebufferDrawBuffers(m_id, buffers.size(), buffers.data());

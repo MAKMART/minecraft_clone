@@ -16,8 +16,6 @@ export class DebugDrawer
 			static DebugDrawer instance;
 			return instance;
 		}
-		DebugDrawer();
-		~DebugDrawer();
 
 		void addAABB(const AABB& box, const glm::vec3& color);
 		void addOBB(const glm::mat4& transform, const glm::vec3& halfExtents, const glm::vec3& color);
@@ -25,6 +23,9 @@ export class DebugDrawer
 		void draw(const glm::mat4& viewProj);
 
 	private:
+		// Make these private because a singleton class should never have the possibility to be constructed/destructed because its lifetime is managed internally
+		explicit DebugDrawer();
+		~DebugDrawer();
 		struct DebugAABB {
 			AABB      box;
 			glm::vec3 color;

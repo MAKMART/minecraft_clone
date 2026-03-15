@@ -98,7 +98,7 @@ export class ChunkManager
 
 		// Allocation strategy: simple linear bump allocator for now
 		GLintptr MAX_FACES_BUFFER_BYTES = 32 * 1024 * 1024; // 32 MiB → ~5.3M faces (adjust)
-		GLsizeiptr model_ssbo_capacity   = 4096 * sizeof(glm::mat4);
+		GLsizeiptr offset_ssbo_capacity = 4096 * sizeof(glm::vec4);
 		Shader			 voxel_buffer;
 		Shader			 write_faces;
 		Shader			 merged_offsets;
@@ -110,11 +110,11 @@ export class ChunkManager
 		SSBO			 prefix;
 		SSBO			 face_flags;
 		SSBO			 group_totals;
-		SSBO			 model_ssbo;
+		SSBO			 offset_ssbo;
 		SSBO			 temp_faces;
 		SSBO			 temp_indirect;
 
-		std::vector<glm::mat4> model_data;
+		std::vector<glm::vec4> offset_data;
 
 		std::vector<float> cachedNoiseRegion;
 		glm::ivec3         lastRegionSize  = {-1, -1, -1};

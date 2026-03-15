@@ -278,12 +278,14 @@ void WindowContext::MessageCallback(GLenum source, GLenum type, GLuint id, GLenu
 	}
 
 	// Construct a detailed log message with structured info
-	log::system_structured(
-			"OpenGL",
+	log::structured(
 			level,
 			message,
-			{{"\nSource", sourceStr},
-			{"\nType", typeStr},
-			{"\nSeverity", severityText},
-			{"\nMessageID", std::to_string(id) + '\n'}});
+			{
+				{"\nType", typeStr},
+				{"\nSource", sourceStr},
+				//{"\nSeverity", severityText},
+				{"\nMessageID", std::to_string(id) + '\n'}
+			}
+			);
 }

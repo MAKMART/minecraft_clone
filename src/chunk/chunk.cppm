@@ -2,6 +2,7 @@ module;
 #include <glad/glad.h>
 export module chunk;
 
+
 import core;
 import std;
 import glm;
@@ -84,7 +85,7 @@ static_assert(sizeof(face_gpu) == sizeof(std::uint8_t));
 
 export class Chunk {
 public:
-  Chunk(const glm::ivec3& pos)
+  explicit Chunk(const glm::ivec3& pos)
 	  : position(pos), 
 	  changed(true),           // Force initial upload
 	  in_dirty_list(false), 
@@ -96,7 +97,6 @@ public:
 		aabb = AABB(world, world + glm::vec3(CHUNK_SIZE));
 
 		block_ssbo = SSBO::Dynamic(nullptr, sizeof(block_types));
-		model = glm::translate(glm::mat4(1.0f), chunk_to_world(position));
 	}
   ~Chunk() = default;
 
@@ -148,5 +148,4 @@ public:
   // Chunk-space position
   glm::ivec3 position;
   AABB aabb;
-  glm::mat4 model;
 };

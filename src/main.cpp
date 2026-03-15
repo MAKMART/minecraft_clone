@@ -109,11 +109,11 @@ int main()
 	auto framebuffer_size_callback_lambda = [](GLFWwindow* window, int width, int height) {
 		// Don't recalculate the projection matrix, skip this frame's rendering, or log a warning
 		if (width <= 0 || height <= 0) return;
-		std::println("width = {}, height = {}", width, height);
+		log::info("width = {}, height = {}", width, height);
 
 		int fb_width, fb_height;
 		glfwGetFramebufferSize(window, &fb_width, &fb_height);
-		std::println("fb_width = {}, fb_height = {}", fb_width, fb_height);
+		log::info("fb_width = {}, fb_height = {}", fb_width, fb_height);
 		GLState::set_viewport(0, 0, width, height);
 		ImGui::SetNextWindowPos(ImVec2(width/* - 300*/, height), ImGuiCond_Always);
 		auto *active_cam = ecs.get_component<Camera>(get_active_camera(ecs));
@@ -135,13 +135,13 @@ int main()
 
 	// TODO:    FIX THE CAMERA CONTROLLER TO WORK WITH INTERPOLATION
 
-#if 0
+	/*
 	int nExt;
 	glGetIntegerv(GL_NUM_EXTENSIONS, &nExt);
 	for (int i = 0; i < nExt; ++i) {
 		std::cout << glGetStringi(GL_EXTENSIONS, i) << std::endl;
 	}
-#endif
+	*/
 	int fb_width, fb_height;
 	glfwGetFramebufferSize(context->window, &fb_width, &fb_height);
 
@@ -229,7 +229,7 @@ int main()
 	// Initialize framebuffers for render targets
 	ecs.for_each_component<RenderTarget>([&](Entity e, RenderTarget& rt) {
 			fb_manager.ensure(e, rt);
-#if 0
+			/*
 			for(size_t i = 0; i < rt.attachments.size(); i++) {
 			unsigned int e = (unsigned int)rt.attachments[i].internal_format;
 			std::string s;
@@ -246,7 +246,7 @@ int main()
 			log::info("rt.attachments[{}].internal_format = {}", i, s);
 			}
 			std::cout << "\n";
-#endif
+			*/
 	});
 	// --- CROSSHAIR STUFF ---
 	Shader crossHairshader("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
@@ -456,7 +456,7 @@ int main()
 						}
 
 						//log::info("Placing block at: {}, {}, {}", placePos.x, placePos.y, placePos.z);
-#if 0
+						/*
 						int radius = 2;
 						for(int i = -radius; i < radius; i++) {
 							for(int j = -radius; j < radius; j++) {
@@ -464,7 +464,7 @@ int main()
 									manager.updateBlock(placePos + glm::ivec3(i, j, k), static_cast<Block::blocks>(player.selectedBlock));
 							}
 						}
-#endif
+						*/
 						manager.updateBlock(placePos, static_cast<Block::blocks>(player.selectedBlock));
 					}
 				}
@@ -555,7 +555,7 @@ int main()
 				ui->get_context()->ProcessMouseWheel(-scrollY, 0);
 
 			// Keyboard
-			for (int k = 0; k < GLFW_KEY_LAST; ++k) {
+			for (int k = 0; k < InputManager::MAX_KEYS; ++k) {
 				if (input.isPressed(k))
 					ui->get_context()->ProcessKeyDown(ui->MapKey(k), ui->GetKeyModifiers());
 				else if (input.isReleased(k))

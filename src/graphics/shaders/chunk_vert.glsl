@@ -23,9 +23,11 @@ layout(std430, binding = 7) readonly buffer faces_buffer
 {
 	FaceGPU faces[];
 };
-layout(std430, binding=10) readonly buffer models_buffer 
+layout(std430, binding = 10) readonly buffer offsets_buffer
 { 
-	mat4 models[]; 
+	// Buffer containing the world-position offsets of the chunks
+	// Need to store it as a vec4 because of std430 alignment
+	vec4 offsets[];
 };
 
 uniform uvec3 CHUNK_SIZE;
@@ -147,7 +149,7 @@ void main()
   vec3 position = vec3(p) + facePositions[face_id][triangleCornerIndices[currVertexID]];
 
   // EFFECTS
-  vec4 worldPos = models[gl_BaseInstance] * vec4(position, 1.0);
+  vec3 worldPos = position + offsets[gl_BaseInstance].xyz;	// Discard w component because the chunks are in 3D space
 
   // WATER EFFECTS
   /*
@@ -196,5 +198,5 @@ void main()
   }
   
   TexCoord = vec2(u, v) / cellSize + localUV / cellSize;
-  gl_Position = projection * view * worldPos;
+  gl_Position = projection * view * vec4(worldPos, 1.0);
 }

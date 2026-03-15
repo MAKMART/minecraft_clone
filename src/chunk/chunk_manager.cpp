@@ -32,7 +32,7 @@ ChunkManager::ChunkManager()
 	prefix(SSBO::PersistentWrite(nullptr, TOTAL_FACES * sizeof(std::uint8_t))),
 	face_flags(SSBO::PersistentWrite(nullptr, flag_words * sizeof(std::uint8_t))),
 	group_totals(SSBO::PersistentWrite(nullptr, num_workgroups * sizeof(std::uint8_t))),
-	model_ssbo(SSBO::Dynamic(nullptr, model_ssbo_capacity)),
+	offset_ssbo(SSBO::Dynamic(nullptr, offset_ssbo_capacity)),
 	temp_faces(SSBO::PersistentWrite(nullptr, TOTAL_FACES * sizeof(face_gpu)))
 {
 
@@ -54,7 +54,7 @@ void ChunkManager::build_lists(const Transform& ts, const FrustumVolume& fv) noe
 	std::vector<DrawArraysIndirectCommand> commands;		
 	opaqueChunks.clear();
 	transparentChunks.clear();
-	model_data.clear();
+	offset_data.clear();
 
 	for (const auto& [pos, chunk_ptr] : chunks) {
 		Chunk* c = chunk_ptr.get();
@@ -70,23 +70,26 @@ void ChunkManager::build_lists(const Transform& ts, const FrustumVolume& fv) noe
 					.first = (GLuint)(c->faces_offset / sizeof(face_gpu)) * 6,  // vertex offset in faces buffer
 					.baseInstance = (GLuint)commands.size()
 					});
-			model_data.emplace_back(c->model);
+			offset_data.emplace_back(glm::vec4{chunk_to_world(c->position), 1.0f});
+
 		}
 	}
 
-	std::size_t needed_model = model_data.size() * sizeof(glm::mat4);
-	if (needed_model > model_ssbo_capacity) {
-		model_ssbo.resize_grow(needed_model * 2);
-		model_ssbo_capacity = model_ssbo.size();
+	std::size_t needed_offset = offset_data.size() * sizeof(glm::vec4);
+	if (needed_offset > offset_ssbo_capacity) {
+		offset_ssbo.resize_grow(needed_offset * 2);
+		offset_ssbo_capacity = offset_ssbo.size();
 	}
-	model_ssbo.update_data(model_data.data(), model_data.size() * sizeof(glm::mat4));
+	offset_ssbo.update_data(offset_data.data(), offset_data.size() * sizeof(glm::vec4));
 	global_indirect.update_data(commands.data(), commands.size() * sizeof(DrawArraysIndirectCommand));
 	if (!transparentChunks.empty()) {
 		std::sort(transparentChunks.begin(), transparentChunks.end(),
 				[&](const auto& a, const auto& b) {
-				float distA = glm::distance(ts.pos, a->aabb.center());
-				float distB = glm::distance(ts.pos, b->aabb.center());
-				return distA > distB; // farthest first
+				glm::vec3 deltaA = ts.pos - a->aabb.center();
+				float distA2 = deltaA.x*deltaA.x + deltaA.y*deltaA.y + deltaA.z*deltaA.z;
+				glm::vec3 deltaB = ts.pos - b->aabb.center();
+				float distB2 = deltaB.x*deltaB.x + deltaB.y*deltaB.y + deltaB.z*deltaB.z;
+				return distA2 > distB2; // farthest first
 				});
 
 	}
@@ -99,7 +102,7 @@ void ChunkManager::render_opaque(const Transform& ts, const FrustumVolume& fv) n
 
 	shader.use();
 	global_faces.bind_to_slot(7);
-	model_ssbo.bind_to_slot(10);
+	offset_ssbo.bind_to_slot(10);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, global_indirect.id());
 
 	MultiDrawArraysIndirectWrapper(GL_TRIANGLES, 0, opaqueChunks.size(), 0);  // stride=0 for tight pack
@@ -397,8 +400,9 @@ void ChunkManager::unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unl
     // Only iterate over chunks near the edges
     for (auto it = chunks.begin(); it != chunks.end();)
     {
-		glm::vec3 distance = glm::vec3(it->first - playerChunkPos);
-        if ((distance.x * distance.x + distance.y * distance.y + distance.z * distance.z) > unloadDistSquared) {
+		glm::ivec3 delta = it->first - playerChunkPos;
+		int distSquared = delta.x*delta.x + delta.y*delta.y + delta.z*delta.z;
+        if (distSquared > unloadDistSquared) {
 			deallocate_faces(it->second->faces_offset, it->second->current_mesh_bytes);
             it = chunks.erase(it);
 		} else
