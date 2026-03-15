@@ -20,12 +20,8 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-//#include <memory>
-//#include <iostream>
 #include <cstdlib>
 #include <cmath>
-//#include "core/timer.hpp"
-//#include "graphics/texture.hpp"
 
 
 import std;
@@ -40,15 +36,7 @@ import texture;
 import ui;
 import ecs;
 import ecs_components;
-import camera_controller_system;
-import temporal_camera_system;
-import movement_physics_system;
-import movement_intent_system;
-import input_system;
-import frustum_volume_system;
-import debug_camera_system;
-import camera_system;
-import chunk_renderer_system;
+import ecs_systems;
 import framebuffer_manager;
 import chunk_manager;
 import glm;

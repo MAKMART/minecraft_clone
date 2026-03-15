@@ -214,7 +214,7 @@ file(GLOB_RECURSE GAME_CORE_CPP_SOURCES
 	src/chunk/*.cpp
 	src/ui/*.cpp
 	src/game/*.cpp
-	src/game/ecs/systems/*.cpp
+	src/game/ecs/systems/systems.cpp
 )
 
 target_sources(${PROJECT_NAME}
@@ -230,15 +230,8 @@ target_sources(${PROJECT_NAME}
 		src/game/ecs/entity.cppm
 		src/game/ecs/components.cppm
 		src/game/ecs/ecs.cppm
-		src/game/ecs/systems/camera_controller_system.cppm
-		src/game/ecs/systems/temporal_camera_system.cppm
-		src/game/ecs/systems/debug_camera_system.cppm
-		src/game/ecs/systems/camera_system.cppm
-		src/game/ecs/systems/chunk_renderer_system.cppm
-		src/game/ecs/systems/frustum_volume_system.cppm
-		src/game/ecs/systems/input_system.cppm
-		src/game/ecs/systems/movement_intent_system.cppm
-		src/game/ecs/systems/movement_physics_system.cppm
+		# Defines all the ECS systems that will be in the game
+		src/game/ecs/systems/systems.cppm
 		src/graphics/renderer/framebuffer_manager.cppm
 		src/chunk/noise.cppm
 		src/chunk/chunk_manager.cppm
