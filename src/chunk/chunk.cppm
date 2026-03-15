@@ -79,9 +79,9 @@ export struct Block {
 static_assert(sizeof(Block) == sizeof(std::uint8_t));
 
 export struct face_gpu {
-	std::uint8_t packed;
+	std::uint32_t packed;
 };
-static_assert(sizeof(face_gpu) == sizeof(std::uint8_t));
+static_assert(sizeof(face_gpu) == sizeof(std::uint32_t));
 
 export class Chunk {
 public:

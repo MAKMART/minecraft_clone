@@ -29,9 +29,9 @@ ChunkManager::ChunkManager()
 	// Could be PersistentWrite
 	global_faces(SSBO::Dynamic(nullptr, MAX_FACES_BUFFER_BYTES)),  // or just Dynamic
 	global_indirect(SSBO::Dynamic(nullptr, 4096 * sizeof(DrawArraysIndirectCommand))),  // generous initial size
-	prefix(SSBO::PersistentWrite(nullptr, TOTAL_FACES * sizeof(std::uint8_t))),
-	face_flags(SSBO::PersistentWrite(nullptr, flag_words * sizeof(std::uint8_t))),
-	group_totals(SSBO::PersistentWrite(nullptr, num_workgroups * sizeof(std::uint8_t))),
+	prefix(SSBO::PersistentWrite(nullptr, TOTAL_FACES * sizeof(face_gpu))),
+	face_flags(SSBO::PersistentWrite(nullptr, flag_words * sizeof(face_gpu))),
+	group_totals(SSBO::PersistentWrite(nullptr, num_workgroups * sizeof(face_gpu))),
 	offset_ssbo(SSBO::Dynamic(nullptr, offset_ssbo_capacity)),
 	temp_faces(SSBO::PersistentWrite(nullptr, TOTAL_FACES * sizeof(face_gpu)))
 {
