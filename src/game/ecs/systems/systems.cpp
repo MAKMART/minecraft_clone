@@ -88,10 +88,10 @@ void chunk_renderer_system(ECS& ecs, ChunkManager& cm, Camera* cam, FrustumVolum
 		const auto& cur_fb = fb.get(e);
 		cur_fb.bind_draw();
 		GLState::set_viewport(0, 0, cur_fb.width(), cur_fb.height());
-		// GLState::get_depth_test() ensures we only clear DEPTH if it's active
+		// GLState::is_depth_test() ensures we only clear DEPTH if it's active
 		GLbitfield clear_mask = GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
 		if (GLState::is_depth_test()) {
-		clear_mask |= GL_DEPTH_BUFFER_BIT;
+			clear_mask |= GL_DEPTH_BUFFER_BIT;
 		}
 		glClear(clear_mask);
 
@@ -154,7 +154,7 @@ void movement_intent_system(ECS& ecs, const Camera* cam)
 		    if (glm::length(input_dir) > 0.0f)
 			    input_dir = glm::normalize(input_dir);
 
-		    // --- Rotate movement into world-space based on where the player is looking ---
+		    // --- Rotate movement into world-space based on where the camera is looking ---
 		    glm::vec3 forward = cam->forward;
 		    glm::vec3 right   = cam->right;
 

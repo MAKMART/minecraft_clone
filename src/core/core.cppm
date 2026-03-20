@@ -5,9 +5,6 @@ module;
 #include <string>
 #include <string_view>
 */
-#include <cstdint>
-#include <cstddef>
-#include <cstdio>
 export module core;
 
 import std;

@@ -1,13 +1,14 @@
 module;
-#include <cassert>
+/*
 #include <vector>
 #include <cstdint>
 #include <algorithm>
 #include <memory>
 #include <tuple>
+#include <utility>
+*/
 #include <cstddef>
 #include <cstdint>
-#include <utility>
 export module ecs;
 
 // 'export import' makes 'Entity' visible to main.cpp
@@ -16,6 +17,7 @@ export import :entity;
 import logger;
 #endif
 import core;
+import std;
 
 
 export struct IComponentStorage {
@@ -247,10 +249,10 @@ export class ECS
 	}
 
 	template <typename T, typename... Args>
-		inline void emplace_component(Entity e, Args&&... args)
-		{
-			cm.add_component<T>(e, T(std::forward<Args>(args)...));
-		}
+	inline void emplace_component(Entity e, Args&&... args)
+	{
+		cm.add_component<T>(e, T(std::forward<Args>(args)...));
+	}
 
 	template <typename T>
 	inline void remove_component(Entity e)

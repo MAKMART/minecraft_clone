@@ -1,13 +1,5 @@
 module;
 #include <glad/glad.h>
-#include <stdexcept>
-#include <string>
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <filesystem>
-#include <unordered_map>
-#include <mutex>
 module shader;
 
 import logger;
