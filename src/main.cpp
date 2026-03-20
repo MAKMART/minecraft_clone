@@ -20,9 +20,6 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-#include <cstdlib>
-#include <cmath>
-
 
 import std;
 import timer;
@@ -46,8 +43,7 @@ import debug_drawer;
 import aabb;
 
 std::uint64_t  nbFrames  = 0;
-f32 deltaTime = 0.0f;
-f32 lastFrame = 0.0f;
+double deltaTime = 0.0f;
 b8 renderUI      = true;
 b8 renderTerrain = true;
 std::unique_ptr<UI>            ui;
@@ -165,7 +161,7 @@ int main()
     Texture Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 	FramebufferManager fb_manager;
 	g_fb_manager = &fb_manager;
-	Player player(ecs, {0.1f, 250.0f, 0.1f}, context->get_width(), context->get_height());
+	Player player(ecs, {0.1f, 50.0f, 0.1f}, context->get_width(), context->get_height());
 	g_player = &player;
 	ui     = std::make_unique<UI>(context->get_width(), context->get_height(), MAIN_FONT_DIRECTORY);
 	ui->SetViewportSize(context->get_width(), context->get_height());
@@ -317,16 +313,28 @@ int main()
 			5 * sizeof(float)   // stride
 			);
 
-	while (!glfwWindowShouldClose(context->window)) {
-		float currentFrame = static_cast<float>(glfwGetTime());
+	double lastFrame = glfwGetTime();
+	while (!glfwWindowShouldClose(context->window)) {	// GAME LOOP
+		double currentFrame = glfwGetTime();
 		deltaTime          = currentFrame - lastFrame;
 		lastFrame          = currentFrame;
 		g_drawCallCount    = 0;
-		UpdateFrametimeGraph(deltaTime);
+		// Clear the screen for the start of the new current frame
+		glClearDepth(0.0f);
+		GLState::set_depth_test(true);
+		glStencilMask(0xFF); // Ensure we can actually clear the stencil bits
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+
+		// UPDATE PHASE
+
 		auto& input = InputManager::get();
 
+		UpdateFrametimeGraph(deltaTime);
 		// --- Input & Event Processing ---
-		glfwPollEvents();
+		input.update();       // reset last frame state
+		glfwPollEvents();     // new events arrive → PRESSED/RELEASED, mouse, scroll
+		input_system(ecs);
 		Entity old_camera = get_active_camera(ecs);
 		if (input.isPressed(GLFW_KEY_RIGHT)) {
 			ecs.remove_component<InputComponent>(old_camera);
@@ -565,14 +573,20 @@ int main()
 		}
 
 #if defined(DEBUG)
-		if (input.isPressed(WIREFRAME_KEY)) {
+		static bool _was_pressed = false;
+
+		bool _pressed = input.isPressed(WIREFRAME_KEY);
+
+		if (_pressed && !_was_pressed) { // only trigger on key-down edge
 			GLState::set_wireframe(!GLState::is_wireframe());
 		}
+
+		_was_pressed = _pressed; // remember state for next frame
+
 #endif
 
 
 
-		input_system(ecs);
 
 		CameraController* ctrl = ecs.get_component<CameraController>(player.getCamera());
 		manager.generate_chunks(player.getPos(), player.render_distance);
@@ -588,14 +602,6 @@ int main()
 
 
 		player.update(deltaTime);
-
-		glClearDepth(0.0f);
-		GLState::set_depth_test(true);
-		glStencilMask(0xFF); // Ensure we can actually clear the stencil bits
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-
-
 
 #if defined(DEBUG)
 		if (debugRender) {
@@ -633,17 +639,21 @@ int main()
 				if (!chunkPtr)
 					continue; // safety
 
-				AABB chunkBox = chunkPtr->aabb;
-
 				// Color for chunk boxes, maybe a translucent blue-ish?
-				glm::vec3 chunkColor(0.3f, 0.5f, 1.0f);
-
-				DebugDrawer::get().addAABB(chunkBox, chunkColor);
+				DebugDrawer::get().addAABB(chunkPtr->aabb, glm::vec3(0.3f, 0.5f, 1.0f));
 			}
 			DebugDrawer::get().addRay(player.getPos(), glm::normalize(player.getVelocity()), {1.0f, 1.0f, 0.0f});
 			DebugDrawer::get().addRay(player.getPos(), glm::normalize(glm::vec3{0.0f, -GRAVITY, 0.0f}), glm::vec3(0.5f, 0.5f, 1.0f));
 		}
 #endif
+
+
+
+
+
+
+		// RENDER PHASE
+
 		// -- Render Player -- (BEFORE UI pass)
 		// TODO: Actually fix and implement this shit
 		/*
@@ -670,6 +680,7 @@ int main()
 		}
 
 		// Debug render
+
 #if defined(DEBUG)
 		if (debugRender) {
 			ecs.for_each_components<Camera, Transform, RenderTarget, ActiveCamera>([](Entity e, Camera& cam, Transform, RenderTarget, ActiveCamera){
@@ -727,7 +738,7 @@ int main()
 
 		// NOTE: Make sure to have a VAO bound when making this draw call!!
 		// Fullscreen triangle covering the whole screen for post-processing and shit like that
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		GLState::set_wireframe(false);
 		DrawArraysWrapper(GL_TRIANGLES, 0, 3);
 
 		glBindVertexArray(0);
@@ -738,8 +749,7 @@ int main()
 			GLState::set_wireframe(false);
 			GLState::set_stencil_test(false);
 			// -- Crosshair Pass ---
-				glm::mat4 orthoProj = glm::ortho(0.0f, static_cast<float>(cur_fb.width()), 0.0f, static_cast<float>(cur_fb.height()));
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			glm::mat4 orthoProj = glm::ortho(0.0f, static_cast<float>(cur_fb.width()), 0.0f, static_cast<float>(cur_fb.height()));
 			crossHairshader.setMat4("uProjection", orthoProj);
 			crossHairshader.setVec2("uCenter", glm::vec2(cur_fb.width() * 0.5f, cur_fb.height() * 0.5f));
 			crossHairshader.setFloat("uSize", crosshair_size);
@@ -901,13 +911,12 @@ int main()
 		// other UI things...
 
 		glBindVertexArray(0);
-		input.update();
 		glfwSwapBuffers(context->window);
 #if defined(TRACY_ENABLE)
 		FrameMark;
 #endif
 		nbFrames++;
-	}
+	}	// GAME LOOP
 
 
 	glDeleteVertexArrays(1, &crosshairVAO);
