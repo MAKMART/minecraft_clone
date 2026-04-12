@@ -1,8 +1,6 @@
 module;
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <filesystem>
-#include <iostream>
 module core;
 
 uint_fast16_t FORWARD_KEY        = GLFW_KEY_W;
@@ -24,6 +22,7 @@ uint_fast16_t SPECTATOR_MODE_KEY = GLFW_KEY_3;
 uint_fast16_t CAMERA_SWITCH_KEY  = GLFW_KEY_R;
 uint_fast8_t  ATTACK_BUTTON      = GLFW_MOUSE_BUTTON_LEFT;
 uint_fast8_t  DEFENSE_BUTTON     = GLFW_MOUSE_BUTTON_RIGHT;
+uint_fast8_t  TERNARY_BUTTON     = GLFW_MOUSE_BUTTON_3;
 
 std::filesystem::path SHADERS_DIRECTORY = WORKING_DIRECTORY / "shaders";
 

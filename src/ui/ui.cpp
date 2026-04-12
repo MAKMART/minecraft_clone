@@ -1,24 +1,34 @@
 module;
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <filesystem>
-#include <cstddef>
-#include <cstring>
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Types.h>
 #include "RmlUi/Debugger/Debugger.h"
 #include "ui/system_interface_glfw.hpp"
-//#include "graphics/texture.hpp"
-#include "graphics/renderer/vertex_buffer.hpp"
-#include "graphics/renderer/index_buffer.hpp"
+// #include "graphics/renderer/vertex_buffer.hpp"
+// #include "graphics/renderer/index_buffer.hpp"
 module ui;
 
 import core;
 import logger;
 import texture;
 import gl_state;
+import input_manager;
 using namespace Rml::Input;
-UI::UI(int width, int height, std::filesystem::path fontPath) noexcept : viewport_width(width), viewport_height(height)
+static vertex_buffer_immutable make_quad_vbo()
+{
+    float quadVertices[] = {
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+        1.0f,  1.0f,  1.0f, 1.0f
+    };
+
+    return vertex_buffer_immutable(quadVertices, sizeof(quadVertices));
+}
+UI::UI(int width, int height, std::filesystem::path fontPath) noexcept : viewport_width(width), viewport_height(height), quad_vbo(make_quad_vbo())
 {
 	// System and file interfaces owned by UI (RAII)
 	systemInterface = std::make_unique<SystemInterface>();
@@ -36,21 +46,12 @@ UI::UI(int width, int height, std::filesystem::path fontPath) noexcept : viewpor
 //#if defined(DEBUG)
 	Rml::Debugger::SetContext(context);
 	Rml::Debugger::Initialise(context);
-	log::system_info("UI", "Rml::Debugger::Initialise should've run");
+	// log::system_info("UI", "Rml::Debugger::Initialise should've run");
 //#endif
 	if (!Rml::LoadFontFace(fontPath.string())) {
 		log::system_error("UI", "Failed to load font: {}", fontPath.string());
 	}
-	float quadVertices[] = {
-		-1.0f,  1.0f,  0.0f, 1.0f,
-		-1.0f, -1.0f,  0.0f, 0.0f,
-		1.0f, -1.0f,  1.0f, 0.0f,
-		-1.0f,  1.0f,  0.0f, 1.0f,
-		1.0f, -1.0f,  1.0f, 0.0f,
-		1.0f,  1.0f,  1.0f, 1.0f
-	};
 	glCreateVertexArrays(1, &quad_vao);
-	quad_vbo = VB::Immutable(quadVertices, sizeof(quadVertices));
 	glVertexArrayVertexBuffer(quad_vao, 0, quad_vbo.id(), 0, 4 * sizeof(float));
 	glEnableVertexArrayAttrib(quad_vao, 0);
 	glVertexArrayAttribFormat(quad_vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
@@ -59,6 +60,7 @@ UI::UI(int width, int height, std::filesystem::path fontPath) noexcept : viewpor
 	glVertexArrayAttribFormat(quad_vao, 1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float));
 	glVertexArrayAttribBinding(quad_vao, 1, 0);
 	shader->setInt("uTexture", 0);
+  SetViewportSize(width, height);
 }
 Rml::ElementDocument* UI::LoadDocument(const std::string& name, const std::filesystem::path& path) noexcept
 {
@@ -94,14 +96,15 @@ void UI::CloseDocument(const std::string& name) noexcept
 }
 int UI::GetKeyModifiers() noexcept
 {
+	auto& input = InputManager::get();
 	int modifiers = 0;
-	if (isShiftDown)
+	if (input.isPressed(GLFW_KEY_LEFT_SHIFT) || input.isPressed(GLFW_KEY_RIGHT_SHIFT))
 		modifiers |= Rml::Input::KM_SHIFT;
-	if (isCtrlDown)
+	if (input.isPressed(GLFW_KEY_LEFT_CONTROL) || input.isPressed(GLFW_KEY_RIGHT_CONTROL))
 		modifiers |= Rml::Input::KM_CTRL;
-	if (isAltDown)
+	if (input.isPressed(GLFW_KEY_LEFT_ALT) || input.isPressed(GLFW_KEY_RIGHT_ALT))
 		modifiers |= Rml::Input::KM_ALT;
-	if (isMetaDown)
+	if (input.isPressed(GLFW_KEY_LEFT_SUPER) || input.isPressed(GLFW_KEY_RIGHT_SUPER))
 		modifiers |= Rml::Input::KM_META;
 	return modifiers;
 }
@@ -110,7 +113,7 @@ void UI::SetViewportSize(int width, int height) noexcept
 	viewport_width  = width;
 	viewport_height = height;
 	projection      = glm::ortho(0.0f, (float)viewport_width, (float)viewport_height, 0.0f, -1.0f, 1.0f);
-	glViewport(0, 0, width, height);
+	GLState::set_viewport(0, 0, width, height);
 	shader->setMat4("uProjection", projection);
 	context->SetDimensions({width, height});
 	context->Update();
@@ -142,8 +145,10 @@ Rml::CompiledGeometryHandle UI::CompileGeometry(Rml::Span<const Rml::Vertex> ver
 {
 	GLuint vao;
 	glCreateVertexArrays(1, &vao);
-	VB vbo = VB::Dynamic(vertices.data(), vertices.size() * sizeof(Rml::Vertex));
-	IB ebo = IB::Dynamic(indices.data(), indices.size());
+	vertex_buffer_dynamic vbo(vertices.size() * sizeof(Rml::Vertex));
+  vbo.update(vertices.data(), vertices.size() * sizeof(Rml::Vertex));
+	index_buffer_dynamic<std::int32_t> ebo(indices.size());
+  ebo.update(indices.data(), indices.size());
 
 	glVertexArrayVertexBuffer(vao, 0, vbo.id(), 0, sizeof(Rml::Vertex));
 	glEnableVertexArrayAttrib(vao, 0); // pos
@@ -184,7 +189,7 @@ void UI::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f transl
     GLState::set_depth_test(false);
 
 	// Enable stencil testing for masking
-	if (clip_mask_enabled) {
+	if (GLState::is_stencil_test()) {
 		GLState::set_stencil_test(true);
 		glStencilFunc(GL_EQUAL, 1, 0xFF);
 		glStencilMask(0x00);
@@ -286,10 +291,7 @@ void UI::ReleaseTexture(Rml::TextureHandle handle)
 }
 void UI::EnableScissorRegion(bool enable)
 {
-	if (enable)
-		glEnable(GL_SCISSOR_TEST);
-	else
-		glDisable(GL_SCISSOR_TEST);
+	GLState::set_scissor_test(enable);
 }
 void UI::SetScissorRegion(Rml::Rectanglei region)
 {
@@ -297,8 +299,7 @@ void UI::SetScissorRegion(Rml::Rectanglei region)
 		const int x = Rml::Math::Clamp(region.Left(), 0, viewport_width);
 		const int y = Rml::Math::Clamp(viewport_height - region.Bottom(), 0, viewport_height);
 
-		// GLState::set_scissor automatically enables GL_SCISSOR_TEST 
-		// and only calls glScissor if the values changed.
+		// GLState::set_scissor automatically enables GL_SCISSOR_TEST and only calls glScissor if the values changed.
 		GLState::set_scissor(x, y, region.Width(), region.Height());
 	} else {
 		GLState::set_scissor_test(false);
@@ -306,11 +307,7 @@ void UI::SetScissorRegion(Rml::Rectanglei region)
 }
 void UI::EnableClipMask(bool enable)
 {
-	clip_mask_enabled = enable;
-	if (enable)
-		glEnable(GL_STENCIL_TEST);
-	else
-		glDisable(GL_STENCIL_TEST);
+	GLState::set_stencil_test(enable);
 }
 
 void UI::RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation)
@@ -425,7 +422,7 @@ Rml::LayerHandle UI::PushLayer()
 	fbo_stack.emplace_back((GLuint)current_fbo);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, layer.fbo);
-	glClearColor(0,0,0,0);
+	GLState::set_clear_color({0.0f, 0.0f, 0.0f, 0.0f});
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	Rml::LayerHandle handle = next_layer_handle++;
@@ -443,11 +440,11 @@ void UI::CompositeLayers(Rml::LayerHandle source, Rml::LayerHandle destination, 
     // Bind destination (0 is backbuffer)
     glBindFramebuffer(GL_FRAMEBUFFER, destination == 0 ? 0 : layers[destination].fbo);
 
-    glEnable(GL_BLEND);
+	GLState::set_blending(true);
     if (blend_mode == Rml::BlendMode::Replace) {
-        glBlendFunc(GL_ONE, GL_ZERO);
+		GLState::set_blend_func(GL_ONE, GL_ZERO);
     } else {
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		GLState::set_blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
 
     shader->use();

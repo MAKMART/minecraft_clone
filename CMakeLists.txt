@@ -1,23 +1,5 @@
-#[[
-
-WARNING: the project build will not succeed unless you modify ${glm_SOURCE_DIR}/glm/glm.cppm
-
-Replace:
-
-// #define GLM_GTC_INLINE_NAMESPACE to inline glm::gtc into glm
-// #define GLM_EXT_INLINE_NAMESPACE to inline glm::ext into glm
-// #define GLM_GTX_INLINE_NAMESPACE to inline glm::gtx into glm
-
-With:
-
-#define GLM_GTC_INLINE_NAMESPACE to inline glm::gtc into glm
-#define GLM_EXT_INLINE_NAMESPACE to inline glm::ext into glm
-#define GLM_GTX_INLINE_NAMESPACE to inline glm::gtx into glm
-
-]]
-
 cmake_minimum_required(VERSION 4.2.3)
-#set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1)
+set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS TRUE)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
@@ -32,11 +14,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
 set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -stdlib=libc++")
 # This enables 'import std;' globally for all targets using C++23
-#set(CMAKE_CXX_MODULE_STD ON)
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
-#set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD ON CACHE BOOL "")
 set(CMAKE_CXX_MODULE_STD ON)
-
 
 
 set(CMAKE_CXX_COMPILER_LAUNCHER sccache)
@@ -94,8 +73,6 @@ set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
 set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
 set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
 set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
-
-#string(REPLACE "-fdeps-format=p1689r5" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 # ==== RmlUi ====
 set(RMLUI_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
@@ -188,14 +165,9 @@ endfunction()
 disable_debug_symbols(imgui)
 disable_debug_symbols(glfw)
 disable_debug_symbols(freetype)
-#disable_debug_symbols(rmlui_core)
-#disable_debug_symbols(rmlui_debugger)
-
 
 # Main executable
-
 add_executable(${PROJECT_NAME})
-#target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
 set(OUTPUT_BASE_DIR "${CMAKE_BINARY_DIR}/bin")
 set_target_properties(${PROJECT_NAME}
 	PROPERTIES
@@ -215,6 +187,7 @@ file(GLOB_RECURSE GAME_CORE_CPP_SOURCES
 	src/ui/*.cpp
 	src/game/*.cpp
 	src/game/ecs/systems/systems.cpp
+	# include/external/binary-greedy-meshing/FastNoise.cpp
 )
 
 target_sources(${PROJECT_NAME}
@@ -227,12 +200,14 @@ target_sources(${PROJECT_NAME}
 		FILES
 		# for "import glm" support include the glm module file
 		${glm_SOURCE_DIR}/glm/glm.cppm
+    src/debug/debug.cppm
 		src/game/ecs/entity.cppm
 		src/game/ecs/components.cppm
 		src/game/ecs/ecs.cppm
 		# Defines all the ECS systems that will be in the game
 		src/game/ecs/systems/systems.cppm
 		src/graphics/renderer/framebuffer_manager.cppm
+		src/graphics/renderer/framebuffer.cppm
 		src/chunk/noise.cppm
 		src/chunk/chunk_manager.cppm
 		src/chunk/chunk.cppm
@@ -243,20 +218,31 @@ target_sources(${PROJECT_NAME}
 		src/core/timer.cppm
 		src/core/window_context.cppm
 		src/core/input_manager.cppm
-		src/graphics/renderer/shader_storage_buffer.cppm
+		src/graphics/renderer/ssbo.cppm
+		src/graphics/renderer/gpu_buffer.cppm
+		src/graphics/renderer/vertex_buffer.cppm
+		src/graphics/renderer/index_buffer.cppm
 		src/graphics/debug_drawer.cppm
 		src/graphics/shader.cppm
 		src/graphics/texture.cppm
 		src/game/player.cppm
 		src/ui/ui.cppm
 		src/graphics/renderer/gl_state.cppm
+    src/core/frame_context.cppm
+    src/game/app_state.cppm
+    src/game/game_state.cppm
+    src/game/game_factories.cppm
+		#binary-greedy-meshing library (remember to cite the authors when publishing)
+		include/external/binary-greedy-meshing/mesher.cppm
+		include/external/binary-greedy-meshing/rendering/chunk_renderer.cppm
+		include/external/binary-greedy-meshing/misc/noise.cppm
+		include/external/binary-greedy-meshing/misc/utility.cppm
 )
 
 
 # ==== Compiler & Linker Logic ====
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_link_options(${PROJECT_NAME} PRIVATE "-fuse-ld=mold")
-	##target_link_options(${PROJECT_NAME} PRIVATE "-v")
 else()
     target_link_options(${PROJECT_NAME} PRIVATE "-fuse-ld=mold" "-static-libgcc" "-static-libstdc++")
 endif()
@@ -313,12 +299,17 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     PROJECT_VERSION_MINOR=${PROJECT_VERSION_MINOR}
     PROJECT_VERSION_PATCH=${PROJECT_VERSION_PATCH}
     PROJECT_VERSION_SUFFIX="${PROJECT_VERSION_SUFFIX}"
+    # To make the glm module include all the things in the glm::* gtc::* and gtx::* namespaces
+    GLM_GTC_INLINE_NAMESPACE
+    GLM_EXT_INLINE_NAMESPACE
+    GLM_GTX_INLINE_NAMESPACE
 )
 
 target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Debug>>:
         -D_GLIBCXX_ASSERTIONS
         -fexceptions
+		-fsanitize=address
         -Wall
         -Wextra
         -pedantic

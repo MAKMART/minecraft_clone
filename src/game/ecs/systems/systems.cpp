@@ -1,18 +1,16 @@
 module;
+#include <glad/glad.h>
+#include <cmath>
+#include <cassert>
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
-#include <cstdint>
-#include <cmath>
-#include <cassert>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
 module ecs_systems;
 
+import std;
 import core;
 import gl_state;
 import glm;
-import std;
 import ecs_components;
 import chunk;
 import input_manager;
@@ -26,9 +24,9 @@ void camera_controller_system(ECS& ecs, Entity player)
 #endif
 
 	ecs.for_each_components<CameraController, Camera, Transform, ActiveCamera>(
-	    [&](Entity e, CameraController& ctrl, Camera& cam, Transform& camTransform, ActiveCamera&) {
-		    if (ctrl.target.id == Entity{UINT32_MAX}.id)
-			    return;
+	    [&](const Entity e, CameraController& ctrl, const Camera& cam, Transform& camTransform, ActiveCamera) {
+        if (!ctrl.target.is_valid())
+          return;
 
 		    auto* targetTransform = ecs.get_component<Transform>(ctrl.target);
 		    if (!targetTransform)
@@ -78,13 +76,13 @@ void camera_controller_system(ECS& ecs, Entity player)
 	    });
 }
 
-void chunk_renderer_system(ECS& ecs, ChunkManager& cm, Camera* cam, FrustumVolume& wanted_fv, FramebufferManager& fb)
+void chunk_renderer_system(ECS& ecs, ChunkManager& cm, const FrustumVolume& wanted_fv, const FramebufferManager& fb)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
 	ecs.for_each_components<Transform, RenderTarget, ActiveCamera>(
-	    [&](Entity e, Transform& ts, RenderTarget& rt, ActiveCamera) {
+	    [&](const Entity e, const Transform& ts, RenderTarget&, ActiveCamera) {
 		const auto& cur_fb = fb.get(e);
 		cur_fb.bind_draw();
 		GLState::set_viewport(0, 0, cur_fb.width(), cur_fb.height());
@@ -113,8 +111,8 @@ void input_system(ECS& ecs)
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-	ecs.for_each_component<InputComponent>([&](Entity e, InputComponent& ic) {
-		InputManager& input = InputManager::get();
+  auto& input = InputManager::get();
+	ecs.for_each_component<InputComponent>([&](const Entity e, InputComponent& ic) {
 		// Reset state
 		ic.forward  = input.isHeld(FORWARD_KEY);
 		ic.backward = input.isHeld(BACKWARD_KEY);
@@ -124,13 +122,12 @@ void input_system(ECS& ecs)
 		ic.sprint   = input.isHeld(SPRINT_KEY);
 		ic.crouch   = input.isHeld(CROUCH_KEY);
 
-		glm::vec2 delta = input.getMouseDelta();
-		ic.mouse_delta  = (glm::length(delta) > 0.01f) ? delta : glm::vec2(0.0f);
+		ic.mouse_delta  = input.getMouseDelta();
 		ic.scroll_delta = input.getScroll();
 
 		ic.is_primary_pressed   = input.isMousePressed(ATTACK_BUTTON);
 		ic.is_secondary_pressed = input.isMousePressed(DEFENSE_BUTTON);
-		ic.is_ternary_pressed   = input.isMousePressed(GLFW_MOUSE_BUTTON_3);
+		ic.is_ternary_pressed   = input.isMousePressed(TERNARY_BUTTON);
 	});
 }
 
@@ -141,62 +138,77 @@ void movement_intent_system(ECS& ecs, const Camera* cam)
 #endif
 	assert(cam && "Camera was nullptr in movement_intent_system");
 
-	ecs.for_each_components<PlayerState, InputComponent, MovementIntent, MovementConfig>(
-	    [&](Entity& e, PlayerState& ps, InputComponent& ic, MovementIntent& intent, MovementConfig& cfg) {
-		    // --- Build local movement direction from input ---
-		    glm::vec3 input_dir(0.0f);
+	ecs.for_each_components<InputComponent, MovementIntent, MovementConfig>(
+      [&](const Entity e, const InputComponent& ic, MovementIntent& intent, const MovementConfig& cfg){
+      // --- Build local movement direction from input ---
+      glm::vec3 input_dir(0.0f);
 
-		    if (ic.forward)	input_dir.z += 1.0f;
-		    if (ic.backward)input_dir.z -= 1.0f;
-			if (ic.left)	input_dir.x -= 1.0f;
-		    if (ic.right)	input_dir.x += 1.0f;
+      if (ic.forward)	  input_dir.z += 1.0f;
+      if (ic.backward)  input_dir.z -= 1.0f;
+      if (ic.left)	    input_dir.x -= 1.0f;
+      if (ic.right)	    input_dir.x += 1.0f;
 
-		    if (glm::length(input_dir) > 0.0f)
-			    input_dir = glm::normalize(input_dir);
+      if (glm::dot(input_dir, input_dir) > 0.0f)
+      input_dir = glm::normalize(input_dir);
 
-		    // --- Rotate movement into world-space based on where the camera is looking ---
-		    glm::vec3 forward = cam->forward;
-		    glm::vec3 right   = cam->right;
+      // --- Rotate movement into world-space based on where the camera is looking ---
+      // Don't modify the camera's vectors directly
+      glm::vec3 forward = cam->forward;
+      glm::vec3 right   = cam->right;
 
-		    forward.y = 0.0f;
-		    if (glm::length(forward) > 0.0f)
-			    forward = glm::normalize(forward);
+      forward.y = 0.0f;
+      right.y = 0.0f;
 
-			right.y = 0.0f;
-			right = glm::normalize(right);
+      glm::vec3 wish_dir = right * input_dir.x + forward * input_dir.z;
+      if (glm::dot(wish_dir, wish_dir) > 0.01f)
+        wish_dir = glm::normalize(wish_dir);
 
-
-			glm::vec3 wish_dir = right * input_dir.x + forward * input_dir.z;
-		    if (glm::length(wish_dir) > 0.0f)
-			    wish_dir = glm::normalize(wish_dir);
-
-			// --- Write intent ---
-            intent.wish_dir = wish_dir;
-            intent.jump     = ic.jump && cfg.can_jump;
-            intent.sprint   = ic.sprint && cfg.can_run;
-            intent.crouch   = ic.crouch && cfg.can_crouch;
-
-		    ps.previous = ps.current;
-
-			if (glm::length(wish_dir) < 0.1f)
-				ps.current = PlayerMovementState::Idle;
-			else if (intent.crouch)
-				ps.current = PlayerMovementState::Crouching;
-			else if (intent.sprint)
-				ps.current = PlayerMovementState::Running;
-			else
-				ps.current = PlayerMovementState::Walking;
-
-			});
+      // --- Write intent ---
+      intent.wish_dir = wish_dir;
+      intent.jump     = ic.jump && cfg.can_jump;
+      intent.sprint   = ic.sprint && cfg.can_run;
+      intent.crouch   = ic.crouch && cfg.can_crouch;
+      }
+  );
 }
 
+void player_state_system(ECS& ecs)
+{
+#if defined(TRACY_ENABLE)
+	ZoneScoped;
+#endif
+  ecs.for_each_components<PlayerState, MovementIntent, Collider>(
+     [&](const Entity e, PlayerState& ps, const MovementIntent& intent, const Collider& col)
+     {
+     // Advance movement state
+     ps.previous = ps.current;
+     const bool moving = glm::dot(intent.wish_dir, intent.wish_dir);
+     if (!col.is_on_ground)
+     {
+     ps.current = (ps.current == PlayerMovementState::Jumping)
+     ? PlayerMovementState::Jumping
+     : PlayerMovementState::Falling;
+     return;
+     }
+
+     if (intent.crouch)
+     ps.current = PlayerMovementState::Crouching;
+     else if (intent.sprint && moving)
+     ps.current = PlayerMovementState::Running;
+     else if (moving)
+     ps.current = PlayerMovementState::Walking;
+     else
+     ps.current = PlayerMovementState::Idle;
+     }
+  );
+}
 
 bool isCollidingAt(const glm::vec3& pos, const Collider& col, ChunkManager& chunkManager)
 {
 #if defined(TRACY_ENABLE)
     ZoneScopedN("isCollidingAt");
 #endif
-    const AABB box = col.getBoundingBoxAt(pos);
+    const AABB box = col.get_AABB_at(pos);
 
     // Integer bounds (inclusive)
     const glm::ivec3 minBlock = glm::floor(box.min);
@@ -231,8 +243,8 @@ void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
     ZoneScopedN("movement_physics_system");
 #endif
 
-    ecs.for_each_components<MovementIntent, Velocity, Collider, PlayerState, MovementConfig, Transform>(
-        [&](Entity e, MovementIntent& intent, Velocity& vel, Collider& col, PlayerState& ps, MovementConfig& cfg, Transform& trans) {
+    ecs.for_each_components<MovementIntent, Velocity, PlayerState, Collider, MovementConfig, Transform>(
+        [&](const Entity e, const MovementIntent& intent, Velocity& vel, const PlayerState& ps, Collider& col, const MovementConfig& cfg, Transform& trans) {
 #if defined(TRACY_ENABLE)
             ZoneScopedN("Player Physics Tick");
 #endif
@@ -241,10 +253,10 @@ void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
             float speed = 0.0f;
             switch (ps.current) {
                 case PlayerMovementState::Walking:   speed = cfg.walk_speed;   break;
-                case PlayerMovementState::Running:   speed = cfg.run_speed;   break;
+                case PlayerMovementState::Running:   speed = cfg.run_speed;    break;
                 case PlayerMovementState::Crouching: speed = cfg.crouch_speed; break;
                 case PlayerMovementState::Flying:    speed = cfg.fly_speed;    break;
-                default:                             speed = 0.0f;             break;
+                default:                             speed = cfg.walk_speed;   break;
             }
 
             vel.value.x = intent.wish_dir.x * speed;
@@ -255,9 +267,8 @@ void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
             }
 
             // --- Jumping ---
-            if (cfg.can_jump && intent.jump && col.is_on_ground && !cfg.can_fly) {
+            if (cfg.can_jump && intent.jump && col.is_on_ground) {
                 vel.value.y = std::sqrt(2.0f * GRAVITY * cfg.jump_height);
-                ps.current = PlayerMovementState::Jumping;
                 col.is_on_ground = false;
             }
 
@@ -266,20 +277,10 @@ void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
                 vel.value.y -= GRAVITY * dt;
             }
 
-            // --- State transitions ---
-            if (ps.current == PlayerMovementState::Jumping && vel.value.y <= 0.0f) {
-                ps.current = PlayerMovementState::Falling;
-            }
-            if (ps.current == PlayerMovementState::Falling && col.is_on_ground) {
-                ps.current = ((intent.wish_dir.x * intent.wish_dir.x + intent.wish_dir.y * intent.wish_dir.y + intent.wish_dir.z * intent.wish_dir.z) > 0.01f && cfg.can_walk)
-                    ? PlayerMovementState::Walking
-                    : PlayerMovementState::Idle;
-            }
-
             // --- Early out if stationary ---
             if (glm::all(glm::epsilonEqual(vel.value, glm::vec3(0.0f), 1e-4f))) {
                 col.is_on_ground = isCollidingAt(trans.pos - glm::vec3(0.0f, 0.05f, 0.0f), col, chunkManager);
-                col.aabb = col.getBoundingBoxAt(trans.pos);
+                col.aabb = col.get_AABB_at(trans.pos);
                 return;
             }
 
@@ -326,7 +327,7 @@ void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
             }
 
             // Sync AABB once at the end
-            col.aabb = col.getBoundingBoxAt(trans.pos);
+            col.aabb = col.get_AABB_at(trans.pos);
         });
 }
 
@@ -339,7 +340,6 @@ void camera_system(ECS& ecs)
 	ecs.for_each_components<Camera, Transform, ActiveCamera>(
 	    [&](Entity e, Camera& cam, Transform& transform, ActiveCamera&) {
 
-		
 		transform.rot = glm::normalize(transform.rot);
 
 		cam.forward = transform.rot * glm::vec3(0, 0, -1);
@@ -419,7 +419,7 @@ void frustum_volume_system(ECS& ecs)
 
 }
 
-void camera_temporal_system(ECS& ecs)
+void camera_temporal_system(ECS& ecs, const frame_context& ctx)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
@@ -427,15 +427,10 @@ void camera_temporal_system(ECS& ecs)
 
 	ecs.for_each_components<Camera, CameraTemporal, ActiveCamera>(
 	    [&](Entity e, Camera& cam, CameraTemporal& temp, ActiveCamera&) {
-
-		glm::mat4 curr_view_proj = cam.projectionMatrix * cam.viewMatrix;
-
-		if (temp.first_frame) {
-		temp.prev_view_proj = curr_view_proj;
-		temp.first_frame = false;
-		return;
-		}
-		// Advance time
-		temp.prev_view_proj = curr_view_proj;
+      temp.prev_view_proj = ctx.view_proj_matrix;
 	    });
+}
+
+void world_interaction_system(ECS& ecs, ChunkManager& manager) {
+  // TODO: Implemnt this
 }

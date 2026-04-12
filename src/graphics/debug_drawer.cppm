@@ -1,13 +1,13 @@
 module;
-#include "graphics/renderer/vertex_buffer.hpp"
-//#include <vector>
-//#include <string>
+#include <glad/glad.h>
 export module debug_drawer;
 
+import std;
 import aabb;
 import glm;
 import shader;
-import std;
+import vertex_buffer;
+
 export class DebugDrawer
 {
 	public:
@@ -46,8 +46,8 @@ export class DebugDrawer
 		Shader*                shader;
 		GLuint                 vao = 0;
 		GLuint                 vao_lines = 0;
-		VB vbo;
-		VB vbo2;
+		vertex_buffer_immutable vbo;
+		vertex_buffer_immutable vbo2;
 
 		void initGLResources();
 		void checkGLError(const std::string& operation);

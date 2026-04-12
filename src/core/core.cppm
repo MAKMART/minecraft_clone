@@ -1,10 +1,5 @@
 module;
 #include <glad/glad.h>
-/*
-#include <filesystem>
-#include <string>
-#include <string_view>
-*/
 export module core;
 
 import std;
@@ -52,6 +47,7 @@ export {
 	extern uint_fast16_t CAMERA_SWITCH_KEY;
 	extern uint_fast8_t  ATTACK_BUTTON;
 	extern uint_fast8_t  DEFENSE_BUTTON;
+	extern uint_fast8_t  TERNARY_BUTTON;
 
 	// Paths
 	std::filesystem::path WORKING_DIRECTORY = std::filesystem::current_path();
@@ -112,12 +108,26 @@ export {
 		};
 	}
 
+  inline glm::ivec3 world_to_chunk(const glm::ivec3 &world_pos) noexcept {
+    return {
+      world_pos.x >> LOG_SIZE.x,
+      world_pos.y >> LOG_SIZE.y,
+      world_pos.z >> LOG_SIZE.z
+    };
+  }
 	inline glm::ivec3 world_to_local(const glm::vec3 &world_pos) noexcept {
 		glm::ivec3 block = glm::floor(world_pos);
 		return {
 			block.x & (CHUNK_SIZE.x - 1),
 				block.y & (CHUNK_SIZE.y - 1),
 				block.z & (CHUNK_SIZE.z - 1)
+		};
+	}
+	inline glm::ivec3 world_to_local(const glm::ivec3 &world_pos) noexcept {
+		return {
+			world_pos.x & (CHUNK_SIZE.x - 1),
+				world_pos.y & (CHUNK_SIZE.y - 1),
+				world_pos.z & (CHUNK_SIZE.z - 1)
 		};
 	}
 

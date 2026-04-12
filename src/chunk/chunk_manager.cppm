@@ -1,14 +1,12 @@
 module;
-/*
-#include <memory>
-#include <unordered_map>
-#include <vector>
-*/
+// #include <memory>
+// #include <unordered_map>
+// #include <vector>
 #include <glad/glad.h>
 #include <climits>
 export module chunk_manager;
-import std;
 
+import std;
 import core;
 import glm;
 import ecs_components;
@@ -16,7 +14,11 @@ export import chunk;
 import noise;
 import ssbo;
 import aabb;
+import chunk_renderer;
 import shader;
+import mesher;
+import noise_2;
+import utility;
 
 export struct ivec3_hash {
 	std::size_t operator()(const glm::ivec3& v) const noexcept
@@ -37,7 +39,19 @@ export class ChunkManager
 {
 	public:
 		ChunkManager();
-		~ChunkManager() noexcept { chunks.clear(); }
+		~ChunkManager() noexcept { 
+
+			chunks.clear(); 
+			delete[] mainThreadMeshData.opaqueMask;
+			delete[] mainThreadMeshData.faceMasks;
+			delete[] mainThreadMeshData.forwardMerged;
+			delete[] mainThreadMeshData.rightMerged;
+			delete mainThreadMeshData.vertices;
+
+		}
+
+		Shader& getShader2() noexcept { return shader2; }
+		const Shader& getShader2() const noexcept { return shader2; }
 
 		Shader& getShader() noexcept { return shader; }
 		const Shader& getShader() const noexcept { return shader; }
@@ -54,7 +68,7 @@ export class ChunkManager
 		const std::vector<Chunk*>& get_opaque_chunks() const noexcept { return opaqueChunks; }
 		const std::vector<Chunk*>& get_transparent_chunks() const noexcept { return transparentChunks; }
 
-		bool updateBlock(glm::vec3 world_pos, Block::blocks newType) noexcept;
+		bool update_block(glm::ivec3 world_pos, Block::blocks newType) noexcept;
 		void generate_chunks(glm::vec3 playerPos, unsigned int renderDistance) noexcept;
 		Chunk* getChunk(glm::ivec3 world_pos) const noexcept;
 		void update_mesh(Chunk *chunk) noexcept;
@@ -93,7 +107,9 @@ export class ChunkManager
 		}
 
 		NoiseSystem		 noise;
+		Noise			 noise_2;
 		Shader           shader;
+		Shader			 shader2;
 		Shader           waterShader;
 
 		// Allocation strategy: simple linear bump allocator for now
@@ -104,15 +120,16 @@ export class ChunkManager
 		Shader			 merged_offsets;
 		Shader			 prefix_sum;
 		Shader			 indirect;
+    
 
-		SSBO			 global_faces;
-		SSBO			 global_indirect;
-		SSBO			 prefix;
-		SSBO			 face_flags;
-		SSBO			 group_totals;
-		SSBO			 offset_ssbo;
-		SSBO			 temp_faces;
-		SSBO			 temp_indirect;
+		dynamic_ssbo			 global_faces;
+		dynamic_ssbo			 global_indirect;
+		persistent_ssbo			 prefix;
+		persistent_ssbo face_flags;
+		persistent_ssbo group_totals;
+		dynamic_ssbo offset_ssbo;
+		persistent_ssbo temp_faces;
+		// ssbo			 temp_indirect;
 
 		std::vector<glm::vec4> offset_data;
 
@@ -122,6 +139,16 @@ export class ChunkManager
 
 		// TODO: Use an octree to store the chunks
 		std::unordered_map<glm::ivec3, std::unique_ptr<Chunk>, ivec3_hash> chunks;
+
+		struct ChunkRenderData {
+			glm::ivec3 chunkPos = glm::ivec3(0);
+			std::vector<DrawElementsIndirectCommand> faceDrawCommands = std::vector<DrawElementsIndirectCommand>(6);
+		};
+
+		std::vector<ChunkRenderData> chunkRenderData;
+		MeshData mainThreadMeshData;
+		ChunkRenderer chunkRenderer;
+
 		std::vector<Chunk*> opaqueChunks;
 		std::vector<Chunk*> transparentChunks;
 		std::vector<Chunk*> dirty_chunks;

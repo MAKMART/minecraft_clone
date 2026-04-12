@@ -7,6 +7,7 @@ export module noise;
 import std;
 import core;
 import glm;
+import mesher;
 
 export class NoiseSystem
 {
@@ -34,15 +35,15 @@ export class NoiseSystem
 		float sample_3d(float x, float y, float z) const noexcept
 		{
 			float scale = 0.02f;
-			//return base->GenSingle3D(x * scale, y * scale, z * scale);
-			return scale;
+			return terrain->GenSingle3D(x * scale, y * scale, z * scale, seed);
 		}
 		auto gen_grid_2d(const glm::ivec2& world_origin) noexcept
 		{
 				return terrain->GenUniformGrid2D(
 					chunk_noise,
 					world_origin.x, world_origin.y, // Start at world coordinates
-					CHUNK_SIZE.x, CHUNK_SIZE.z,               // Size of one chunk
+					//CHUNK_SIZE.x, CHUNK_SIZE.z,               // Size of one chunk
+					CS_P, CS_P,
 					NOISE_FREQUENCY, 
 					NOISE_FREQUENCY, 
 					seed
@@ -53,5 +54,6 @@ export class NoiseSystem
 		FastNoise::SmartNode<FastNoise::FractalFBm> terrain;
 		FastNoise::SmartNode<FastNoise::Simplex> base;
 		static constexpr float    NOISE_FREQUENCY       = 1.0f / 350.0f;  // Smaller = larger features (150 = ~150 block wide hills)
-		alignas(16) float chunk_noise[CHUNK_SIZE.x * CHUNK_SIZE.z];
+		//alignas(16) float chunk_noise[CHUNK_SIZE.x * CHUNK_SIZE.z];
+		alignas(16) float chunk_noise[CS_P2];
 };

@@ -1,5 +1,4 @@
 module;
-#include <cstdint>
 #include <GLFW/glfw3.h>
 #include <array>
 #include <cassert>
