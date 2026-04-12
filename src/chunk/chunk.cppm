@@ -2,7 +2,6 @@ module;
 #include <glad/glad.h>
 export module chunk;
 
-
 import core;
 import std;
 import glm;
@@ -96,7 +95,7 @@ public:
 		glm::vec3 world = chunk_to_world(position);
 		aabb = AABB(world, world + glm::vec3(CHUNK_SIZE));
 
-		block_ssbo = SSBO::Dynamic(nullptr, sizeof(block_types));
+		// block_ssbo = ssbo::PersistentWrite(sizeof(block_types));
 	}
   ~Chunk() = default;
 
@@ -141,7 +140,7 @@ public:
   // Flags for the ChunkManager's update loop
   bool changed = true;       // Set to true initially to force first GPU upload
   bool in_dirty_list = false; // Prevents adding the same chunk to the dirty list twi
-  SSBO block_ssbo;
+  persistent_ssbo block_ssbo = persistent_ssbo(sizeof(block_types));
   int non_air_count = 0;
   alignas(16) std::uint8_t block_types[SIZE]{};
 

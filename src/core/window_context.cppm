@@ -1,11 +1,10 @@
 module;
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <memory>
-#include <string>
 export module window_context;
 // class Renderer;
 //	Maybe implement in future
+import std;
 
 export struct WindowContext {
 	WindowContext(int _width, int _height, std::string _title) noexcept;
@@ -19,6 +18,7 @@ export struct WindowContext {
 	constexpr int get_width() const noexcept { return width; }
 	constexpr int get_height() const noexcept { return height; }
 	constexpr bool is_fullscreen() const noexcept { return fullscreen; }
+  bool should_close() const noexcept { return glfwWindowShouldClose(window); }
 
 	GLFWwindow*  window = nullptr;
 	// Renderer* renderer = nullptr;

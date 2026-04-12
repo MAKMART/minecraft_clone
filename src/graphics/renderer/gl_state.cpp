@@ -18,11 +18,6 @@ glm::ivec4 GLState::m_scissor_rect = {0, 0, 0, 0};
 glm::ivec4 GLState::m_viewport = { 0, 0, 0, 0 };
 glm::vec4  GLState::m_clear_color = { 0.1f, 0.1f, 0.1f, 1.0f };
 
-// Hardware caps initialization
-int GLState::m_depth_bits = 0;
-int GLState::m_stencil_bits = 0;
-int GLState::m_msaa_strength = 0;
-
 void GLState::set_line_width(float width) {
     if (m_line_width != width) {
         glLineWidth(width);
@@ -119,6 +114,8 @@ void GLState::set_viewport(int x, int y, int width, int height) {
 }
 
 void GLState::init_capabilities() noexcept {
+	if (m_initialized) return;
+	m_initialized = true;
     // Query actual bits allocated by the context
 	GLint depth = 0, stencil = 0, samples = 0;
 	glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH, GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE, &depth);
@@ -159,7 +156,7 @@ void GLState::sync() noexcept {
 	if (m_scissor_test)
 		glScissor(m_scissor_rect.x, m_scissor_rect.y, m_scissor_rect.z, m_scissor_rect.w);
     
-    //glViewport(m_viewport.x, m_viewport.y, m_viewport.z, m_viewport.w);
+    glViewport(m_viewport.x, m_viewport.y, m_viewport.z, m_viewport.w);
     glClearColor(m_clear_color.r, m_clear_color.g, m_clear_color.b, m_clear_color.a);
 
     // Modern 4.6 feature: Seamless cubemaps for skyboxes

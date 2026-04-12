@@ -5,7 +5,6 @@ module;
 #if defined(TRACY_ENABLE)
 #include <tracy/TracyOpenGL.hpp>
 #endif
-#include <memory>
 module window_context;
 // class Renderer;
 //	Maybe implement in future
@@ -17,7 +16,6 @@ import gl_state;
 WindowContext::WindowContext(int _width, int _height, std::string _title) noexcept : width(_width), height(_height), title(_title) 
 {
 	create_window();
-	glfwSetWindowUserPointer(window, this);
 }
 WindowContext& WindowContext::operator=(WindowContext&& other) noexcept
 {
@@ -42,6 +40,7 @@ WindowContext& WindowContext::operator=(WindowContext&& other) noexcept
 }
 WindowContext::~WindowContext() noexcept
 {
+  log::error("🔥 WindowContext destroyed! ptr={}", (void*)this);
 	if (window)
 		glfwDestroyWindow(window);
 	glfwTerminate();
@@ -59,7 +58,7 @@ void WindowContext::toggle_fullscreen() noexcept
 		fullscreen = true;
 	}
 	glfwGetFramebufferSize(window, &width, &height);
-	glViewport(0, 0, width, height);
+	GLState::set_viewport(0, 0, width, height);
 	aspect_ratio = float(width) / float(height);
 }
 
@@ -183,9 +182,8 @@ void WindowContext::create_window()
 
 
 	GLState::init_capabilities();
+	GLState::set_viewport(0, 0, width, height);
 	GLState::sync();
-
-	glViewport(0, 0, width, height);
 
 	aspect_ratio = (float)width / (float)height;
 }

@@ -1,17 +1,9 @@
 module;
-/*
-#include <vector>
-#include <cstdint>
-#include <algorithm>
-#include <memory>
-#include <tuple>
-#include <utility>
-*/
 #include <cstddef>
-#include <cstdint>
+#include <cassert>
 export module ecs;
 
-// 'export import' makes 'Entity' visible to main.cpp
+// 'export import' makes 'Entity' visible to importers
 export import :entity;
 #if defined(DEBUG)
 import logger;
@@ -29,19 +21,43 @@ export struct IComponentStorage {
 export template <typename T>
 class ComponentStorage : public IComponentStorage {
 public:
+  constexpr explicit ComponentStorage(std::size_t max_entities) { 
+    sparse.resize(max_entities, static_cast<entity_id>(-1)); 
+    dense.reserve(max_entities);
+    data.reserve(max_entities);
+  }
     void add(Entity e, T comp) {
-        if (e.id >= sparse.size()) sparse.resize(e.id + 1, -1);
+      assert(e.id < sparse.size());
         entity_id& slot = sparse[e.id];
         if (slot == -1) {
-            slot = static_cast<int64_t>(dense.size());
-            dense.push_back(e);
+            slot = static_cast<std::int64_t>(dense.size());
+            dense.emplace_back(e);
             data.push_back(std::move(comp));
         } else {
             data[slot] = std::move(comp);
         }
     }
+    template <typename... Args>
+      T& emplace(Entity e, Args&&... args)
+      {
+        assert(e.id < sparse.size());
+        entity_id& slot = sparse[e.id];
 
-    bool has(Entity e) const {
+        if (slot == static_cast<entity_id>(-1))
+        {
+          slot = static_cast<entity_id>(dense.size());
+          dense.emplace_back(e);
+          data.emplace_back(std::forward<Args>(args)...);
+          return data.back();
+        }
+        else
+        {
+          data[slot] = T(std::forward<Args>(args)...);
+          return data[slot];
+        }
+      }
+
+    inline bool has(Entity e) const noexcept {
         return e.id < sparse.size() && sparse[e.id] != -1;
     }
 
@@ -60,14 +76,16 @@ public:
         size_t idx = static_cast<size_t>(sparse[e.id]);
         size_t last = dense.size() - 1;
 
-        dense[idx] = dense[last];
-        data[idx] = std::move(data[last]);
-
-        sparse[dense[idx].id] = static_cast<entity_id>(idx);
+        if (idx != last)
+        {
+          dense[idx] = dense[last];
+          data[idx] = std::move(data[last]);
+          sparse[dense[idx].id] = static_cast<entity_id>(idx);
+        }
 
         dense.pop_back();
         data.pop_back();
-        sparse[e.id] = -1;
+        sparse[e.id] = static_cast<entity_id>(-1);
     }
 
     const std::vector<Entity>& all_entities() const { return dense; }
@@ -100,18 +118,20 @@ private:
 };
 export class ComponentManager {
 public:
+  constexpr explicit ComponentManager(std::size_t max_entities)
+    : max_entities(max_entities) {}
     template <typename T>
-    void add_component(Entity e, T comp) noexcept {
+    inline void add_component(Entity e, T comp) noexcept {
         get_storage<T>()->add(e, std::move(comp));
     }
+    template <typename T, typename... Args>
+      void emplace_component(Entity e, Args&&... args) noexcept
+      {
+        get_storage<T>()->emplace(e, std::forward<Args>(args)...);
+      }
 
     template <typename T>
     T* get_component(Entity e) noexcept {
-        return get_storage<T>()->get(e);
-    }
-
-    template <typename T>
-    const T* get_component(Entity e) const noexcept {
         return get_storage<T>()->get(e);
     }
 
@@ -170,12 +190,11 @@ private:
             typed_storages.resize(type_id + 1);
         }
         if (!typed_storages[type_id]) {
-            typed_storages[type_id] = std::make_unique<ComponentStorage<T>>();
+            typed_storages[type_id] = std::make_unique<ComponentStorage<T>>(max_entities);
         }
         return static_cast<ComponentStorage<T>*>(typed_storages[type_id].get());
     }
-
-    template <typename T>
+    /* This must not allocate
     const ComponentStorage<T>* get_storage() const noexcept {
         const std::size_t type_id = ComponentTypeID<T>();  // <-- changed 'constexpr' to 'const'
         if (type_id >= typed_storages.size()) {
@@ -186,37 +205,45 @@ private:
         }
         return static_cast<ComponentStorage<T>*>(typed_storages[type_id].get());
     }
+    */
 
     template <typename T>
     static std::size_t ComponentTypeID() {
-		// Maybe if you change to ++counter you will start counting components from index 1 ??
         static std::size_t id = counter++;
         return id;
     }
 
     static inline std::size_t counter = 0;
-
-    mutable std::vector<std::unique_ptr<IComponentStorage>> typed_storages;
+    std::vector<std::unique_ptr<IComponentStorage>> typed_storages;
+    std::size_t max_entities = std::numeric_limits<std::size_t>::max();
 };
 
 export class EntityManager
 {
 	public:
-		constexpr EntityManager(std::size_t max_entities) { free_ids.reserve(max_entities); }
+		constexpr explicit EntityManager(std::size_t max_entities) { free_ids.reserve(max_entities); }
 
-		Entity create() noexcept
-		{
-			Entity e;
-			if (!free_ids.empty()) {
-				e.id = free_ids.back();
-				free_ids.pop_back();
-			} else {
-				e.id = next_id++;
-			}
-			return e;
-		}
+    Entity create() noexcept
+    {
+      Entity e;
+      if (!free_ids.empty())
+      {
+        e.id = free_ids.back();
+        free_ids.pop_back();
+      }
+      else
+      {
+        e.id = next_id++;
+      }
 
-		void destroy(Entity e) noexcept { free_ids.push_back(e.id); }
+      return e;
+    }
+    void destroy(Entity e) noexcept
+    {
+      if (e.id >= next_id) return;
+      if (!e.is_valid()) return;
+      free_ids.push_back(e.id);
+    }
 		void clear() noexcept {
 			next_id = 0;
 			free_ids.clear();
@@ -247,11 +274,19 @@ export class ECS
 	{
 		cm.add_component<T>(e, c);
 	}
+    template <typename T, typename... Args>
+  inline void add_component_if_missing(Entity e, Args&&... args) noexcept
+  {
+    if (!has_component<T>(e)) {
+      emplace_component<T>(e, std::forward<Args>(args)...);
+    }
+  }
 
 	template <typename T, typename... Args>
 	inline void emplace_component(Entity e, Args&&... args)
 	{
-		cm.add_component<T>(e, T(std::forward<Args>(args)...));
+		// cm.add_component<T>(e, T(std::forward<Args>(args)...));
+    cm.emplace_component<T>(e, std::forward<Args>(args)...);
 	}
 
 	template <typename T>
@@ -345,5 +380,5 @@ export class ECS
 
       private:
 	EntityManager    em{MAX_ENTITIES};
-	ComponentManager cm;
+	ComponentManager cm{MAX_ENTITIES};
 };

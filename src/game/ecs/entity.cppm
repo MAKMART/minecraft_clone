@@ -1,13 +1,11 @@
-module;
-#include <cstdint>
-#include <cstddef>
-#include <functional>
 export module ecs:entity;
 
+import std;
 export using entity_id = std::uint32_t;
 export struct Entity {
-	entity_id id;
-	bool operator==(const Entity& other) const { return id == other.id; }
+	entity_id id = std::numeric_limits<entity_id>::max();
+	bool operator<=>(const Entity& other) const noexcept = default;
+  bool is_valid() const noexcept { return id != std::numeric_limits<entity_id>::max(); }
 };
 
 // Provide a hash function for std::unordered_map

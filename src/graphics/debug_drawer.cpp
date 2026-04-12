@@ -1,17 +1,19 @@
 module;
 #include <glad/glad.h>
-#include "graphics/renderer/vertex_buffer.hpp"
-//#include <string>
-//#include <filesystem>
 #include <cmath>
 module debug_drawer;
 
 import core;
+import gl_state;
 //import logger;
-DebugDrawer::DebugDrawer()
+DebugDrawer::DebugDrawer() : shader(new Shader("Debug", std::filesystem::path(SHADERS_DIRECTORY / "debug_vert.glsl"), std::filesystem::path(SHADERS_DIRECTORY / "debug_frag.glsl"))), 
+	vbo(vertex_buffer_immutable(vertices.data(), vertices.size() * sizeof(glm::vec3))),
+	vbo2(vertex_buffer_immutable(line_vertices, sizeof(line_vertices)))
 {
 	// TODO: Adjust paths
-	shader = new Shader("Debug", std::filesystem::path(SHADERS_DIRECTORY / "debug_vert.glsl"), std::filesystem::path(SHADERS_DIRECTORY / "debug_frag.glsl"));
+	// shader = new Shader("Debug", std::filesystem::path(SHADERS_DIRECTORY / "debug_vert.glsl"), std::filesystem::path(SHADERS_DIRECTORY / "debug_frag.glsl"));
+	// vbo = vertex_buffer::immutable(vertices.data(), vertices.size() * sizeof(glm::vec3));
+	// vbo2 = vertex_buffer::immutable(line_vertices, sizeof(line_vertices));
 
 	vertices = {
 	    // Front face
@@ -89,19 +91,19 @@ void DebugDrawer::draw(const glm::mat4& viewProj)
 		glm::mat4 model  = glm::translate(glm::mat4(1.0f), center) * glm::scale(glm::mat4(1.0f), size);
 		shader->setMat4("model", model);
 		shader->setVec3("debugColor", aabb.color);
-		glDrawArrays(GL_LINES, 0, 24);
-		checkGLError("AABBDebugDrawer::draw - AABB glDrawArrays");
+		DrawArraysWrapper(GL_LINES, 0, 24);
+		checkGLError("AABBDebugDrawer::draw - AABB DrawArraysWrapper");
 	}
 
 	for (const auto& obb : obbs) {
 		glm::mat4 model = obb.transform * glm::scale(glm::mat4(1.0f), obb.halfExtents * 2.0f);
 		shader->setMat4("model", model);
 		shader->setVec3("debugColor", obb.color);
-		glDrawArrays(GL_LINES, 0, 24);
-		checkGLError("AABBDebugDrawer::draw - OBB glDrawArrays");
+		DrawArraysWrapper(GL_LINES, 0, 24);
+		checkGLError("AABBDebugDrawer::draw - OBB DrawArraysWrapper");
 	}
 
-	glDisable(GL_DEPTH_TEST);
+	GLState::set_depth_test(false);
 	glBindVertexArray(vao_lines);
 	for (auto& ray_tuple : rays) {
 		auto& [origin, direction, color] = ray_tuple;
@@ -125,13 +127,8 @@ void DebugDrawer::draw(const glm::mat4& viewProj)
 		glm::mat4 model = translation * rotation * scale;
 
 		shader->setMat4("model", model);
-		glDrawArrays(GL_LINES, 0, 2);
+		DrawArraysWrapper(GL_LINES, 0, 2);
 	}
-	glBindVertexArray(0);
-
-	glEnable(GL_DEPTH_TEST);
-
-	glBindVertexArray(0);
 	checkGLError("AABBDebugDrawer::draw - glBindVertexArray(0)");
 
 	rays.clear();
@@ -143,21 +140,17 @@ void DebugDrawer::initGLResources()
 {
 	glGenVertexArrays(1, &vao);
 	glGenVertexArrays(1, &vao_lines);
-	vbo = VB::Immutable(vertices.data(), vertices.size() * sizeof(glm::vec3));
-	vbo2 = VB::Immutable(line_vertices, sizeof(line_vertices));
 
 	glBindVertexArray(vao);
 	glVertexArrayVertexBuffer(vao, 0, vbo.id(), 0, sizeof(glm::vec3));
 	glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
 	glEnableVertexArrayAttrib(vao, 0);
-	glBindVertexArray(0);
 
 	glBindVertexArray(vao_lines);
 	glVertexArrayVertexBuffer(vao_lines, 0, vbo2.id(), 0, sizeof(glm::vec3));
 	glVertexArrayAttribFormat(vao_lines, 0, 3, GL_FLOAT, GL_FALSE, 0);
 	glEnableVertexArrayAttrib(vao_lines, 0);
 	checkGLError("AABBDebugDrawer::initGLResources");
-	glBindVertexArray(0);
 }
 
 void DebugDrawer::checkGLError(const std::string& operation)

@@ -1,11 +1,8 @@
 
-
-
 /*
  *
  * TODO: IMPLEMENT THE APPSTATE AND THE MAIN MENU WITH THE NEW UI SYSTEM
  */
-
 
 
 #if defined(TRACY_ENABLE)
@@ -13,17 +10,17 @@
 #endif
 
 #include <stb_image.h>
-#include "graphics/renderer/vertex_buffer.hpp"
-#include "graphics/renderer/framebuffer.hpp"
-#include "graphics/renderer/index_buffer.hpp"
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <cassert>
 
 import std;
 import timer;
 import core;
+import frame_context;
 import gl_state;
 import input_manager;
 import raycast;
@@ -41,39 +38,15 @@ import window_context;
 import player;
 import debug_drawer;
 import aabb;
+import vertex_buffer;
+import index_buffer;
+import app_state;
+import debug;
 
-std::uint64_t  nbFrames  = 0;
-double deltaTime = 0.0f;
-b8 renderUI      = true;
-b8 renderTerrain = true;
-std::unique_ptr<UI>            ui;
-ECS                            ecs;
-Player *g_player = nullptr;
-FramebufferManager* g_fb_manager = nullptr;
 static float crosshair_size = 0.3f;
-std::unique_ptr<WindowContext> context;
-#if defined(DEBUG)
-	b8 debugRender = false;
-#endif
-float getFPS();
+float getFPS(const frame_context& ctx);
 void DrawBool(const char* label, bool value);
 
-Entity get_active_camera(ECS& ecs)
-{
-    Entity active{UINT32_MAX};
-    int count = 0;
-
-    ecs.for_each_components<Camera, ActiveCamera>(
-        [&](Entity e, Camera&, ActiveCamera&) {
-            active = e;
-            ++count;
-        }
-    );
-
-    assert(count == 1 && "There must be exactly one ActiveCamera");
-
-   return active;
-}
 const char* gl_enum_to_string(GLenum e) {
 	switch (e) {
 		case GL_RGBA8:               return "GL_RGBA8";
@@ -87,33 +60,44 @@ const char* gl_enum_to_string(GLenum e) {
 }
 int main()
 {
-	context = std::make_unique<WindowContext>(1920, 1080, std::string(PROJECT_NAME) + std::string(" ") + std::string(PROJECT_VERSION));
-	InputManager::get().setContext(context.get());
+  app_state state(1920, 1080, MAIN_FONT_DIRECTORY);
+  glfwSetWindowUserPointer(state.win_context->window, &state);
+	InputManager::get().setContext(state.win_context.get());
 	InputManager::get().setMouseTrackingEnabled(true);
 	auto framebuffer_size_callback_lambda = [](GLFWwindow* window, int width, int height) {
 		// Don't recalculate the projection matrix, skip this frame's rendering, or log a warning
 		if (width <= 0 || height <= 0) return;
 		log::info("width = {}, height = {}", width, height);
 
-		int fb_width, fb_height;
-		glfwGetFramebufferSize(window, &fb_width, &fb_height);
-		log::info("fb_width = {}, fb_height = {}", fb_width, fb_height);
-		GLState::set_viewport(0, 0, width, height);
+    app_state *state = static_cast<app_state*>(glfwGetWindowUserPointer(window));
+    if (!state) log::error("Couldn't find app_state* with glfwGetWindowUserPointer(window)");
+
+		glfwGetFramebufferSize(window, &state->frame_ctx.fb_width, &state->frame_ctx.fb_height);
+		log::info("fb_width = {}, fb_height = {}", state->frame_ctx.fb_width, state->frame_ctx.fb_height);
+    GLState::set_viewport(0, 0, width, height);
 		ImGui::SetNextWindowPos(ImVec2(width/* - 300*/, height), ImGuiCond_Always);
-		auto *active_cam = ecs.get_component<Camera>(get_active_camera(ecs));
-		if (active_cam)
-			active_cam->aspect_ratio = float(static_cast<float>(fb_width) / fb_height);
-		ecs.for_each_components<RenderTarget>([&](Entity e, RenderTarget& rt) {
-				if (rt.mode == extent_mode::follow_viewport) {
-					rt.width  = fb_width;
-					rt.height = fb_height;
-					g_fb_manager->ensure(e, rt);
-				}
+    assert(state->frame_ctx.active_camera.is_valid());
+		state->g_state.ecs.get_component<Camera>(state->frame_ctx.active_camera)->aspect_ratio = float(static_cast<float>(state->frame_ctx.fb_width) / state->frame_ctx.fb_height);
+
+    state->g_state.ecs.for_each_component<RenderTarget>([&](const Entity e, RenderTarget& rt) {
+        /*
+        switch (rt.mode) {
+          case extent_mode::follow_viewport:
+            rt.width = state->frame_ctx.fb_width;
+            rt.height = state->frame_ctx.fb_height;
+            break;
+          case extent_mode::fixed:
+          // Dont make rt.width && rt.height follow the viewport
+          default:
+            break;
+        }
+        */
+        state->fb_manager.ensure(e, rt);
 				log::info("rt.width = {}, rt.height = {}", rt.width, rt.height);
 		});
-		ui->SetViewportSize(fb_width, fb_height);
+    state->ui.SetViewportSize(state->frame_ctx.fb_width, state->frame_ctx.fb_height);
 	};
-	glfwSetFramebufferSizeCallback(context->window, framebuffer_size_callback_lambda);
+	glfwSetFramebufferSizeCallback(state.win_context->window, framebuffer_size_callback_lambda);
 
 	// TODO: fix the damn stencil buffer to allow cropping in RmlUI
 
@@ -126,8 +110,8 @@ int main()
 		std::cout << glGetStringi(GL_EXTENSIONS, i) << std::endl;
 	}
 	*/
-	int fb_width, fb_height;
-	glfwGetFramebufferSize(context->window, &fb_width, &fb_height);
+	// int fb_width, fb_height;
+	// glfwGetFramebufferSize(context->window, &fb_width, &fb_height);
 
 	log::info("Initializing Shaders...");
 
@@ -136,35 +120,9 @@ int main()
 	Shader fb_player("FB_PLAYER", SHADERS_DIRECTORY / "fb_vert.glsl", SHADERS_DIRECTORY / "fb_player_frag.glsl");
 	Shader shad("Test", SHADERS_DIRECTORY / "test_vert.glsl", SHADERS_DIRECTORY / "test_frag.glsl");
 
-
-#if defined(DEBUG)
-	Entity debug_cam;
-	debug_cam = ecs.create_entity();
-	ecs.emplace_component<Camera>(debug_cam);
-	ecs.emplace_component<Transform>(debug_cam, glm::vec3(0.0f, 10.0f, 0.0f));
-	// At the start we do not need to add these componets since they will change at runtime when the player will switch to the debug camera
-	//ecs.add_component(debug_cam, ActiveCamera{});
-	//ecs.add_component(debug_cam, InputComponent{});
-	ecs.emplace_component<Velocity>(debug_cam);
-	ecs.emplace_component<MovementIntent>(debug_cam);
-	ecs.emplace_component<DebugCamera>(debug_cam);
-	ecs.emplace_component<DebugCameraController>(debug_cam);
-	ecs.emplace_component<RenderTarget>(debug_cam, RenderTarget(context->get_width(), context->get_height(), {
-			{ framebuffer_attachment_type::color, GL_RGBA16F }, // albedo
-			//{ framebuffer_attachment_type::color, GL_RGBA16F }, // normal
-			{ framebuffer_attachment_type::color, GL_RG16F   }, // material
-			{ framebuffer_attachment_type::depth, GL_DEPTH_COMPONENT24 }
-			}));
-#endif
 	ChunkManager manager;
 	manager.generate_chunks({0.0f, 0.0f, 0.0f}, 5u);
-    Texture Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
-	FramebufferManager fb_manager;
-	g_fb_manager = &fb_manager;
-	Player player(ecs, {0.1f, 50.0f, 0.1f}, context->get_width(), context->get_height());
-	g_player = &player;
-	ui     = std::make_unique<UI>(context->get_width(), context->get_height(), MAIN_FONT_DIRECTORY);
-	ui->SetViewportSize(context->get_width(), context->get_height());
+  Texture Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST);
 
 	// Cubemap
 	GLuint cube_id;
@@ -187,21 +145,21 @@ int main()
 		"skybox/pz.png",
 		"skybox/nz.png"
 	};
-	
+
 	int width, height, nrChannels;
-	unsigned char *data;  
+	unsigned char *data;
 	for(unsigned int i = 0; i < cube_faces.size(); i++)
 	{
 		std::string string = ASSETS_DIRECTORY / cube_faces[i];
 		//log::info("loading cubemap texture from: {}", string);
 		data = stbi_load(string.c_str(), &width, &height, &nrChannels, 0);
 		if (data) {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB,
-                     width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data); // BEWARE OF THE FORMAT: It has to match the provided images
-        stbi_image_free(data);
-    } else {
-        log::error("Failed to load skybox: {}", string);
-    }
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB,
+					width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data); // BEWARE OF THE FORMAT: It has to match the provided images
+			stbi_image_free(data);
+		} else {
+			log::error("Failed to load skybox: {}", string);
+		}
 	}
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -211,8 +169,8 @@ int main()
 
 
 	// Initialize framebuffers for render targets
-	ecs.for_each_component<RenderTarget>([&](Entity e, RenderTarget& rt) {
-			fb_manager.ensure(e, rt);
+	state.g_state.ecs.for_each_component<RenderTarget>([&](Entity e, RenderTarget& rt) {
+			state.fb_manager.ensure(e, rt);
 			/*
 			for(size_t i = 0; i < rt.attachments.size(); i++) {
 			unsigned int e = (unsigned int)rt.attachments[i].internal_format;
@@ -235,6 +193,8 @@ int main()
 	// --- CROSSHAIR STUFF ---
 	Shader crossHairshader("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY);
 	Texture crossHairTexture(ICONS_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST);
+
+
 	static constexpr int CrosshairIndices[6] = {
 	    0, 1, 2,
 	    2, 3, 0
@@ -264,8 +224,8 @@ int main()
 
 
 	glCreateVertexArrays(1, &crosshairVAO);
-	VB crosshairVBO = VB::Immutable(verts, sizeof(verts));
-	IB crosshairEBO = IB::Immutable(CrosshairIndices, std::size(CrosshairIndices)); // std::size(CrosshairIndices) == 6
+	vertex_buffer_immutable crosshairVBO = vertex_buffer_immutable(verts, sizeof(verts));
+	index_buffer_immutable<std::int32_t> crosshairEBO = index_buffer_immutable<std::int32_t>(CrosshairIndices, std::size(CrosshairIndices)); // std::size(CrosshairIndices) == 6
 
 	glVertexArrayVertexBuffer(crosshairVAO, 0, crosshairVBO.id(), 0, 5 * sizeof(float));
 	glVertexArrayElementBuffer(crosshairVAO, crosshairEBO.id());
@@ -282,7 +242,7 @@ int main()
 	ImGui::CreateContext();
 	// ImGuiIO& io = ImGui::GetIO();
 	ImGui::StyleColorsDark();
-	ImGui_ImplGlfw_InitForOpenGL(context->window, true);
+	ImGui_ImplGlfw_InitForOpenGL(state.win_context->window, true);
 	ImGui_ImplOpenGL3_Init("#version 460");
 
 	GLuint VAO;
@@ -304,7 +264,7 @@ int main()
 		-1.0f,  3.0f, 0.0f,  0.0f, 2.0f
 	};
 
-	VB vb = VB::Immutable(vertices, sizeof(vertices));
+	vertex_buffer_immutable vb = vertex_buffer_immutable(vertices, sizeof(vertices));
 	glVertexArrayVertexBuffer(
 			VAO,
 			0,                  // binding index
@@ -313,10 +273,48 @@ int main()
 			5 * sizeof(float)   // stride
 			);
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	double lastFrame = glfwGetTime();
-	while (!glfwWindowShouldClose(context->window)) {	// GAME LOOP
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	while (!state.win_context->should_close()) {	// GAME LOOP
 		double currentFrame = glfwGetTime();
-		deltaTime          = currentFrame - lastFrame;
+    state.frame_ctx.delta_time = currentFrame - lastFrame;
+    state.frame_ctx.first_frame = state.frame_ctx.frame_number == 0;  // The fist frame has idx 0x0000000
 		lastFrame          = currentFrame;
 		g_drawCallCount    = 0;
 		// Clear the screen for the start of the new current frame
@@ -330,60 +328,64 @@ int main()
 
 		auto& input = InputManager::get();
 
-		UpdateFrametimeGraph(deltaTime);
+		UpdateFrametimeGraph(state.frame_ctx.delta_time);
 		// --- Input & Event Processing ---
-		input.update();       // reset last frame state
 		glfwPollEvents();     // new events arrive → PRESSED/RELEASED, mouse, scroll
-		input_system(ecs);
-		Entity old_camera = get_active_camera(ecs);
-		if (input.isPressed(GLFW_KEY_RIGHT)) {
-			ecs.remove_component<InputComponent>(old_camera);
-			ecs.remove_component<ActiveCamera>(old_camera);
-			ecs.add_component(player.getCamera(), ActiveCamera{});
-			ecs.add_component(player.getSelf(), InputComponent{});
-			// Recalculate aspect ratio cuz user might have changed to fullscreen while other cameras were active
-			int fb_w, fb_h;
-			glfwGetFramebufferSize(context->window, &fb_w, &fb_h);
-			framebuffer_size_callback_lambda(context->window, fb_w, fb_h);
-		}
-		if (input.isPressed(GLFW_KEY_LEFT)) {
-			ecs.remove_component<ActiveCamera>(old_camera);
-			ecs.remove_component<InputComponent>(player.getSelf());
-#if defined(DEBUG)
-			ecs.add_component(debug_cam, ActiveCamera{});
-			ecs.add_component(debug_cam, InputComponent{});
-#endif
-			// Recalculate aspect ratio cuz user might have changed to fullscreen while other cameras were active
-			int fb_w, fb_h;
-			glfwGetFramebufferSize(context->window, &fb_w, &fb_h);
-			framebuffer_size_callback_lambda(context->window, fb_w, fb_h);
-		}
-		Entity camera = get_active_camera(ecs);
+		input_system(state.g_state.ecs);
 
-		Camera* cam = ecs.get_component<Camera>(camera);
-		if (!cam)
-			log::error("Couldn't find active cam for frame {}", nbFrames);
+
+
+    // state.frame_ctx.active_camera = state.g_state.camera_manager_entity;
+    state.frame_ctx.active_camera = state.g_state.get_active_camera_component()->target;
+
+		Camera* ________cam = state.g_state.ecs.get_component<Camera>(state.frame_ctx.active_camera);
+		if (!________cam )
+			log::error("Couldn't find active cam for frame {}", state.frame_ctx.frame_number);
+    state.frame_ctx.cam = ________cam;
+    glm::mat4 view_proj = state.frame_ctx.cam->viewMatrix * state.frame_ctx.cam->projectionMatrix;
+    state.frame_ctx.view_proj_matrix = view_proj;
+    state.frame_ctx.inv_view_proj_matrix = glm::inverse(view_proj);
+
+
+    { // Switch currently active camera
+      auto* active_camera = state.g_state.get_active_camera_component();
+
+      if (input.isPressed(GLFW_KEY_RIGHT)) {
+        active_camera->target = state.g_state.player.camera;
+        state.g_state.ecs.add_component_if_missing<InputComponent>(state.g_state.player.self, InputComponent{});
+      }
+
+      if (input.isPressed(GLFW_KEY_LEFT)) {
+#if defined(DEBUG)
+        active_camera->target = state.g_state.debug_cam;
+        state.g_state.ecs.add_component_if_missing<InputComponent>(state.g_state.debug_cam, InputComponent{});
+#endif
+      }
+
+    }
+
+
 
 		if (input.isPressed(EXIT_KEY))
-			glfwSetWindowShouldClose(context->window, true);
+			glfwSetWindowShouldClose(state.win_context->window, true);
 
 		if (input.isPressed(FULLSCREEN_KEY)) {
-			context->toggle_fullscreen();
+			state.win_context->toggle_fullscreen();
 			int fb_w, fb_h;
-			glfwGetFramebufferSize(context->window, &fb_w, &fb_h);
-			framebuffer_size_callback_lambda(context->window, fb_w, fb_h);
+			glfwGetFramebufferSize(state.win_context->window, &fb_w, &fb_h);
+			framebuffer_size_callback_lambda(state.win_context->window, fb_w, fb_h);
 		}
 
 		static float scale = 0.01f;
-		if (camera == player.getCamera()) {
+		if (state.frame_ctx.active_camera == state.g_state.player.camera) {
 			//fb_player.setFloat("near_plane", cam->near_plane);
 			//fb_player.setFloat("far_plane", cam->far_plane);
 			fb_player.setFloat("scale", scale);
 		} 
 #if defined(DEBUG)
-		else if (camera == debug_cam) {
-			fb_debug.setFloat("near_plane", cam->near_plane);
-			fb_debug.setFloat("far_plane", cam->far_plane);
+		else if (state.frame_ctx.active_camera == state.g_state.debug_cam) {
+			fb_debug.setFloat("near_plane", state.frame_ctx.cam->near_plane);
+			fb_debug.setFloat("far_plane", state.frame_ctx.cam->far_plane);
 		}
 #endif
 		if (input.isPressed(GLFW_KEY_UP))
@@ -398,11 +400,11 @@ int main()
 
 		if (pressed && !was_pressed) { // only trigger on key-down edge
 			toggle = !toggle;          // flip toggle
-			if (camera == player.getCamera()) {
+			if (state.frame_ctx.active_camera == state.g_state.player.camera) {
 				fb_player.setInt("toggle", toggle ? 1 : 0);
 			} 
 #if defined(DEBUG)
-			else if (camera == debug_cam) {
+			else if (state.frame_ctx.active_camera == state.g_state.debug_cam) {
 				fb_debug.setInt("toggle", toggle ? 1 : 0);
 			}
 #endif
@@ -412,35 +414,35 @@ int main()
 
 		// 1. Player
 		if (input.isMouseTrackingEnabled()) {
-			if (input.isMousePressed(ATTACK_BUTTON) && player.canBreakBlocks && camera == player.getCamera()) {
-				player.breakBlock(manager);
-			}
-			if (input.isMousePressed(DEFENSE_BUTTON) && player.canPlaceBlocks && camera == player.getCamera()) {
-				player.placeBlock(manager);
-			}
+			// if (input.isMousePressed(ATTACK_BUTTON) && state.g_state.player.canBreakBlocks && state.frame_ctx.active_camera == state.g_state.player.camera) {
+			// 	state.g_state.player.breakBlock(manager);
+			// }
+			// if (input.isMousePressed(DEFENSE_BUTTON) && state.g_state.player.canPlaceBlocks && state.frame_ctx.active_camera == state.g_state.player.camera) {
+			// 	state.g_state.player.placeBlock(manager);
+			// }
 #if defined(DEBUG)
-			if (camera == debug_cam) {
-				Transform* trans = ecs.get_component<Transform>(camera);
+			if (state.frame_ctx.active_camera == state.g_state.debug_cam) {
+				Transform* trans = state.g_state.ecs.get_component<Transform>(state.frame_ctx.active_camera);
 				if (!trans)
-					log::error("NO TRANSFORM FOR ENTITY: {}", camera.id);
+					log::error("NO TRANSFORM FOR ENTITY: {}", state.frame_ctx.active_camera.id);
 				glm::vec4 clip = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
 
-				glm::vec4 view_space = glm::inverse(cam->projectionMatrix) * clip;
+				glm::vec4 view_space = glm::inverse(state.frame_ctx.cam->projectionMatrix) * clip;
 				view_space.z = -1.0f; // forward direction
 				view_space.w = 0.0f;  // this is a direction, not a position
 
-				glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(cam->viewMatrix) * view_space));
+				glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(state.frame_ctx.cam->viewMatrix) * view_space));
 				glm::vec3 ray_origin = trans->pos; // start at camera position
 				if (input.isMouseHeld(ATTACK_BUTTON)) {
-					std::optional<glm::ivec3> hitBlock = raycast::voxel(manager, ray_origin, ray_dir, player.max_interaction_distance);
+					std::optional<glm::ivec3> hitBlock = raycast::voxel(manager, ray_origin, ray_dir, state.g_state.player.max_interaction_distance);
 					if (hitBlock.has_value()) {
 						glm::ivec3 blockPos = hitBlock.value();
-						manager.updateBlock(blockPos, Block::blocks::AIR);
+						manager.update_block(blockPos, Block::blocks::AIR);
 					}
 					// log::info("Breaking block at: {}, {}, {}", blockPos.x, blockPos.y, blockPos.z);
 				}
 				if (input.isMouseHeld(DEFENSE_BUTTON)) {
-					std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycast::voxel_normals(manager, ray_origin, ray_dir, player.max_interaction_distance);
+					std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycast::voxel_normals(manager, ray_origin, ray_dir, state.g_state.player.max_interaction_distance);
 					if (hitResult.has_value()) {
 						glm::ivec3 hitBlockPos = hitResult->first;
 						glm::ivec3 normal      = hitResult->second;
@@ -457,11 +459,11 @@ int main()
 						for(int i = -radius; i < radius; i++) {
 							for(int j = -radius; j < radius; j++) {
 								for(int k = -radius; k < radius; k++)
-									manager.updateBlock(placePos + glm::ivec3(i, j, k), static_cast<Block::blocks>(player.selectedBlock));
+									manager.updateBlock(placePos + glm::ivec3(i, j, k), static_cast<Block::blocks>(state.g_state.player.selectedBlock));
 							}
 						}
 						*/
-						manager.updateBlock(placePos, static_cast<Block::blocks>(player.selectedBlock));
+						manager.update_block(placePos, static_cast<Block::blocks>(state.g_state.player.selectedBlock));
 					}
 				}
 			
@@ -471,14 +473,14 @@ int main()
 
 			float scrollY = input.getScroll().y;
 			if (scrollY != 0.0f) {
-				CameraController* ctrl = ecs.get_component<CameraController>(camera);
+				CameraController* ctrl = state.g_state.ecs.get_component<CameraController>(state.frame_ctx.active_camera);
 				float scroll_speed_multiplier = 1.0f;
 				if (!ctrl->third_person) {
-					player.selectedBlock += static_cast<int>(scrollY * scroll_speed_multiplier);
-					if (player.selectedBlock < 1)
-						player.selectedBlock = 1;
-					if (player.selectedBlock >= Block::toInt(Block::blocks::MAX_BLOCKS))
-						player.selectedBlock = Block::toInt(Block::blocks::MAX_BLOCKS) - 1;
+					state.g_state.player.selectedBlock += static_cast<int>(scrollY * scroll_speed_multiplier);
+					if (state.g_state.player.selectedBlock < 1)
+						state.g_state.player.selectedBlock = 1;
+					if (state.g_state.player.selectedBlock >= Block::toInt(Block::blocks::MAX_BLOCKS))
+						state.g_state.player.selectedBlock = Block::toInt(Block::blocks::MAX_BLOCKS) - 1;
 				}
 
 				// To change FOV
@@ -488,18 +490,18 @@ int main()
 			}
 		}
 
-		PlayerMode* mode = ecs.get_component<PlayerMode>(player.getSelf());
-		PlayerState* state = ecs.get_component<PlayerState>(player.getSelf());
-		if (input.isPressed(CAMERA_SWITCH_KEY) && ecs.has_component<CameraController>(camera)) {
-			ecs.get_component<CameraController>(camera)->third_person = !ecs.get_component<CameraController>(camera)->third_person;
+		PlayerMode* mode = state.g_state.ecs.get_component<PlayerMode>(state.g_state.player.self);
+		PlayerState* player_state = state.g_state.ecs.get_component<PlayerState>(state.g_state.player.self);
+		if (input.isPressed(CAMERA_SWITCH_KEY) && state.g_state.ecs.has_component<CameraController>(state.frame_ctx.active_camera)) {
+			state.g_state.ecs.get_component<CameraController>(state.frame_ctx.active_camera)->third_person = !state.g_state.ecs.get_component<CameraController>(state.frame_ctx.active_camera)->third_person;
 		}
 
 		if (input.isPressed(SURVIVAL_MODE_KEY)) {
-			state->current = PlayerMovementState::Walking;
+			player_state->current = PlayerMovementState::Walking;
 		}
 
 		if (input.isPressed(CREATIVE_MODE_KEY)) {
-			state->current = PlayerMovementState::Flying;
+			player_state->current = PlayerMovementState::Flying;
 		}
 
 		if (input.isPressed(SPECTATOR_MODE_KEY)) {
@@ -523,9 +525,9 @@ int main()
 			crosshair_size -= 0.1f;
 
 #if defined(DEBUG)
-		if (input.isPressed(GLFW_KEY_ENTER) && camera == debug_cam) {
-			ecs.get_component<Transform>(player.getSelf())->pos = ecs.get_component<Transform>(debug_cam)->pos;
-			ecs.get_component<Velocity>(player.getSelf())->value = ecs.get_component<Velocity>(debug_cam)->value;
+		if (input.isPressed(GLFW_KEY_ENTER) && state.frame_ctx.active_camera == state.g_state.debug_cam) {
+			state.g_state.ecs.get_component<Transform>(state.g_state.player.self)->pos = state.g_state.ecs.get_component<Transform>(state.g_state.debug_cam)->pos;
+			state.g_state.ecs.get_component<Velocity>(state.g_state.player.self)->value = state.g_state.ecs.get_component<Velocity>(state.g_state.debug_cam)->value;
 		
 		}
 #endif
@@ -533,35 +535,35 @@ int main()
 		
 
 		// 2. UI
-		if (ui->get_context()) {
+		if (state.ui.get_context()) {
 			glm::vec2 mousePos = input.getMousePos();
-			ui->get_context()->ProcessMouseMove(static_cast<int>(mousePos.x), static_cast<int>(mousePos.y), ui->GetKeyModifiers());
+			state.ui.get_context()->ProcessMouseMove(static_cast<int>(mousePos.x), static_cast<int>(mousePos.y), state.ui.GetKeyModifiers());
 
 			// Mouse buttons
 			for (int b = 0; b < InputManager::MAX_MOUSE_BUTTONS; ++b) {
 				if (input.isMousePressed(b))
-					ui->get_context()->ProcessMouseButtonDown(b, 0);
+					state.ui.get_context()->ProcessMouseButtonDown(b, 0);
 				else if (input.isMouseReleased(b))
-					ui->get_context()->ProcessMouseButtonUp(b, 0);
+					state.ui.get_context()->ProcessMouseButtonUp(b, 0);
 			}
 
 			// Scroll
 			float scrollY = input.getScroll().y;
 			if (scrollY != 0.0f)
-				ui->get_context()->ProcessMouseWheel(-scrollY, 0);
+				state.ui.get_context()->ProcessMouseWheel(-scrollY, 0);
 
 			// Keyboard
 			for (int k = 0; k < InputManager::MAX_KEYS; ++k) {
 				if (input.isPressed(k))
-					ui->get_context()->ProcessKeyDown(ui->MapKey(k), ui->GetKeyModifiers());
+					state.ui.get_context()->ProcessKeyDown(state.ui.MapKey(k), state.ui.GetKeyModifiers());
 				else if (input.isReleased(k))
-					ui->get_context()->ProcessKeyUp(ui->MapKey(k), ui->GetKeyModifiers());
+					state.ui.get_context()->ProcessKeyUp(state.ui.MapKey(k), state.ui.GetKeyModifiers());
 			}
 		}
 
 #if defined(DEBUG)
 		if (input.isPressed(GLFW_KEY_8)) {
-			debugRender = !debugRender;
+			state.frame_ctx.debug_render = !state.frame_ctx.debug_render;
 		}
 #endif
 
@@ -588,35 +590,35 @@ int main()
 
 
 
-		CameraController* ctrl = ecs.get_component<CameraController>(player.getCamera());
-		manager.generate_chunks(player.getPos(), player.render_distance);
+		CameraController* ctrl = state.g_state.ecs.get_component<CameraController>(state.g_state.player.camera);
 
-		movement_intent_system(ecs, cam);
-		movement_physics_system(ecs, manager, deltaTime);
-		camera_controller_system(ecs, player.getSelf());
+		movement_intent_system(state.g_state.ecs, state.frame_ctx.cam);
+    player_state_system(state.g_state.ecs);
+		// movement_physics_system(state.g_state.ecs, manager, deltaTime);
+		camera_controller_system(state.g_state.ecs, state.g_state.player.self);
 #if defined(DEBUG)
-		debug_camera_system(ecs, deltaTime);
+		debug_camera_system(state.g_state.ecs, state.frame_ctx.delta_time);
 #endif
-		camera_system(ecs);
-		frustum_volume_system(ecs);
+		camera_system(state.g_state.ecs);
+		frustum_volume_system(state.g_state.ecs);
 
-
-		player.update(deltaTime);
 
 #if defined(DEBUG)
-		if (debugRender) {
-			DebugDrawer::get().addAABB(player.getAABB(), glm::vec3(0.3f, 1.0f, 0.5f));
-			Camera* player_cam = ecs.get_component<Camera>(player.getCamera());
-			Transform* player_cam_trans = ecs.get_component<Transform>(player.getCamera());
+		if (state.frame_ctx.debug_render) {
+      auto aabb = state.g_state.ecs.get_component<Collider>(state.g_state.player.self)->aabb;
+			DebugDrawer::get().addAABB(aabb, glm::vec3(0.3f, 1.0f, 0.5f));
+			Camera* player_cam = state.g_state.ecs.get_component<Camera>(state.g_state.player.camera);
+			Transform* player_cam_trans = state.g_state.ecs.get_component<Transform>(state.g_state.player.camera);
 			glm::vec3 world_forward = glm::normalize(player_cam_trans->rot * player_cam->forward);
 			glm::vec3 world_up      = glm::normalize(player_cam_trans->rot * player_cam->up);
 			glm::vec3 world_right   = glm::normalize(player_cam_trans->rot * player_cam->right);
-			DebugDrawer::get().addRay(player.getPos(), world_forward, {1.0f, 0.0f, 0.0f});
-			DebugDrawer::get().addRay(player.getPos(), world_up, {0.0f, 1.0f, 0.0f});
-			DebugDrawer::get().addRay(player.getPos(), world_right, {0.0, 0.0f, 1.0f});
+      auto* trans = state.g_state.ecs.get_component<Transform>(state.g_state.player.self);
+			DebugDrawer::get().addRay(trans->pos, world_forward, {1.0f, 0.0f, 0.0f});
+			DebugDrawer::get().addRay(trans->pos, world_up, {0.0f, 1.0f, 0.0f});
+			DebugDrawer::get().addRay(trans->pos, world_right, {0.0, 0.0f, 1.0f});
 
-			ecs.for_each_components<Camera, Transform>([](Entity e, Camera, Transform& trans){
-					if (!ecs.has_component<ActiveCamera>(e))
+			state.g_state.ecs.for_each_components<Camera, Transform>([&state](Entity e, Camera, Transform& trans){
+					if (!state.g_state.ecs.has_component<ActiveCamera>(e))
 						DebugDrawer::get().addAABB(AABB::fromCenterSize(trans.pos, {0.5f, 0.8f, 0.5f}), glm::vec3(1.0f, 0.0f, 1.0f));
 					});
 
@@ -630,7 +632,7 @@ int main()
 			glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(player_cam->viewMatrix) * view_space));
 			glm::vec3 cam_pos   = player_cam_trans->pos + glm::vec3(0.1, 0.0, 0.1f);
 			DebugDrawer::get().addRay(cam_pos, ray_dir, {1.0f, 0.0f, 0.0f});
-			glm::vec3 cam_dir   = glm::normalize(player_cam_trans->rot * cam->forward);
+			glm::vec3 cam_dir   = glm::normalize(player_cam_trans->rot * state.frame_ctx.cam->forward);
 			DebugDrawer::get().addRay(cam_pos, cam_dir, {1.0f, 0.0f, 0.0f});
 
 
@@ -642,12 +644,15 @@ int main()
 				// Color for chunk boxes, maybe a translucent blue-ish?
 				DebugDrawer::get().addAABB(chunkPtr->aabb, glm::vec3(0.3f, 0.5f, 1.0f));
 			}
-			DebugDrawer::get().addRay(player.getPos(), glm::normalize(player.getVelocity()), {1.0f, 1.0f, 0.0f});
-			DebugDrawer::get().addRay(player.getPos(), glm::normalize(glm::vec3{0.0f, -GRAVITY, 0.0f}), glm::vec3(0.5f, 0.5f, 1.0f));
+      auto vel = state.g_state.ecs.get_component<Velocity>(state.g_state.player.self)->value;
+			DebugDrawer::get().addRay(trans->pos, vel, {1.0f, 1.0f, 0.0f});
+			DebugDrawer::get().addRay(trans->pos, glm::normalize(glm::vec3{0.0f, -GRAVITY, 0.0f}), glm::vec3(0.5f, 0.5f, 1.0f));
 		}
 #endif
 
 
+
+		manager.generate_chunks(state.g_state.ecs.get_component<Transform>(state.g_state.player.self)->pos, state.g_state.player.render_distance);
 
 
 
@@ -662,19 +667,27 @@ int main()
 			playerShader.setMat4("view", cam->viewMatrix);
 			player.render(playerShader);
 		}
-		*/
+    */
 
 
-		if (renderTerrain) {
+		if (state.g_state.render_terrain) {
 			//manager.getShader().checkAndReloadIfModified();
-			manager.getShader().setMat4("projection", cam->projectionMatrix);
-			manager.getShader().setMat4("view", cam->viewMatrix);
+			manager.getShader().setMat4("projection", state.frame_ctx.cam->projectionMatrix);
+			manager.getShader().setMat4("view", state.frame_ctx.cam->viewMatrix);
 			//manager.getShader().setFloat("time", (float)glfwGetTime());
+
+			manager.getShader2().setMat4("u_projection", state.frame_ctx.cam->projectionMatrix);
+			manager.getShader2().setMat4("u_view", state.frame_ctx.cam->viewMatrix);
+			Transform* cam_trans = state.g_state.ecs.get_component<Transform>(state.frame_ctx.active_camera);
+			manager.getShader2().setVec3("eye_position", cam_trans->pos);
+
+			// manager.getShader2().setIVec3("eye_position_int", glm::ivec3(floor(cam_trans->pos)));
 			Atlas.Bind(0);
-			manager.getShader().use();
+
+			manager.getShader2().use();
 			// Whatever VAO'll work
 			glBindVertexArray(VAO);
-			chunk_renderer_system(ecs, manager, cam, *ecs.get_component<FrustumVolume>(player.getCamera()), fb_manager);
+			chunk_renderer_system(state.g_state.ecs, manager, *state.g_state.ecs.get_component<FrustumVolume>(state.g_state.player.camera), state.fb_manager);
 			glBindVertexArray(0);
 			Atlas.Unbind(0);
 		}
@@ -682,8 +695,8 @@ int main()
 		// Debug render
 
 #if defined(DEBUG)
-		if (debugRender) {
-			ecs.for_each_components<Camera, Transform, RenderTarget, ActiveCamera>([](Entity e, Camera& cam, Transform, RenderTarget, ActiveCamera){
+		if (state.frame_ctx.debug_render) {
+			state.g_state.ecs.for_each_components<Camera, Transform, RenderTarget, ActiveCamera>([](Entity e, Camera& cam, Transform, RenderTarget, ActiveCamera){
 					glm::mat4 pv = cam.projectionMatrix * cam.viewMatrix;
 					DebugDrawer::get().draw(pv);
 					});
@@ -693,9 +706,9 @@ int main()
 		glm::mat4 temp_model = glm::mat4(1.0f);
 		temp_model = glm::translate(temp_model, glm::vec3(-0.5f, 9.5f, 0.0f));
 		temp_model = glm::scale(temp_model, glm::vec3(0.5f, 0.5f, 0.5f));
-		shad.setMat4("projection", cam->projectionMatrix);
+		shad.setMat4("projection", state.frame_ctx.cam->projectionMatrix);
 		shad.setMat4("model", temp_model);
-		shad.setMat4("view", cam->viewMatrix);
+		shad.setMat4("view", state.frame_ctx.cam->viewMatrix);
 
 		Atlas.Bind(0);
 		shad.use();
@@ -707,29 +720,26 @@ int main()
 
 		framebuffer::bind_default_draw();
 		GLState::set_depth_test(false);
-		auto& cur_fb = fb_manager.get(camera);
+		auto& cur_fb = state.fb_manager.get(state.frame_ctx.active_camera);
 		GLState::set_viewport(0, 0, cur_fb.width(), cur_fb.height());
 		glBindTextureUnit(0, cur_fb.color_attachment(0));
 		glBindTextureUnit(1, cur_fb.depth_attachment());
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, cube_id);
 
-		glm::mat4 curr_view_proj = cam->projectionMatrix * cam->viewMatrix;
-		glm::mat4 curr_inv_view_proj = glm::inverse(curr_view_proj);
-
-		if (camera == player.getCamera()) {
-			glm::mat4 prev_view_proj = ecs.get_component<CameraTemporal>(player.getCamera())->prev_view_proj;
-			fb_player.setMat4("curr_inv_view_proj", curr_inv_view_proj);
+		if (state.frame_ctx.active_camera == state.g_state.player.camera) {
+			glm::mat4 prev_view_proj = state.g_state.ecs.get_component<CameraTemporal>(state.g_state.player.camera)->prev_view_proj;
+			fb_player.setMat4("curr_inv_view_proj", state.frame_ctx.inv_view_proj_matrix);
 			fb_player.setMat4("prev_view_proj", prev_view_proj);
-			fb_player.setMat4("invView", glm::inverse(cam->viewMatrix));
-			fb_player.setMat4("invProj", glm::inverse(cam->projectionMatrix));
+			fb_player.setMat4("invView", glm::inverse(state.frame_ctx.cam->viewMatrix));
+			fb_player.setMat4("invProj", glm::inverse(state.frame_ctx.cam->projectionMatrix));
 			fb_player.setInt("color", 0);
 			fb_player.setInt("depth", 1);
 			fb_player.setInt("skybox", 2);
 			fb_player.use();
 		} 
 #if defined(DEBUG)
-		else if (camera == debug_cam) {
+		else if (state.frame_ctx.active_camera == state.g_state.debug_cam) {
 			fb_debug.setInt("color", 0);
 			fb_debug.setInt("depth", 1);
 			fb_debug.use();
@@ -744,7 +754,7 @@ int main()
 		glBindVertexArray(0);
 
 		// --- UI Pass --- (now rendered BEFORE ImGui)
-		if (renderUI/* && camera == player.getCamera()*/) {
+		if (state.g_state.render_ui/* && state.frame_ctx.active_camera == player.camera*/) {
 			GLState::set_depth_test(false);
 			GLState::set_wireframe(false);
 			GLState::set_stencil_test(false);
@@ -760,9 +770,8 @@ int main()
 			DrawElementsWrapper(GL_TRIANGLES, sizeof(CrosshairIndices) / sizeof(CrosshairIndices[0]), GL_UNSIGNED_INT, nullptr);
 			glBindVertexArray(0);
 
-			if (camera == player.getCamera())
-				ui->render();
-			
+			if (state.frame_ctx.active_camera == state.g_state.player.camera)
+				state.ui.render();
 			// other UI stuff...
 		}
 #if defined(NDEBUG) // TEMP
@@ -775,28 +784,30 @@ int main()
 		                 ImGuiWindowFlags_::ImGuiWindowFlags_NoNavInputs |
 		                 ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus |
 		                 ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
-		ImGui::Text("FPS: %f", getFPS());
+		ImGui::Text("FPS: %f", getFPS(state.frame_ctx));
 		ImGui::Text("Selected block: ");
 		ImGui::SameLine();
 		ImGui::SetWindowFontScale(1.2f);
-		ImGui::Text(Block::toString(static_cast<Block::blocks>(player.selectedBlock)));
+		ImGui::Text(Block::toString(static_cast<Block::blocks>(state.g_state.player.selectedBlock)));
 		ImGui::SetWindowFontScale(1.0f);
-		ImGui::SliderInt("Render distance", (int*)&player.render_distance, 0, 30);
+		ImGui::SliderInt("Render distance", (int*)&state.g_state.player.render_distance, 0, 30);
 		ImGui::End();
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 #endif
 
 #if defined(DEBUG)
-		if (renderUI) {
+		if (state.g_state.render_ui) {
 			// --- ImGui Debug UI Pass ---
 			GLState::set_depth_test(false);
 			GLState::set_wireframe(false);
 			ImGui_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
-			glm::ivec3 chunkCoords = world_to_chunk(player.getPos());
-			glm::ivec3 localCoords = world_to_local(player.getPos());
+      auto pos = state.g_state.ecs.get_component<Transform>(state.g_state.player.self)->pos;
+      auto vel = state.g_state.ecs.get_component<Velocity>(state.g_state.player.self)->value;
+			glm::ivec3 chunkCoords = world_to_chunk(pos);
+			glm::ivec3 localCoords = world_to_local(pos);
 			ImGui::Begin("DEBUG", NULL,
 			             ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize |
 			                 ImGuiWindowFlags_::ImGuiWindowFlags_NoMove |
@@ -809,7 +820,7 @@ int main()
 			ImGui::PopStyleColor(1);
 			ImGui::PopFont();
 			ImGui::Indent();
-			ImGui::Text("FPS: %f", getFPS());
+			ImGui::Text("FPS: %f", getFPS(state.frame_ctx));
 			ImGui::Text("Draw Calls: %d", g_drawCallCount);
 			RenderTimings();
 			ImGui::Unindent();
@@ -820,19 +831,19 @@ int main()
 			ImGui::PopStyleColor(1);
 			ImGui::PopFont();
 			ImGui::Indent();
-			ImGui::Text("Player position: %f, %f, %f", player.getPos().x, player.getPos().y, player.getPos().z);
+			ImGui::Text("Player position: %f, %f, %f", pos.x, pos.y, pos.z);
 			ImGui::Text("Player is in chunk: %i, %i, %i", chunkCoords.x, chunkCoords.y, chunkCoords.z);
 			ImGui::Text("Player local position: %d, %d, %d", localCoords.x, localCoords.y, localCoords.z);
-			ImGui::Text("Player velocity: %f, %f, %f", player.getVelocity().x, player.getVelocity().y, player.getVelocity().z);
-			ImGui::Text("Player MODE: %s", player.getMode());
-			ImGui::Text("Player STATE: %s", player.getMovementState());
+			ImGui::Text("Player velocity: %f, %f, %f", vel.x, vel.y, vel.z);
+      ImGui::Text("Player STATE: %s", player_mode_to_string(*state.g_state.ecs.get_component<PlayerMode>(state.g_state.player.self)).data());
+      ImGui::Text("Player STATE: %s", player_state_to_string(*state.g_state.ecs.get_component<PlayerState>(state.g_state.player.self)).data());
 			// glm::vec3 _min = player.getAABB().min;
 			// glm::vec3 _max = player.getAABB().max;
 			// ImGui::Text("Player AABB { %f, %f, %f }, { %f, %f, %f }", _min.x, _min.y, _min.z, _max.x, _max.y, _max.z);
 			ImGui::Text("Selected block: ");
 			ImGui::SameLine();
 			ImGui::SetWindowFontScale(1.2f);
-			ImGui::Text("%s", Block::toString(static_cast<Block::blocks>(player.selectedBlock)));
+			ImGui::Text("%s", Block::toString(static_cast<Block::blocks>(state.g_state.player.selectedBlock)));
 			ImGui::SetWindowFontScale(1.0f);
 			ImGui::Unindent();
 			ImGui::Spacing();
@@ -842,17 +853,17 @@ int main()
 			ImGui::PopStyleColor(1);
 			ImGui::PopFont();
 			ImGui::Indent();
-			DrawBool("is OnGround", player.is_on_ground());
-			DrawBool("is Damageable", player.isDamageable);
-			DrawBool("is Running", state->current == PlayerMovementState::Running);
-			DrawBool("is Flying", state->current == PlayerMovementState::Flying);
-			DrawBool("is Swimming", state->current == PlayerMovementState::Swimming);
-			DrawBool("is Walking", state->current == PlayerMovementState::Walking);
-			DrawBool("is Crouched", state->current == PlayerMovementState::Crouching);
+			DrawBool("is OnGround", state.g_state.ecs.get_component<Collider>(state.g_state.player.self)->is_on_ground);
+			DrawBool("is Damageable", state.g_state.player.isDamageable);
+			DrawBool("is Running", player_state->current == PlayerMovementState::Running);
+			DrawBool("is Flying", player_state->current == PlayerMovementState::Flying);
+			DrawBool("is Swimming", player_state->current == PlayerMovementState::Swimming);
+			DrawBool("is Walking", player_state->current == PlayerMovementState::Walking);
+			DrawBool("is Crouched", player_state->current == PlayerMovementState::Crouching);
 			DrawBool("is third-person", ctrl->third_person);
-			DrawBool("Player can place blocks", player.canPlaceBlocks);
-			DrawBool("Player can break blocks", player.canBreakBlocks);
-			DrawBool("renderSkin", player.renderSkin);
+			DrawBool("Player can place blocks", state.g_state.player.canPlaceBlocks);
+			DrawBool("Player can break blocks", state.g_state.player.canBreakBlocks);
+			DrawBool("renderSkin", state.g_state.player.renderSkin);
 			ImGui::Unindent();
 			ImGui::Spacing();
 			ImGui::PushFont(ImGui::GetFont()); // Or use a bold/large font if you have one
@@ -862,28 +873,28 @@ int main()
 			ImGui::PopFont();
 			ImGui::Indent();
 			// DrawBool("is Camera interpolating", player.getCameraController().isInterpolationEnabled());
-			glm::vec3& camPos = ecs.get_component<Transform>(camera)->pos;
+			glm::vec3& camPos = state.g_state.ecs.get_component<Transform>(state.frame_ctx.active_camera)->pos;
 			ImGui::Text("Camera position: %f, %f, %f", camPos.x, camPos.y, camPos.z);
 			ImGui::Unindent();
-			if (renderUI && !input.isMouseTrackingEnabled()) {
+			if (state.g_state.render_ui && !input.isMouseTrackingEnabled()) {
 				if (ImGui::CollapsingHeader("Settings")) {
 					if (ImGui::TreeNode("Player")) {
-						auto* cfg = ecs.get_component<MovementConfig>(player.getSelf());
+						auto* cfg = state.g_state.ecs.get_component<MovementConfig>(state.g_state.player.self);
 						ImGui::SliderFloat("Player walking speed ", &cfg->walk_speed, 0.0f, 100.0f);
 						ImGui::SliderFloat("Player flying speed", &cfg->fly_speed, 0.0f, 100.0f);
-						ImGui::SliderFloat("Max Interaction Distance", &player.max_interaction_distance, 0.0f, 1000.0f);
+						ImGui::SliderFloat("Max Interaction Distance", &state.g_state.player.max_interaction_distance, 0.0f, 1000.0f);
 						ImGui::TreePop();
 					}
 					if (ImGui::TreeNode("Camera")) {
 						ImGui::SliderFloat("Mouse Sensitivity", &ctrl->sensitivity, 0.01f, 2.0f);
-						ImGui::SliderFloat("FOV", &cam->fov, 0.001f, 179.899f);
-						ImGui::SliderFloat("Near Plane", &cam->near_plane, 0.001f, 10.0f);
-						ImGui::SliderFloat("Far Plane", &cam->far_plane, 10.0f, 1000000.0f);
+						ImGui::SliderFloat("FOV", &state.frame_ctx.cam->fov, 0.001f, 179.899f);
+						ImGui::SliderFloat("Near Plane", &state.frame_ctx.cam->near_plane, 0.001f, 10.0f);
+						ImGui::SliderFloat("Far Plane", &state.frame_ctx.cam->far_plane, 10.0f, 1000000.0f);
 						ImGui::SliderFloat("Third Person Offset", &ctrl->orbit_distance, 1.0f, 200.0f);
 						ImGui::TreePop();
 					}
 					if (ImGui::TreeNode("Miscellaneous")) {
-						ImGui::SliderInt("Render distance", (int*)&player.render_distance, 0, 30);
+						ImGui::SliderInt("Render distance", (int*)&state.g_state.player.render_distance, 0, 30);
 						ImGui::SliderFloat("GRAVITY", &GRAVITY, -30.0f, 20.0f);
 						glm::vec4 backgroundColor{};
 						ImGui::SliderFloat3("BACKGROUND COLOR", &backgroundColor.r, 0.0f, 1.0f);
@@ -891,8 +902,8 @@ int main()
 						static float _____width = GLState::get_line_width();
 						ImGui::SliderFloat("LINE_WIDTH", &_____width, 0.001f, 9.0f);
 						GLState::set_line_width(_____width);
-						ImGui::Checkbox("renderTerrain", &renderTerrain);
-						ImGui::Checkbox("renderPlayer", &player.renderSkin);
+						ImGui::Checkbox("render_terrain: ", &state.g_state.render_terrain);
+						ImGui::Checkbox("render_player: ", &state.g_state.player.renderSkin);
 						static bool debug = false;
 						ImGui::Checkbox("debug", &debug); // Updates the value
 						manager.getShader().setBool("debug", debug);
@@ -907,15 +918,18 @@ int main()
 		}
 #endif
 
-		camera_temporal_system(ecs);
+		camera_temporal_system(state.g_state.ecs, state.frame_ctx);
 		// other UI things...
 
+    // TODO: Fix input handling in the manager
+		input.update();       // reset this frame's state
+
 		glBindVertexArray(0);
-		glfwSwapBuffers(context->window);
+		glfwSwapBuffers(state.win_context->window);
 #if defined(TRACY_ENABLE)
 		FrameMark;
 #endif
-		nbFrames++;
+		state.frame_ctx.frame_number++;
 	}	// GAME LOOP
 
 
@@ -924,18 +938,18 @@ int main()
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
-	context.reset();
+	state.win_context.reset();
 
 }
 
 
-float getFPS()
+float getFPS(const frame_context& ctx)
 {
     static int frames = 0;
     static float elapsedTime = 0.0f;
 	static float lastFPS = 0.0f;
     frames++;
-    elapsedTime += deltaTime; // accumulate frame times
+    elapsedTime += ctx.delta_time; // accumulate frame times
 
     if (elapsedTime >= 0.3f) { // update FPS every 300ms
 		lastFPS = float(frames) / elapsedTime;

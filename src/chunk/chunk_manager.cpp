@@ -3,15 +3,6 @@ module;
 #include <tracy/Tracy.hpp>
 #endif
 #include <glad/glad.h>   // Solves GL_TRIANGLES, GLuint, etc.
-#include <cstdlib>       // Solves std::exit
-/*
-#include <algorithm>     // Solves std::sort
-#include <cmath>
-#include <cstdint>       // Solves std::uint8_t inside the .cpp
-#include <vector>
-#include <memory>
-#include "core/timer.hpp"
-*/
 module chunk_manager;
 
 import timer;
@@ -20,6 +11,7 @@ import logger;
 ChunkManager::ChunkManager()
 	: noise(92368123),
 	shader("Chunk", CHUNK_VERTEX_SHADER_DIRECTORY, CHUNK_FRAGMENT_SHADER_DIRECTORY),
+	shader2("Chunk2", SHADERS_DIRECTORY / "main.vs", SHADERS_DIRECTORY / "main.fs"),
 	waterShader("Water", WATER_VERTEX_SHADER_DIRECTORY, WATER_FRAGMENT_SHADER_DIRECTORY),
 	voxel_buffer("voxel_buffer", SHADERS_DIRECTORY / "voxel_buffer.comp"),
 	write_faces("write_faces", SHADERS_DIRECTORY / "write_faces.comp"),
@@ -27,13 +19,13 @@ ChunkManager::ChunkManager()
 	prefix_sum("prefix_sum", SHADERS_DIRECTORY / "prefix_sum.comp"),
 	indirect("indirect", SHADERS_DIRECTORY / "indirect_buffer_fill.comp"),
 	// Could be PersistentWrite
-	global_faces(SSBO::Dynamic(nullptr, MAX_FACES_BUFFER_BYTES)),  // or just Dynamic
-	global_indirect(SSBO::Dynamic(nullptr, 4096 * sizeof(DrawArraysIndirectCommand))),  // generous initial size
-	prefix(SSBO::PersistentWrite(nullptr, TOTAL_FACES * sizeof(face_gpu))),
-	face_flags(SSBO::PersistentWrite(nullptr, flag_words * sizeof(face_gpu))),
-	group_totals(SSBO::PersistentWrite(nullptr, num_workgroups * sizeof(face_gpu))),
-	offset_ssbo(SSBO::Dynamic(nullptr, offset_ssbo_capacity)),
-	temp_faces(SSBO::PersistentWrite(nullptr, TOTAL_FACES * sizeof(face_gpu)))
+	global_faces(dynamic_ssbo(MAX_FACES_BUFFER_BYTES)),  // or just Dynamic
+	global_indirect(dynamic_ssbo(4096 * sizeof(DrawArraysIndirectCommand))),  // generous initial size
+	prefix(persistent_ssbo(TOTAL_FACES * sizeof(face_gpu))),
+	face_flags(persistent_ssbo(flag_words * sizeof(face_gpu))),
+	group_totals(persistent_ssbo(num_workgroups * sizeof(face_gpu))),
+	offset_ssbo(dynamic_ssbo(offset_ssbo_capacity)),
+	temp_faces(persistent_ssbo(TOTAL_FACES * sizeof(face_gpu)))
 {
 
 	shader.setUVec3("CHUNK_SIZE", CHUNK_SIZE);
@@ -47,7 +39,94 @@ ChunkManager::ChunkManager()
 	opaqueChunks.reserve(chunks.size());
 	transparentChunks.reserve(chunks.size());
 	DrawArraysIndirectCommand cmd{0, 1, 0, 0};
-	temp_indirect = SSBO::PersistentWrite(&cmd, sizeof(DrawArraysIndirectCommand));
+	// temp_indirect = ssbo::PersistentWrite(&DrawArraysIndirectCommand(0, 1, 0, 0), sizeof(DrawArraysIndirectCommand));
+
+	mainThreadMeshData.opaqueMask = new uint64_t[CS_P2] { 0 };
+	mainThreadMeshData.faceMasks = new uint64_t[CS_2 * 6] { 0 };
+	mainThreadMeshData.forwardMerged = new uint8_t[CS_2] { 0 };
+	mainThreadMeshData.rightMerged = new uint8_t[CS] { 0 };
+	mainThreadMeshData.vertices = new std::vector<uint64_t>(10000);
+	mainThreadMeshData.maxVertices = 10000;
+
+	chunkRenderer.init();
+
+	int size = 4;
+	for (std::uint32_t x = 0; x < size; x++) {
+		for (std::uint32_t z = 0; z < size; z++) {
+      std::uint32_t y = 0; // flat Y for now
+
+      std::memset(mainThreadMeshData.opaqueMask, 0, CS_P2 * sizeof(uint64_t));
+
+			// Allocate voxel array for this chunk
+			std::vector<uint8_t> voxels(CS_P3, 0);
+			// Fill terrain
+			// noise_2.generateTerrainV2(voxels.data(), mainThreadMeshData.opaqueMask, x, z, 30);
+			// ────────────────────────────────────────────────
+			//   1. World-space starting coordinate
+			// ────────────────────────────────────────────────
+			float worldStartX = x * float(CS);     // ← important: CS, not CS_P
+			float worldStartZ = z * float(CS);
+
+			std::vector<float> noise_data(CS_P3, 0);
+			noise_2.gen_uniform_3d(noise_data, worldStartX, 0.0f, worldStartZ, CS_P, 1.0f, 30);
+
+			// Optional: scale amplitude / remap to more useful range
+			// You can multiply or remap here if needed
+			// for (auto& v : noiseData) v = (v + 1.0f) * 0.5f;   // → [0..1]
+
+			// ────────────────────────────────────────────────
+			//   3. Voxel filling logic (same as before)
+			// ────────────────────────────────────────────────
+			for (int lx = 0; lx < CS_P; lx++) {
+				for (int ly = CS_P - 1; ly >= 0; ly--) {     // ← better to go top→bottom
+					for (int lz = 0; lz < CS_P; lz++) {
+						int idx = get_zxy_index(lx, ly, lz);
+						float heightNoise = noise_data[idx];
+
+						// Simple height-based threshold
+						// You can make this more sophisticated later
+						bool shouldBeSolid = heightNoise > (float(ly) / float(CS_P));
+
+						if (shouldBeSolid) {
+							int idx_above = get_zxy_index(lx, ly + 1, lz);
+							mainThreadMeshData.opaqueMask[(ly * CS_P) + lx] |= (1ULL << lz);
+
+							// Simple surface / subsurface logic
+							if (voxels[idx_above] == 0) {
+								voxels[idx] = 3;           // grass / surface
+							} else {
+								voxels[idx] = 2;           // dirt / stone
+							}
+						}
+						// Fill bedrock / deep stone below sea level
+						else if (ly < 25) {
+							mainThreadMeshData.opaqueMask[(ly * CS_P) + lx] |= (1ULL << lz);
+							voxels[idx] = 1;               // stone
+						}
+					}
+				}
+			}
+
+			// Mesh the chunk immediately
+			mesh(voxels.data(), mainThreadMeshData);
+
+			// Create draw commands
+			glm::ivec3 chunkPos = parse_xyz_key(get_xyz_key(x, y, z));
+			std::vector<DrawElementsIndirectCommand> commands(6);
+			for (int i = 0; i < 6; i++) {
+				if (mainThreadMeshData.faceVertexLength[i]) {
+          std::int32_t baseInstance = (i << 24) | (chunkPos.z << 16) | (chunkPos.y << 8) | chunkPos.x;
+					auto drawCommand = chunkRenderer.getDrawCommand(mainThreadMeshData.faceVertexLength[i], baseInstance);
+					commands[i] = drawCommand;
+					chunkRenderer.buffer(drawCommand, mainThreadMeshData.vertices->data() + mainThreadMeshData.faceVertexBegin[i]);
+				}
+			}
+
+			chunkRenderData.push_back({ chunkPos, commands });
+		}
+	}
+
+
 }
 void ChunkManager::build_lists(const Transform& ts, const FrustumVolume& fv) noexcept 
 {
@@ -77,11 +156,11 @@ void ChunkManager::build_lists(const Transform& ts, const FrustumVolume& fv) noe
 
 	std::size_t needed_offset = offset_data.size() * sizeof(glm::vec4);
 	if (needed_offset > offset_ssbo_capacity) {
-		offset_ssbo.resize_grow(needed_offset * 2);
+		offset_ssbo.resize(needed_offset * 2);
 		offset_ssbo_capacity = offset_ssbo.size();
 	}
-	offset_ssbo.update_data(offset_data.data(), offset_data.size() * sizeof(glm::vec4));
-	global_indirect.update_data(commands.data(), commands.size() * sizeof(DrawArraysIndirectCommand));
+	offset_ssbo.upload(offset_data.data(), offset_data.size() * sizeof(glm::vec4));
+	global_indirect.upload(commands.data(), commands.size() * sizeof(DrawArraysIndirectCommand));
 	if (!transparentChunks.empty()) {
 		std::sort(transparentChunks.begin(), transparentChunks.end(),
 				[&](const auto& a, const auto& b) {
@@ -96,6 +175,7 @@ void ChunkManager::build_lists(const Transform& ts, const FrustumVolume& fv) noe
 }
 
 void ChunkManager::render_opaque(const Transform& ts, const FrustumVolume& fv) noexcept {
+	/*
 	build_lists(ts, fv);  // Rebuild indirect every frame (or only if dirty/camera moved)
 
 	if (opaqueChunks.empty()) return;
@@ -106,8 +186,58 @@ void ChunkManager::render_opaque(const Transform& ts, const FrustumVolume& fv) n
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, global_indirect.id());
 
 	MultiDrawArraysIndirectWrapper(GL_TRIANGLES, 0, opaqueChunks.size(), 0);  // stride=0 for tight pack
+	*/
+	glm::ivec3 cameraChunkPos = glm::floor(ts.pos / glm::vec3(CS));
+	for (const auto& data : chunkRenderData) {
+		for (int i = 0; i < 6; i++) {
+			auto& d = data.faceDrawCommands[i];
+			if (d.indexCount > 0) {
+				chunkRenderer.addDrawCommand(d);
+				switch (i) {
+					case 0:
+						if (cameraChunkPos.y >= data.chunkPos.y) {
+							chunkRenderer.addDrawCommand(d);
+						}
+						break;
+
+					case 1:
+						if (cameraChunkPos.y <= data.chunkPos.y) {
+							chunkRenderer.addDrawCommand(d);
+						}
+						break;
+
+					case 2:
+						if (cameraChunkPos.x >= data.chunkPos.x) {
+							chunkRenderer.addDrawCommand(d);
+						}
+						break;
+
+					case 3:
+						if (cameraChunkPos.x <= data.chunkPos.x) {
+							chunkRenderer.addDrawCommand(d);
+						}
+						break;
+
+					case 4:
+						if (cameraChunkPos.z >= data.chunkPos.z) {
+							chunkRenderer.addDrawCommand(d);
+						}
+						break;
+
+					case 5:
+						if (cameraChunkPos.z <= data.chunkPos.z) {
+							chunkRenderer.addDrawCommand(d);
+						}
+						break;
+				}
+			}
+		}
+	}
+
+	// shader2.use();
+	chunkRenderer.render();
 }
-bool ChunkManager::updateBlock(glm::vec3 world_pos, Block::blocks newType) noexcept
+bool ChunkManager::update_block(glm::ivec3 world_pos, Block::blocks newType) noexcept
 {
 	Chunk* chunk = getChunk(world_pos);
 	if (!chunk)
@@ -163,12 +293,13 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 		chunk->current_mesh_bytes = 0;
 		chunk->visible_face_count = 0;
 		return;
-	} else if (chunk->block_ssbo.id() && chunk->changed)
-		chunk->block_ssbo.update_data(chunk->block_types, sizeof(std::uint8_t) * SIZE);
+	} else if (chunk->changed)
+		// chunk->block_ssbo.update(chunk->block_types, sizeof(std::uint8_t) * SIZE);
+		std::memcpy(chunk->block_ssbo.data<std::uint8_t>(), chunk->block_types, SIZE);
 
 	glClearNamedBufferData(face_flags.id(), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
-	chunk->block_ssbo.bind_to_slot(1);
+	chunk->block_ssbo.bind_base(1);
 
 	voxel_buffer.use();
 	glDispatchCompute(num_workgroups, 1, 1);
@@ -186,14 +317,15 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 	glDispatchCompute(num_workgroups, 1, 1);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-	temp_indirect.bind_to_slot(9);
+	// temp_indirect.bind_to_slot(9);
 	indirect.use();
 	glDispatchCompute(1, 1, 1);
 	glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 
-	auto* cmd = temp_indirect.mapped<DrawArraysIndirectCommand>();
-	if (!cmd) log::system_error("Chunk_Manager", "temp_indirect.mapped<DrawArraysIndirectCommand>() returned nullptr");
-	std::uint32_t new_face_count = cmd->count / 6;
+	// auto* cmd = temp_indirect.mapped<DrawArraysIndirectCommand>();
+	// if (!cmd) log::system_error("Chunk_Manager", "temp_indirect.mapped<DrawArraysIndirectCommand>() returned nullptr");
+	// std::uint32_t new_face_count = cmd->count / 6;
+	std::uint32_t new_face_count = 6;
 
 	// 1. Release old memory
 	deallocate_faces(chunk->faces_offset, chunk->current_mesh_bytes);
@@ -214,7 +346,7 @@ void ChunkManager::update_mesh(Chunk *chunk) noexcept
 		chunk->visible_face_count = new_face_count;
 
 		// 3. Copy from temp compute buffer to the global faces buffer
-		face_gpu* face_ptr = temp_faces.mapped<face_gpu>();
+		face_gpu* face_ptr = temp_faces.data<face_gpu>();
 		glCopyNamedBufferSubData(temp_faces.id(), global_faces.id(), 0, chunk->faces_offset, needed_bytes);
 	}
 }
@@ -248,7 +380,7 @@ void ChunkManager::deallocate_faces(GLintptr offset, GLsizeiptr size) {
     });
 
     // Merge adjacent blocks
-    for (size_t i = 0; i < free_blocks.size() - 1; ) {
+    for (std::size_t i = 0; i < free_blocks.size() - 1; ) {
         if (free_blocks[i].offset + free_blocks[i].size == free_blocks[i+1].offset) {
             free_blocks[i].size += free_blocks[i+1].size;
             free_blocks.erase(free_blocks.begin() + i + 1);
@@ -262,10 +394,10 @@ void ChunkManager::update_meshes() noexcept
 {
 	if (dirty_chunks.empty()) return;
 
-	face_flags.bind_to_slot(2);
-	prefix.bind_to_slot(5);
-	group_totals.bind_to_slot(6);
-	temp_faces.bind_to_slot(7);
+	face_flags.bind_base(2);
+	prefix.bind_base(5);
+	group_totals.bind_base(6);
+	temp_faces.bind_base(7);
 	for (auto& chunk : dirty_chunks) {
 		update_mesh(chunk);
 		chunk->in_dirty_list = false;
@@ -324,6 +456,14 @@ void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int rende
 				if (dx*dx + dy*dy + dz*dz > max_dist_square) continue;
 				glm::ivec3 chunkPos = playerChunkPos + glm::ivec3(dx, dy, dz);
 
+				/*
+				uint64_t key = get_xyz_key(chunkPos.x, chunkPos.y, chunkPos.z);
+				if (loaded_chunks.find(key) == loaded_chunks.end()) {
+					loaded_chunks[key] = generate_chunk(chunkPos);
+				}
+				*/
+
+				/*
 				auto [it, inserted] = chunks.try_emplace(chunkPos, nullptr);
 
 				if (!inserted)
@@ -389,12 +529,14 @@ void ChunkManager::load_around_pos(glm::ivec3 playerChunkPos, unsigned int rende
 					dirty_chunks.emplace_back(it->second.get());
 					it->second->in_dirty_list = true;
 				}
+				*/
 			}
 		}
 	}
 }
 void ChunkManager::unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unloadDistance) noexcept
 {
+	/*
     const unsigned int unloadDistSquared = unloadDistance * unloadDistance;
 
     // Only iterate over chunks near the edges
@@ -408,4 +550,24 @@ void ChunkManager::unload_around_pos(glm::ivec3 playerChunkPos, unsigned int unl
 		} else
             ++it;
     }
+	*/
+	/*
+	std::vector<uint64_t> chunksToRemove;
+	for (auto& [key, chunk] : loaded_chunks) {
+		if (glm::distance(glm::vec3(chunk.chunkPos), glm::vec3(playerChunkPos)) > unloadDistance) {
+			for (auto& cmd : chunk.faceDrawCommands) {
+				if (cmd) {
+					chunkRenderer.removeDrawCommand(cmd);
+					delete cmd;
+				}
+			}
+			chunksToRemove.push_back(key);
+		}
+	}
+
+	for (auto key : chunksToRemove) {
+		loaded_chunks.erase(key);
+	}
+	*/
+
 }

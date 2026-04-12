@@ -79,27 +79,6 @@ cmake --build --preset release
 
 > ✅ Once configured, you only need to run the build command again if you make changes.
 
-
-#### ⚠️ WARNING: the project build will not succeed unless you modify `${glm_SOURCE_DIR}/glm/glm.cppm`
-
-Replace:
-
-```cpp
-// #define GLM_GTC_INLINE_NAMESPACE to inline glm::gtc into glm
-// #define GLM_EXT_INLINE_NAMESPACE to inline glm::ext into glm
-// #define GLM_GTX_INLINE_NAMESPACE to inline glm::gtx into glm
-```
-
-With:
-
-```cpp
-#define GLM_GTC_INLINE_NAMESPACE to inline glm::gtc into glm
-#define GLM_EXT_INLINE_NAMESPACE to inline glm::ext into glm
-#define GLM_GTX_INLINE_NAMESPACE to inline glm::gtx into glm
-```
-
-This to my knowledge is a limitation of the glm C++ modules wrapper, as I haven't found a way to make it work otherwise
-
 ## Troubleshooting 🛡️
 
 If you run into any build issues or have questions, feel free to [email me](mailto:martinmarco813@gmail.com).

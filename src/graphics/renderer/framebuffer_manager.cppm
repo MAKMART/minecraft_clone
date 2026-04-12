@@ -1,14 +1,13 @@
-module;
-//#include <unordered_map>
-#include "graphics/renderer/framebuffer.hpp"
 export module framebuffer_manager;
 
 import std;
+export import framebuffer;
 import ecs;
 import ecs_components;
+import window_context;
 
 export struct FramebufferManager {
-	FramebufferManager() = default;
+  explicit FramebufferManager(WindowContext& ctx) : win_ctx(ctx) {}
 
 	public:
 
@@ -19,9 +18,22 @@ export struct FramebufferManager {
 
 	void ensure(Entity e, const RenderTarget& rt) {
 		auto& fb = fbs[e];
-		if (!fb.valid() || fb.needs_rebuild(rt)) {
-			fb.create(rt.width, rt.height, rt.attachments);
-		}
+    int width = -1, height = -1;
+    switch (rt.mode) {
+      case extent_mode::follow_viewport:
+        width = win_ctx.get_width();
+        height = win_ctx.get_height();
+        break;
+      case extent_mode::fixed:
+        width = rt.width;
+        height = rt.height;
+        break;
+      default:
+        break;
+    }
+    if (!fb.valid() || fb.needs_rebuild(rt)) {
+      fb.create(width, height, rt.attachments);
+    }
 	}
 
 	const framebuffer& get(Entity e) const {
@@ -33,6 +45,6 @@ export struct FramebufferManager {
 	}
 
 	private:
-
+  WindowContext& win_ctx;
 	std::unordered_map<Entity, framebuffer> fbs;
 };

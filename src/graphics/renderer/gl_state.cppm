@@ -1,7 +1,6 @@
 module;
 #include <glad/glad.h>
 export module gl_state;
-import std;
 import glm;
 export struct GLState {
 
@@ -25,15 +24,16 @@ export struct GLState {
 		static bool is_wireframe() noexcept { return m_wireframe_mode; }
 		static float get_line_width() noexcept { return m_line_width; }
 		static bool is_depth_test() noexcept { return m_depth_test; }
-		static GLenum get_depth_fun() noexcept { return m_depth_func; }
+		static GLenum get_depth_func() noexcept { return m_depth_func; }
 		static bool is_blending() noexcept { return m_blending; }
 		static bool is_face_culling() noexcept { return m_face_culling; }
 		static bool is_msaa_enabled() noexcept { return m_msaa; }
 		struct BlendFactors { GLenum src; GLenum dst; };
 		static BlendFactors get_blend_func() noexcept { return { m_src_blend, m_dst_blend }; }
 		static bool is_scissor_test() noexcept { return m_scissor_test; };
-		static const glm::ivec4& get_scissor_rect() noexcept { return m_scissor_rect; };
-		static const glm::vec4& get_clear_color() noexcept { return m_clear_color; };
+		static bool is_stencil_test() noexcept { return m_stencil_test; };
+		static const glm::ivec4 get_scissor_rect() noexcept { return m_scissor_rect; };
+		static const glm::vec4 get_clear_color() noexcept { return m_clear_color; };
 
 		static void init_capabilities() noexcept;
 		static void sync() noexcept;
@@ -57,7 +57,9 @@ export struct GLState {
 		static glm::vec4 m_clear_color;
 
 		// Hardware/Context capabilities (Set once at init)
-		static int m_depth_bits;
-		static int m_stencil_bits;
-		static int m_msaa_strength;
+		static inline int m_depth_bits = 0;
+		static inline int m_stencil_bits = 0;
+		static inline int m_msaa_strength = 0;
+
+		static inline bool m_initialized = false;
 };

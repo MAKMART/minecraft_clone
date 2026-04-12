@@ -13,14 +13,16 @@ module;
 #include "ui/system_interface_glfw.hpp"
 #include <filesystem>
 //#include "graphics/texture.hpp"
-#include "graphics/renderer/vertex_buffer.hpp"
-#include "graphics/renderer/index_buffer.hpp"
+// #include "graphics/renderer/vertex_buffer.hpp"
+// #include "graphics/renderer/index_buffer.hpp"
 #include <functional>
 export module ui;
 
 import shader;
 import glm;
 import texture;
+import vertex_buffer;
+import index_buffer;
 class LambdaEventListener : public Rml::EventListener {
 public:
     using Callback = std::function<void(Rml::Event&)>;
@@ -129,24 +131,17 @@ export class UI : public Rml::RenderInterface
 
 	void ReleaseShader(Rml::CompiledShaderHandle shader) override;
 
-	bool isShiftDown = false;
-	bool isCtrlDown  = false;
-	bool isAltDown   = false;
-	bool isMetaDown  = false;
-
 	Rml::Context* context = nullptr;
 
 	std::unique_ptr<FileInterface>   fileInterface;
 	std::unique_ptr<SystemInterface> systemInterface;
 
-	bool clip_mask_enabled = false;
-
 	struct Geometry {
 		GLuint  vao;
-		VB vbo;
-		IB ibo;
+		vertex_buffer_dynamic vbo;
+		index_buffer_dynamic<int32_t> ibo;
 		GLsizei index_count;
-		// VB / IB destructors should handle their own glDeleteBuffers
+		// vertex_buffer / index_buffer destructors should handle their own glDeleteBuffers
 		~Geometry() { if (vao) glDeleteVertexArrays(1, &vao); }
 	};
 	struct Layer
@@ -157,7 +152,7 @@ export class UI : public Rml::RenderInterface
 		int height = 0;
 	};
 	GLuint quad_vao = 0;
-	VB quad_vbo;
+	vertex_buffer_immutable quad_vbo;
 	std::vector<GLuint> fbo_stack{100}; // To keep track of nested layers
 
 	std::unordered_map<std::string, Rml::ElementDocument*> documents;

@@ -1,19 +1,18 @@
 module;
 #include <glad/glad.h>
-#include <array>               // std::array<FrustumPlane, 6>
-#include <cstdint>             // UINT32_MAX (used in CameraController + Transform)
-#include <initializer_list>    // std::initializer_list in RenderTarget ctor
-#include <vector>              // std::vector in RenderTarget
 export module ecs_components;
 
 import glm;
 import ecs;
 import aabb;
+import std;
 
 export {
 
-	// This is just a tag component to handle whether a camera should be the main one which it's matrices should be used for rendering the final image to the framebuffer
-	struct ActiveCamera {};
+	// This is a component to handle which camera is currently active
+	struct ActiveCamera {
+    Entity target;
+  };
 
 	// This is just a tag component to handle whether a camera should be a debug kind
 	struct DebugCamera {};
@@ -22,9 +21,8 @@ export {
 		explicit Camera(float _fov) : fov(_fov) {}
 		Camera() {}
 
-		float     fov          = 90.0f; // DEG
+		float fov = 90.0f; // DEG
 
-		
 		// Be cautios of the underlying values' ratio as a 24-bit depth buffer will likely run out of percision
 		float     near_plane   = 0.1f;
 		float     far_plane    = 1000.0f;
@@ -40,7 +38,7 @@ export {
 		explicit CameraController(Entity _target) : target(_target) {}
 		CameraController(Entity _target, const glm::vec3& _offset) : target(_target), offset(_offset) {}
 
-		Entity    target{UINT32_MAX};
+		Entity    target;
 		glm::vec3 offset{0.0f, 0.0f, 0.0f};
 		bool      third_person   = false;
 		float     orbit_distance = 5.0f;
@@ -51,10 +49,10 @@ export {
 
 	struct Collider {
 		Collider() = default;
-		Collider(const glm::vec3& min, const glm::vec3& max) : aabb(min, max) {}
+    Collider(const glm::vec3& pos, const glm::vec3& _halfExtents) : halfExtents(_halfExtents), aabb(AABB::fromCenterExtent(pos, _halfExtents)) {}
 		explicit Collider(const glm::vec3& _halfExtents) : halfExtents(_halfExtents) {};
 
-		AABB getBoundingBoxAt(const glm::vec3& pos) const {
+		AABB get_AABB_at(const glm::vec3& pos) const {
 			return AABB::fromCenterExtent(pos, halfExtents);
 		}
 
@@ -64,7 +62,6 @@ export {
 		bool      is_on_ground = false;
 
 	};
-
 
 	struct DebugCameraController {
 		float yaw = 0.0f;
@@ -128,7 +125,7 @@ export {
 		bool crouch        = false;
 	};
 
-	enum Type { SURVIVAL, CREATIVE, SPECTATOR };
+	enum Type : std::uint8_t { SURVIVAL, CREATIVE, SPECTATOR };
 	struct PlayerMode {
 		explicit PlayerMode(Type starting_mode) : mode(starting_mode) {}
 		PlayerMode() = default;
@@ -183,17 +180,22 @@ export {
 	};
 	struct RenderTarget {
 		public:
-			RenderTarget(int width, int height, std::initializer_list<framebuffer_attachment_desc> desc) : width(width), height(height), attachments(desc) {}
-			RenderTarget(int width, int height, extent_mode mode, std::initializer_list<framebuffer_attachment_desc> desc) : width(width), height(height), mode(mode), attachments(desc) {}
-			int    width  = 0;
-			int    height = 0;
+			RenderTarget(int width, int height, std::initializer_list<framebuffer_attachment_desc> desc)
+        : width(width), height(height), attachments(desc) {}
+			RenderTarget(int width, int height, extent_mode mode, std::initializer_list<framebuffer_attachment_desc> desc)
+        : width(width), height(height), mode(mode), attachments(desc) {}
+      RenderTarget(extent_mode mode, std::initializer_list<framebuffer_attachment_desc> desc)
+        : mode(mode), attachments(desc) {}
+      RenderTarget(std::initializer_list<framebuffer_attachment_desc> desc)
+        : attachments(desc) {}
+			int width  = 0;
+			int height = 0;
 			extent_mode mode = extent_mode::follow_viewport;
 			std::vector<framebuffer_attachment_desc> attachments;
 	};
 
 	struct CameraTemporal {
 		glm::mat4 prev_view_proj{1.0f};
-		bool first_frame = true;
 	};
 
 	struct Transform {
@@ -205,6 +207,6 @@ export {
 		glm::vec3 pos{0.0f};
 		glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f); // identity
 		glm::vec3 scale{1.0f};
-		Entity    parent = {UINT32_MAX}; // invalid if no parent
+		Entity    parent; // invalid if no parent
 	};
 }
