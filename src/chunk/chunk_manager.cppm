@@ -61,7 +61,7 @@ export class ChunkManager
 
 		const std::unordered_map<glm::ivec3, std::unique_ptr<Chunk>, ivec3_hash>& get_all() const noexcept { return chunks; }
 
-		// Call this every fram to build visibility lists to check which chunks are visible from a given FrustumVolume
+		// Call this every frame to build visibility lists to check which chunks are visible from a given FrustumVolume
 		void build_lists(const Transform& ts, const FrustumVolume& fv) noexcept;
 		void render_opaque(const Transform& ts, const FrustumVolume& fv) noexcept;
 

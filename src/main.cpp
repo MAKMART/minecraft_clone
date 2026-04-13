@@ -687,7 +687,7 @@ int main()
 			manager.getShader2().use();
 			// Whatever VAO'll work
 			glBindVertexArray(VAO);
-			chunk_renderer_system(state.g_state.ecs, manager, *state.g_state.ecs.get_component<FrustumVolume>(state.g_state.player.camera), state.fb_manager);
+			chunk_renderer_system(state.g_state.ecs, manager, state.frame_ctx.active_camera, *state.g_state.ecs.get_component<FrustumVolume>(state.g_state.player.camera), state.fb_manager);
 			glBindVertexArray(0);
 			Atlas.Unbind(0);
 		}

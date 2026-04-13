@@ -76,33 +76,32 @@ void camera_controller_system(ECS& ecs, Entity player)
 	    });
 }
 
-void chunk_renderer_system(ECS& ecs, ChunkManager& cm, const FrustumVolume& wanted_fv, const FramebufferManager& fb)
+void chunk_renderer_system(ECS& ecs, ChunkManager& cm, Entity cam, const FrustumVolume& wanted_fv, const FramebufferManager& fb)
 {
 #if defined(TRACY_ENABLE)
-	ZoneScoped;
+  ZoneScoped;
 #endif
-	ecs.for_each_components<Transform, RenderTarget, ActiveCamera>(
-	    [&](const Entity e, const Transform& ts, RenderTarget&, ActiveCamera) {
-		const auto& cur_fb = fb.get(e);
-		cur_fb.bind_draw();
-		GLState::set_viewport(0, 0, cur_fb.width(), cur_fb.height());
-		// GLState::is_depth_test() ensures we only clear DEPTH if it's active
-		GLbitfield clear_mask = GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
-		if (GLState::is_depth_test()) {
-			clear_mask |= GL_DEPTH_BUFFER_BIT;
-		}
-		glClear(clear_mask);
+  const auto& cur_fb = fb.get(cam);
+  cur_fb.bind_draw();
+  GLState::set_viewport(0, 0, cur_fb.width(), cur_fb.height());
+  // GLState::is_depth_test() ensures we only clear DEPTH if it's active
+  GLbitfield clear_mask = GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
+  if (GLState::is_depth_test()) {
+    clear_mask |= GL_DEPTH_BUFFER_BIT;
+  }
+  glClear(clear_mask);
 
-		GLState::set_face_culling(true);
-		GLState::set_blending(false);
-		cm.render_opaque(ts, wanted_fv);
+  GLState::set_face_culling(true);
+  GLState::set_blending(false);
 
-		//GLState::set_face_culling(false); // Water usually needs both sides or special culling
-		//GLState::set_blending(true);
-		//GLState::set_blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  const Transform& ts = *ecs.get_component<Transform>(cam);
+  cm.render_opaque(ts, wanted_fv);
 
-		//cm.render_transparent(ts, wanted_fv);
-	    });
+  //GLState::set_face_culling(false); // Water usually needs both sides or special culling
+  //GLState::set_blending(true);
+  //GLState::set_blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  //cm.render_transparent(ts, wanted_fv);
 }
 
 

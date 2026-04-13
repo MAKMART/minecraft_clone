@@ -9,7 +9,7 @@ import frame_context;
 
 export {
 	void camera_controller_system(ECS& ecs, Entity player);
-  void chunk_renderer_system(ECS& ecs, ChunkManager& cm, const FrustumVolume& wanted_fv, const FramebufferManager& fb);
+  void chunk_renderer_system(ECS& ecs, ChunkManager& cm, Entity cam, const FrustumVolume& wanted_fv, const FramebufferManager& fb);
 	void input_system(ECS& ecs);
 	void movement_intent_system(ECS& ecs, const Camera* cam);
   void player_state_system(ECS& esc);
