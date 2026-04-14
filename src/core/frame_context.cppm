@@ -13,9 +13,6 @@ export struct frame_context {
     glm::mat4 view_proj_matrix;
     glm::mat4 inv_view_proj_matrix;
 
-    int fb_width = -1;
-    int fb_height = -1;
-
 		bool first_frame = true;
 #if defined (DEBUG)
     bool debug_render = false;

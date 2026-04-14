@@ -1,6 +1,5 @@
 #include "ui/system_interface_glfw.hpp"
 #include <GLFW/glfw3.h>
-#include <iostream>
 
 import logger;
 double SystemInterface::GetElapsedTime()
@@ -22,7 +21,7 @@ void SystemInterface::JoinPath(Rml::String& translated_path, const Rml::String& 
 		std::filesystem::path result = doc_path.parent_path() / path;
 		translated_path              = result.generic_string();
 	} catch (const std::exception& e) {
-		log::system_error("RmlUi", "JoinPath error: {}", e.what());
+		log::system_error("Rml-Ui", "JoinPath error: {}", e.what());
 		translated_path = path; // fallback to raw path
 	}
 }
@@ -33,34 +32,34 @@ bool SystemInterface::LogMessage(Rml::Log::Type type, const Rml::String& message
 	switch (type) {
 		case Rml::Log::Type::LT_ALWAYS:
 			type_str = "ALWAYS";
-			log::system_info("RmlUi", "[{}] {}", type_str, message);
+			log::system_info("Rml-Ui", "{}", message);
 			break;
 		case Rml::Log::Type::LT_ERROR:
 			type_str = "ERROR";
-			log::system_error("RmlUi", " {}", message);
+			log::system_error("Rml-Ui", "{}", message);
 			break;
 		case Rml::Log::Type::LT_ASSERT:
 			type_str = "ASSERT";
-			log::system_info("RmlUi", "[{}] {}", type_str, message);
+			log::system_info("Rml-Ui", "{}", message);
 			break;
 		case Rml::Log::Type::LT_WARNING:
 			type_str = "WARNING";
-			log::system_warn("RmlUi", " {}", message);
+			log::system_warn("Rml-Ui", "{}", message);
 			break;
 		case Rml::Log::Type::LT_INFO:
 			type_str = "INFO";
-			log::system_info("RmlUi", " {}", message);
+			log::system_info("Rml-Ui", "{}", message);
 			break;
 		case Rml::Log::Type::LT_DEBUG:
 			type_str = "DEBUG";
-			log::system_info("RmlUi", "[{}] {}", type_str, message);
+			log::system_info("Rml-Ui", "{}", message);
 			break;
 		case Rml::Log::Type::LT_MAX:
 			break;
 		default:
 			break;
 	}
-	return false; // let RmlUi handle the message too
+	return true; // let RmlUi handle the message too
 }
 
 // Optional: clipboard support

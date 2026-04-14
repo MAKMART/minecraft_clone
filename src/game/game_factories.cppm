@@ -37,6 +37,7 @@ export Player create_player(ECS& ecs, glm::vec3 spawn_pos)
 	p.camera = ecs.create_entity();
 	ecs.emplace_component<Transform>(p.camera);
 	ecs.emplace_component<Camera>(p.camera);
+  ecs.emplace_component<InputComponent>(p.camera);
 	ecs.emplace_component<CameraController>(p.camera, p.self, glm::vec3(0.0f, p.eyeHeight / 2.0f, 0.0f));
 	ecs.emplace_component<FrustumVolume>(p.camera);
 	ecs.emplace_component<CameraTemporal>(p.camera);

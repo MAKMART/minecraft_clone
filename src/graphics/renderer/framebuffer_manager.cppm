@@ -5,24 +5,26 @@ export import framebuffer;
 import ecs;
 import ecs_components;
 import window_context;
+import logger;
 
 export struct FramebufferManager {
   explicit FramebufferManager(WindowContext& ctx) : win_ctx(ctx) {}
 
 	public:
 
-	void create(Entity e, RenderTarget& rt) {
-		auto& fb = fbs[e];
-		fb.create(rt.width, rt.height, rt.attachments);
+	void create(Entity e, const RenderTarget& rt) {
+    auto& fb = fbs[e];
+    if (!fb.valid() || fb.needs_rebuild(rt)) {
+      fb.create(rt.width, rt.height, rt.attachments);
+    }
 	}
 
-	void ensure(Entity e, const RenderTarget& rt) {
-		auto& fb = fbs[e];
+	void ensure(Entity e, RenderTarget& rt) {
     int width = -1, height = -1;
     switch (rt.mode) {
       case extent_mode::follow_viewport:
-        width = win_ctx.get_width();
-        height = win_ctx.get_height();
+        rt.width = win_ctx.get_framebuffer_width();
+        rt.height = win_ctx.get_framebuffer_height();
         break;
       case extent_mode::fixed:
         width = rt.width;
@@ -31,9 +33,7 @@ export struct FramebufferManager {
       default:
         break;
     }
-    if (!fb.valid() || fb.needs_rebuild(rt)) {
-      fb.create(width, height, rt.attachments);
-    }
+    create(e, rt);
 	}
 
 	const framebuffer& get(Entity e) const {

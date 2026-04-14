@@ -61,43 +61,6 @@ const char* gl_enum_to_string(GLenum e) {
 int main()
 {
   app_state state(1920, 1080, MAIN_FONT_DIRECTORY);
-  glfwSetWindowUserPointer(state.win_context->window, &state);
-	InputManager::get().setContext(state.win_context.get());
-	InputManager::get().setMouseTrackingEnabled(true);
-	auto framebuffer_size_callback_lambda = [](GLFWwindow* window, int width, int height) {
-		// Don't recalculate the projection matrix, skip this frame's rendering, or log a warning
-		if (width <= 0 || height <= 0) return;
-		log::info("width = {}, height = {}", width, height);
-
-    app_state *state = static_cast<app_state*>(glfwGetWindowUserPointer(window));
-    if (!state) log::error("Couldn't find app_state* with glfwGetWindowUserPointer(window)");
-
-		glfwGetFramebufferSize(window, &state->frame_ctx.fb_width, &state->frame_ctx.fb_height);
-		log::info("fb_width = {}, fb_height = {}", state->frame_ctx.fb_width, state->frame_ctx.fb_height);
-    GLState::set_viewport(0, 0, width, height);
-		ImGui::SetNextWindowPos(ImVec2(width/* - 300*/, height), ImGuiCond_Always);
-    assert(state->frame_ctx.active_camera.is_valid());
-		state->g_state.ecs.get_component<Camera>(state->frame_ctx.active_camera)->aspect_ratio = float(static_cast<float>(state->frame_ctx.fb_width) / state->frame_ctx.fb_height);
-
-    state->g_state.ecs.for_each_component<RenderTarget>([&](const Entity e, RenderTarget& rt) {
-        /*
-        switch (rt.mode) {
-          case extent_mode::follow_viewport:
-            rt.width = state->frame_ctx.fb_width;
-            rt.height = state->frame_ctx.fb_height;
-            break;
-          case extent_mode::fixed:
-          // Dont make rt.width && rt.height follow the viewport
-          default:
-            break;
-        }
-        */
-        state->fb_manager.ensure(e, rt);
-				log::info("rt.width = {}, rt.height = {}", rt.width, rt.height);
-		});
-    state->ui.SetViewportSize(state->frame_ctx.fb_width, state->frame_ctx.fb_height);
-	};
-	glfwSetFramebufferSizeCallback(state.win_context->window, framebuffer_size_callback_lambda);
 
 	// TODO: fix the damn stencil buffer to allow cropping in RmlUI
 
@@ -304,7 +267,14 @@ int main()
 
 
 
-
+ //           #     #    #    ### #     #     #####     #    #     # #######    #       ####### ####### ######  
+ //           ##   ##   # #    #  ##    #    #     #   # #   ##   ## #          #       #     # #     # #     # 
+ //           # # # #  #   #   #  # #   #    #        #   #  # # # # #          #       #     # #     # #     # 
+ //           #  #  # #     #  #  #  #  #    #  #### #     # #  #  # #####      #       #     # #     # ######  
+ //           #     # #######  #  #   # #    #     # ####### #     # #          #       #     # #     # #       
+ //           #     # #     #  #  #    ##    #     # #     # #     # #          #       #     # #     # #       
+ //           #     # #     # ### #     #     #####  #     # #     # #######    ####### ####### ####### #       
+                                                                                                   
 
 
 
@@ -371,9 +341,6 @@ int main()
 
 		if (input.isPressed(FULLSCREEN_KEY)) {
 			state.win_context->toggle_fullscreen();
-			int fb_w, fb_h;
-			glfwGetFramebufferSize(state.win_context->window, &fb_w, &fb_h);
-			framebuffer_size_callback_lambda(state.win_context->window, fb_w, fb_h);
 		}
 
 		static float scale = 0.01f;
@@ -381,7 +348,7 @@ int main()
 			//fb_player.setFloat("near_plane", cam->near_plane);
 			//fb_player.setFloat("far_plane", cam->far_plane);
 			fb_player.setFloat("scale", scale);
-		} 
+		}
 #if defined(DEBUG)
 		else if (state.frame_ctx.active_camera == state.g_state.debug_cam) {
 			fb_debug.setFloat("near_plane", state.frame_ctx.cam->near_plane);

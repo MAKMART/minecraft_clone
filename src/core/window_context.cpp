@@ -14,7 +14,7 @@ import std;
 import logger;
 import gl_state;
 
-WindowContext::WindowContext(int _width, int _height, std::string _title) noexcept : width(_width), height(_height), title(_title) 
+WindowContext::WindowContext(int _width, int _height, std::string _title) noexcept : window_width(_width), window_height(_height), title(_title) 
 {
 	create_window();
 }
@@ -27,10 +27,9 @@ WindowContext& WindowContext::operator=(WindowContext&& other) noexcept
 		window = other.window;
 		other.window = nullptr;
 
-		width = other.width;
-		height = other.height;
+		window_width = other.window_width;
+		window_height = other.window_height;
 		title = std::move(other.title);
-		aspect_ratio = other.aspect_ratio;
 		fullscreen = other.fullscreen;
 		windowedWidth = other.windowedWidth;
 		windowedHeight = other.windowedHeight;
@@ -58,9 +57,8 @@ void WindowContext::toggle_fullscreen() noexcept
 		glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
 		fullscreen = true;
 	}
-	glfwGetFramebufferSize(window, &width, &height);
-	GLState::set_viewport(0, 0, width, height);
-	aspect_ratio = float(width) / float(height);
+	glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
+	// GLState::set_viewport(0, 0, width, height);
 }
 
 void WindowContext::create_window()
@@ -103,7 +101,8 @@ void WindowContext::create_window()
 	const GLFWvidmode* mode    = glfwGetVideoMode(monitor);
 
 	window = fullscreen ? glfwCreateWindow(mode->width, mode->height, title.c_str(), monitor, nullptr)
-		: glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+		: glfwCreateWindow(window_width, window_height, title.c_str(), nullptr, nullptr);
+  glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
 	if (!window) {
 		glfwTerminate();
 		log::error("Failed to create GLFW window");
@@ -186,10 +185,8 @@ void WindowContext::create_window()
 
 
 	GLState::init_capabilities();
-	GLState::set_viewport(0, 0, width, height);
+	// GLState::set_viewport(0, 0, width, height);
 	GLState::sync();
-
-	aspect_ratio = (float)width / (float)height;
 }
 void WindowContext::MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
