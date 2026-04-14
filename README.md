@@ -7,8 +7,7 @@ Since this is meant for me to learn programming, don't expect high-quality stuff
 
 ### Screenshots 🖼️
 
-![Screenshot 2025-07-03 231412](https://github.com/user-attachments/assets/7c71a15f-02c1-4c36-b6ec-c6c13c0c7fb2)
-![Screenshot 2025-07-03 231457](https://github.com/user-attachments/assets/35c74a69-89f6-48f6-a708-d0e05c6931ba)
+WIP
 
 ## Dependencies 🔧
 
@@ -27,8 +26,8 @@ Make sure all four are installed and added to your system's `PATH` if you're on 
 After building, all build files will be stored in the `build` directory.
 The final binary will be located in:
 
-* `build/bin/debug/` for **Debug** builds
-* `build/bin/release/` for **Release** builds
+* `build/bin/Debug/` for **Debug** builds
+* `build/bin/Release/` for **Release** builds
 
 ---
 
@@ -37,10 +36,10 @@ The final binary will be located in:
 Open a terminal in your desired folder and run:
 
 ```bash
-git clone https://github.com/MAKMART/minecraft_clone.git
+git clone --recurse-submodules https://github.com/MAKMART/minecraft_clone.git
 cd minecraft_clone
 ```
-> ⚠️ Warning: You need to have [git](https://git-scm.com/downloads) installed and added to your `PATH` if you're on Windows.
+> ⚠️ Warning: You need to have [git](https://git-scm.com/downloads) installed.
 ---
 
 ### 2. Configure the Project ⚙️
