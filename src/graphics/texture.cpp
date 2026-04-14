@@ -1,9 +1,6 @@
 module;
-//#include <string>
-//#include <bit>
-//#include <utility>
 #include <cassert>
-#include <glad/glad.h>
+#include <gl.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 module texture;

@@ -1,5 +1,5 @@
 module;
-#include <glad/glad.h>
+#include <gl.h>
 module gl_state;
 import logger;
 

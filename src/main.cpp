@@ -10,7 +10,7 @@
 #endif
 
 #include <stb_image.h>
-#include <glad/glad.h>
+#include <gl.h>
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>

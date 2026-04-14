@@ -1,8 +1,5 @@
 module;
-// #include <memory>
-// #include <unordered_map>
-// #include <vector>
-#include <glad/glad.h>
+#include <gl.h>
 #include <climits>
 export module chunk_manager;
 

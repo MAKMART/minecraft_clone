@@ -1,5 +1,5 @@
 module;
-#include <glad/glad.h>
+#include <gl.h>
 export module vertex_buffer;
 
 import std;

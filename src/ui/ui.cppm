@@ -6,18 +6,12 @@ module;
 #endif
 #include <RmlUi/Core/RenderInterface.h>
 #include <RmlUi/Core/FileInterface.h>
-#include <memory>
-#include <unordered_map>
-#include <glad/glad.h>
+#include <gl.h>
 #include <RmlUi/Core/Input.h>
 #include "ui/system_interface_glfw.hpp"
-#include <filesystem>
-//#include "graphics/texture.hpp"
-// #include "graphics/renderer/vertex_buffer.hpp"
-// #include "graphics/renderer/index_buffer.hpp"
-#include <functional>
 export module ui;
 
+import std;
 import shader;
 import glm;
 import texture;

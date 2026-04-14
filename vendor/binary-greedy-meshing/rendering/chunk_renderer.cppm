@@ -1,6 +1,6 @@
 module;
 #include <cstring>
-#include <glad/glad.h>
+#include <gl.h>
 export module chunk_renderer;
 
 import std;

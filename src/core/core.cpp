@@ -1,5 +1,5 @@
 module;
-#include <glad/glad.h>
+#include <gl.h>
 #include <GLFW/glfw3.h>
 module core;
 

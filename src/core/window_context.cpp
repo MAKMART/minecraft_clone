@@ -1,5 +1,6 @@
 module;
-#include <glad/glad.h>
+#define GLAD_GL_IMPLEMENTATION
+#include <gl.h>
 #include <GLFW/glfw3.h>
 #include <stb_image.h>
 #if defined(TRACY_ENABLE)
@@ -116,10 +117,13 @@ void WindowContext::create_window()
 		log::info("Raw Mouse Motion not supported!");
 	}
 
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+  int version = gladLoadGL(glfwGetProcAddress);
+	if (!version) {
 		log::error("Failed to initialize GLAD!");
 		std::exit(1);
-	}
+	} else {
+    log::info("Initialized GLAD {}.{}", GLAD_VERSION_MAJOR(version),  GLAD_VERSION_MINOR(version));
+  }
 
 	// CONTEX CREATION TERMINATED
 

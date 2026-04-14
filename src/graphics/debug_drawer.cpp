@@ -1,5 +1,5 @@
 module;
-#include <glad/glad.h>
+#include <gl.h>
 #include <cmath>
 module debug_drawer;
 

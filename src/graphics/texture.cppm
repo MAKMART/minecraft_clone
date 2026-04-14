@@ -1,6 +1,5 @@
 module;
-#include <glad/glad.h>
-//#include <filesystem>
+#include <gl.h>
 export module texture;
 
 import std;

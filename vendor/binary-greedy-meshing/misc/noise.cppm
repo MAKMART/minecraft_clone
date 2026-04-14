@@ -2,7 +2,6 @@ module;
 #include <FastNoise/FastNoise.h>  // FastNoise2 API
 export module noise_2;
 import std;
-import glm;
 import mesher;
 import utility;
 
@@ -18,6 +17,7 @@ public:
 	  fractal->SetGain(0.5f);
 
   }
+
 
   void generateTerrainV1(uint8_t* voxels, uint64_t* opaqueMask, int seed) {
     // --- Generate a 3D uniform grid of noise ---
@@ -36,7 +36,7 @@ public:
         for (int z = 0; z < CS_P; z++) {
           float val = (noiseData[get_zxy_index(x, y, z)] + 1.0f) * 0.5f;
 
-          if (val > glm::smoothstep(0.15f, 1.0f, float(y) / CS_P)) {
+          if (val > smoothstep(0.15f, 1.0f, float(y) / CS_P)) {
             int i = get_zxy_index(x, y, z);
             int i_above = get_zxy_index(x, y + 1, z);
 
@@ -184,6 +184,13 @@ public:
 	*/
   }
 private:
+
+  float smoothstep(float edge0, float edge1, float x) {
+    // Scale, bias and clamp x to 0..1 range
+    float t = std::clamp((x - edge0) / (edge1 - edge0), 0.0f, 1.0f);
+    // Evaluate polynomial
+    return t * t * (3.0f - 2.0f * t);
+  }
   FastNoise::SmartNode<FastNoise::Simplex> simplex;
   FastNoise::SmartNode<FastNoise::FractalFBm> fractal;
 

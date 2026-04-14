@@ -1,9 +1,5 @@
 module;
-#include <glad/glad.h>
-//#include <string>
-//#include <filesystem>
-//#include <unordered_map>
-//#include <mutex>
+#include <gl.h>
 export module shader;
 
 import std;

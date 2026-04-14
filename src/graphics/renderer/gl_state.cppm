@@ -1,5 +1,5 @@
 module;
-#include <glad/glad.h>
+#include <gl.h>
 export module gl_state;
 import glm;
 export struct GLState {

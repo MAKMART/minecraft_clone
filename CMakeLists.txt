@@ -66,6 +66,7 @@ message(STATUS "Executable Name  : ${EXECUTABLE_OUTPUT_NAME}")
 set(GLFW_BUILD_WAYLAND ON CACHE BOOL "" FORCE)
 set(GLFW_BUILD_X11 ON CACHE BOOL "" FORCE)
 set(GLFW_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+add_subdirectory(vendor/glfw-3.4 EXCLUDE_FROM_ALL)
 
 # ==== FreeType ====
 set(FT_DISABLE_ZLIB ON CACHE BOOL "" FORCE)
@@ -73,6 +74,8 @@ set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
 set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
 set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
 set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
+add_subdirectory(vendor/freetype EXCLUDE_FROM_ALL)
+add_library(Freetype::Freetype ALIAS freetype)
 
 # ==== RmlUi ====
 set(RMLUI_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
@@ -80,6 +83,7 @@ set(RMLUI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(RMLUI_BUILD_LIBRMLDEBUGGER ON CACHE BOOL "" FORCE)
 set(RMLUI_FONT_ENGINE "freetype" CACHE STRING "" FORCE)
 set(RMLUI_SHELL OFF CACHE BOOL "" FORCE)
+add_subdirectory(vendor/rmlui EXCLUDE_FROM_ALL)
 
 # ==== FastNoise2 ====
 set(FASTNOISE2_NOISETOOL OFF CACHE BOOL "" FORCE)
@@ -91,54 +95,56 @@ else()
     set(FASTNOISE2_SIMD_FEATURES "SSE2;SSE41;AVX2;AVX512" CACHE STRING "SIMD levels for FastNoise2 in Release")
 endif()
 set(FASTSIMD_FEATURE_SETS "${FASTNOISE2_SIMD_FEATURES}" CACHE STRING "")
+add_subdirectory(vendor/fast-noise-2 EXCLUDE_FROM_ALL)
 
 # ==== Tracy (optional) ====
 if(ENABLE_TRACY)
     set(TRACY_SKIP_GIT_UPDATE ON CACHE BOOL "" FORCE)
     set(TRACY_ENABLE_VERBOSE OFF)
     fetch_library(tracy https://github.com/wolfpld/tracy.git master)
+
+    add_library(tracy_client STATIC
+      ${tracy_SOURCE_DIR}/public/TracyClient.cpp
+    )
+
+    target_include_directories(tracy_client PUBLIC
+      ${tracy_SOURCE_DIR}/public
+    )
+
+    target_compile_definitions(tracy_client PUBLIC
+      TRACY_ENABLE
+      TRACY_GPU_CONTEXT
+      TRACY_CALLSTACK
+      $<$<BOOL:${CMAKE_INTERPROCEDURAL_OPTIMIZATION}>:TRACY_LTO>
+    )
+
+    target_compile_options(tracy_client PRIVATE
+      $<$<CXX_COMPILER_ID:GNU>:-fno-omit-frame-pointer>
+      $<$<CXX_COMPILER_ID:Clang>:-fno-omit-frame-pointer>
+      $<$<CXX_COMPILER_ID:MSVC>:/Oy->
+    )
+
+    if(WIN32)
+      target_link_libraries(tracy_client PRIVATE ws2_32 dbghelp)
+    endif()
+
 endif()
 
-fetch_library(glm https://github.com/g-truc/glm.git master)
-fetch_library(glfw https://github.com/glfw/glfw.git master)
-fetch_library(freetype https://github.com/freetype/freetype.git master)
-add_library(Freetype::Freetype ALIAS freetype)
-fetch_library(RmlUi https://github.com/mikke89/RmlUi.git master)
-fetch_library(FastNoise2 https://github.com/Auburn/FastNoise2.git v1.1.1)
-
-
-# GLAD cmake library
-add_library(game_c OBJECT)
-target_sources(game_c
-	PRIVATE
-	$<$<CONFIG:Debug>:${PROJECT_SOURCE_DIR}/src/external/glad_debug.c>
-	$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/src/external/glad_release.c>
-	PUBLIC
-		FILE_SET glad_headers
-		TYPE HEADERS
-		BASE_DIRS ${PROJECT_SOURCE_DIR}/include/external
-		FILES
-			$<$<CONFIG:Debug>:include/external/glad-debug/glad/glad.h>
-			$<$<CONFIG:Release>:include/external/glad-release/glad/glad.h>
-)
-
-target_include_directories(game_c PUBLIC
-    $<$<CONFIG:Debug>:${PROJECT_SOURCE_DIR}/include/external/glad-debug>
-    $<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/include/external/glad-release>
-)
+add_subdirectory(vendor/glm EXCLUDE_FROM_ALL)
 
 # ==== IMGUI ====
-add_library(imgui STATIC 
-    include/external/imgui/imgui.cpp
-    include/external/imgui/imgui_draw.cpp
-    include/external/imgui/imgui_tables.cpp
-    include/external/imgui/imgui_widgets.cpp
-    include/external/imgui/backends/imgui_impl_glfw.cpp
-    include/external/imgui/backends/imgui_impl_opengl3.cpp
+add_library(imgui STATIC)
+target_sources(imgui PUBLIC
+    vendor/imgui/imgui.cpp
+    vendor/imgui/imgui_draw.cpp
+    vendor/imgui/imgui_tables.cpp
+    vendor/imgui/imgui_widgets.cpp
+    vendor/imgui/backends/imgui_impl_glfw.cpp
+    vendor/imgui/backends/imgui_impl_opengl3.cpp
 )
 target_include_directories(imgui PUBLIC
-    ${PROJECT_SOURCE_DIR}/include/external/imgui
-    ${PROJECT_SOURCE_DIR}/include/external/imgui/backends
+    ${PROJECT_SOURCE_DIR}/vendor/imgui
+    ${PROJECT_SOURCE_DIR}/vendor/imgui/backends
     ${glfw_SOURCE_DIR}/include
 )
 target_link_libraries(imgui PUBLIC glfw)
@@ -162,9 +168,32 @@ function(disable_debug_symbols target)
         target_compile_options(${target} PRIVATE -g0)
     endif()
 endfunction()
-disable_debug_symbols(imgui)
-disable_debug_symbols(glfw)
-disable_debug_symbols(freetype)
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  disable_debug_symbols(imgui)
+  disable_debug_symbols(glfw)
+  disable_debug_symbols(freetype)
+endif()
+
+
+#binary-greedy-meshing library (remember to cite the authors when publishing)
+add_library(binary-greedy-meshing STATIC)
+target_sources(binary-greedy-meshing
+  PUBLIC
+  FILE_SET CXX_MODULES
+  FILES
+  vendor/binary-greedy-meshing/mesher.cppm
+  vendor/binary-greedy-meshing/rendering/chunk_renderer.cppm
+  vendor/binary-greedy-meshing/misc/noise.cppm
+  vendor/binary-greedy-meshing/misc/utility.cppm
+)
+
+target_include_directories(binary-greedy-meshing PRIVATE
+  vendor/binary-greedy-meshing/
+  vendor/glad
+  vendor/fast-noise-2/include
+)
+
+target_link_libraries(binary-greedy-meshing PUBLIC FastNoise2)
 
 # Main executable
 add_executable(${PROJECT_NAME})
@@ -187,7 +216,6 @@ file(GLOB_RECURSE GAME_CORE_CPP_SOURCES
 	src/ui/*.cpp
 	src/game/*.cpp
 	src/game/ecs/systems/systems.cpp
-	# include/external/binary-greedy-meshing/FastNoise.cpp
 )
 
 target_sources(${PROJECT_NAME}
@@ -196,7 +224,7 @@ target_sources(${PROJECT_NAME}
 		${GAME_CORE_CPP_SOURCES}
 		$<$<BOOL:${ENABLE_TRACY}>:src/tracy_overrides.cpp>
 		PUBLIC
-		FILE_SET CXX_MODULES 
+		FILE_SET CXX_MODULES
 		FILES
 		# for "import glm" support include the glm module file
 		${glm_SOURCE_DIR}/glm/glm.cppm
@@ -232,11 +260,6 @@ target_sources(${PROJECT_NAME}
     src/game/app_state.cppm
     src/game/game_state.cppm
     src/game/game_factories.cppm
-		#binary-greedy-meshing library (remember to cite the authors when publishing)
-		include/external/binary-greedy-meshing/mesher.cppm
-		include/external/binary-greedy-meshing/rendering/chunk_renderer.cppm
-		include/external/binary-greedy-meshing/misc/noise.cppm
-		include/external/binary-greedy-meshing/misc/utility.cppm
 )
 
 
@@ -248,49 +271,18 @@ else()
 endif()
 
 
-
-# ==== Tracy Integration ====
-if(ENABLE_TRACY)
-    add_library(tracy_client STATIC
-        ${tracy_SOURCE_DIR}/public/TracyClient.cpp
-    )
-
-    target_include_directories(tracy_client PUBLIC
-        ${tracy_SOURCE_DIR}/public
-    )
-
-    target_compile_definitions(tracy_client PUBLIC
-        TRACY_ENABLE
-        TRACY_GPU_CONTEXT
-        TRACY_CALLSTACK
-        $<$<BOOL:${CMAKE_INTERPROCEDURAL_OPTIMIZATION}>:TRACY_LTO>
-    )
-
-    target_compile_options(tracy_client PRIVATE
-        $<$<CXX_COMPILER_ID:GNU>:-fno-omit-frame-pointer>
-        $<$<CXX_COMPILER_ID:Clang>:-fno-omit-frame-pointer>
-        $<$<CXX_COMPILER_ID:MSVC>:/Oy->
-    )
-
-    if(WIN32)
-        target_link_libraries(tracy_client PRIVATE ws2_32 dbghelp)
-    endif()
-endif()
-
-
 # ==== Source Files ====
-
-
 target_include_directories(${PROJECT_NAME}
 	PRIVATE
 	${PROJECT_SOURCE_DIR}/include
-	${PROJECT_SOURCE_DIR}/include/external/vendor
+  ${PROJECT_SOURCE_DIR}/vendor/stb
+  ${PROJECT_SOURCE_DIR}/vendor/glad
 	${IMGUI_INCLUDE_DIRS}
 	#SYSTEM PRIVATE ${IMGUI_INCLUDE_DIRS}
 )
 
 # ==== Compiler Flags ====
-target_compile_definitions(${PROJECT_NAME} PRIVATE 
+target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<CONFIG:Debug>:DEBUG>
     $<$<CONFIG:Release>:NDEBUG>
     PROJECT_NAME="${PROJECT_NAME}"
@@ -309,14 +301,14 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Debug>>:
         -D_GLIBCXX_ASSERTIONS
         -fexceptions
-		-fsanitize=address
+        -fsanitize=address
         -Wall
         -Wextra
         -pedantic
         -Wuninitialized
-		-g
+        -g
         -ggdb
-		-flto
+        -flto
     >
     $<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Release>>:
         -O3
@@ -365,22 +357,20 @@ elseif(UNIX AND NOT APPLE)
 endif()
 
 target_compile_options(${PROJECT_NAME} PRIVATE
-	-fno-implicit-modules 
+	-fno-implicit-modules
 	-fno-implicit-module-maps
 	#-fmodules-cache-path=${CMAKE_BINARY_DIR}/clang-modules
 )
 
 # ==== Link Everything ====
 target_link_libraries(${PROJECT_NAME} PRIVATE
-	PUBLIC 
-	$<$<BOOL:${ENABLE_TRACY}>:tracy_client>
-	#c++
-	#c++abi
+	PUBLIC
+    $<$<BOOL:${ENABLE_TRACY}>:tracy_client>
     glfw
     freetype
     RmlUi::Core
     RmlUi::Debugger
     imgui
-	FastNoise2
-	game_c
+    FastNoise2
+    binary-greedy-meshing
 )

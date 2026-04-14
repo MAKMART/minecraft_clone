@@ -1,6 +1,5 @@
 module;
-#include <glad/glad.h>
-#include <cmath>
+#include <gl.h>
 #include <cassert>
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>

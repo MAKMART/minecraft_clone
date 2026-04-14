@@ -2,7 +2,7 @@ module;
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
-#include <glad/glad.h>   // Solves GL_TRIANGLES, GLuint, etc.
+#include <gl.h>
 module chunk_manager;
 
 import timer;
@@ -111,7 +111,9 @@ ChunkManager::ChunkManager()
 			mesh(voxels.data(), mainThreadMeshData);
 
 			// Create draw commands
-			glm::ivec3 chunkPos = parse_xyz_key(get_xyz_key(x, y, z));
+      auto v = parse_xyz_key(get_xyz_key(x, y, z));
+      glm::ivec3 chunkPos(v.x, v.y, v.z);
+			// glm::ivec3 chunkPos = parse_xyz_key(get_xyz_key(x, y, z));
 			std::vector<DrawElementsIndirectCommand> commands(6);
 			for (int i = 0; i < 6; i++) {
 				if (mainThreadMeshData.faceVertexLength[i]) {
