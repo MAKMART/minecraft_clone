@@ -46,18 +46,6 @@ import debug;
 static float crosshair_size = 0.3f;
 float getFPS(const frame_context& ctx);
 void DrawBool(const char* label, bool value);
-
-const char* gl_enum_to_string(GLenum e) {
-	switch (e) {
-		case GL_RGBA8:               return "GL_RGBA8";
-		case GL_RGBA16F:             return "GL_RGBA16F";
-		case GL_RGB16F:              return "GL_RGB16F";
-		case GL_DEPTH_COMPONENT24:   return "GL_DEPTH_COMPONENT24";
-		case GL_DEPTH_COMPONENT32F:  return "GL_DEPTH_COMPONENT32F";
-		case GL_DEPTH24_STENCIL8:    return "GL_DEPTH24_STENCIL8";
-		default:                     return "UNKNOWN_GL_ENUM";
-	}
-}
 int main()
 {
   app_state state(1920, 1080, MAIN_FONT_DIRECTORY);
@@ -296,6 +284,20 @@ int main()
 
 		// UPDATE PHASE
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 		auto& input = InputManager::get();
 
 		UpdateFrametimeGraph(state.frame_ctx.delta_time);
@@ -369,7 +371,7 @@ int main()
 			toggle = !toggle;          // flip toggle
 			if (state.frame_ctx.active_camera == state.g_state.player.camera) {
 				fb_player.setInt("toggle", toggle ? 1 : 0);
-			} 
+			}
 #if defined(DEBUG)
 			else if (state.frame_ctx.active_camera == state.g_state.debug_cam) {
 				fb_debug.setInt("toggle", toggle ? 1 : 0);
@@ -433,7 +435,6 @@ int main()
 						manager.update_block(placePos, static_cast<Block::blocks>(state.g_state.player.selectedBlock));
 					}
 				}
-			
 			}
 #endif
 
@@ -452,27 +453,64 @@ int main()
 
 				// To change FOV
 				// camCtrl.processMouseScroll(scrollY);
-
-
 			}
 		}
 
 		PlayerMode* mode = state.g_state.ecs.get_component<PlayerMode>(state.g_state.player.self);
 		PlayerState* player_state = state.g_state.ecs.get_component<PlayerState>(state.g_state.player.self);
+    MovementConfig* player_movement_config = state.g_state.ecs.get_component<MovementConfig>(state.g_state.player.self);
 		if (input.isPressed(CAMERA_SWITCH_KEY) && state.g_state.ecs.has_component<CameraController>(state.frame_ctx.active_camera)) {
 			state.g_state.ecs.get_component<CameraController>(state.frame_ctx.active_camera)->third_person = !state.g_state.ecs.get_component<CameraController>(state.frame_ctx.active_camera)->third_person;
 		}
-
+    // MovementConfig survival_config {
+    //   .can_jump = true,
+    //   .can_walk = true,
+    //   .can_run = true,
+    //   .can_crouch = true,
+    //   .can_fly = false,
+    //   .jump_height = 1.8f,
+    //   .walk_speed = 5.0f,
+    //   .run_speed = 7.5f,
+    //   .crouch_speed = 2.5f,
+    //   .fly_speed = 10.0f
+    // };
+    //
+    // MovementConfig creative_config {
+    //   .can_jump = true,
+    //   .can_walk = true,
+    //   .can_run = true,
+    //   .can_crouch = true,
+    //   .can_fly = false,
+    //   .jump_height = 1.8f,
+    //   .walk_speed = 5.0f,
+    //   .run_speed = 7.5f,
+    //   .crouch_speed = 2.5f,
+    //   .fly_speed = 10.0f
+    // };
+    //
+    // MovementConfig spectator_config {
+    //   .can_jump = true,
+    //   .can_walk = true,
+    //   .can_run = true,
+    //   .can_crouch = true,
+    //   .can_fly = false,
+    //   .jump_height = 1.8f,
+    //   .walk_speed = 5.0f,
+    //   .run_speed = 7.5f,
+    //   .crouch_speed = 2.5f,
+    //   .fly_speed = 10.0f
+    // };
+    //
 		if (input.isPressed(SURVIVAL_MODE_KEY)) {
-			player_state->current = PlayerMovementState::Walking;
+      mode->mode = ModeType::SURVIVAL;
 		}
 
 		if (input.isPressed(CREATIVE_MODE_KEY)) {
-			player_state->current = PlayerMovementState::Flying;
+      mode->mode = ModeType::CREATIVE;
 		}
 
 		if (input.isPressed(SPECTATOR_MODE_KEY)) {
-			mode->mode = Type::SPECTATOR;
+			mode->mode = ModeType::SPECTATOR;
 		}
 
 		// Reload shaders
@@ -495,11 +533,8 @@ int main()
 		if (input.isPressed(GLFW_KEY_ENTER) && state.frame_ctx.active_camera == state.g_state.debug_cam) {
 			state.g_state.ecs.get_component<Transform>(state.g_state.player.self)->pos = state.g_state.ecs.get_component<Transform>(state.g_state.debug_cam)->pos;
 			state.g_state.ecs.get_component<Velocity>(state.g_state.player.self)->value = state.g_state.ecs.get_component<Velocity>(state.g_state.debug_cam)->value;
-		
 		}
 #endif
-		
-		
 
 		// 2. UI
 		if (state.ui.get_context()) {
@@ -561,7 +596,7 @@ int main()
 
 		movement_intent_system(state.g_state.ecs, state.frame_ctx.cam);
     player_state_system(state.g_state.ecs);
-		// movement_physics_system(state.g_state.ecs, manager, deltaTime);
+		movement_physics_system(state.g_state.ecs, manager, state.frame_ctx.delta_time);
 		camera_controller_system(state.g_state.ecs, state.g_state.player.self);
 #if defined(DEBUG)
 		debug_camera_system(state.g_state.ecs, state.frame_ctx.delta_time);
@@ -624,7 +659,43 @@ int main()
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 		// RENDER PHASE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 		// -- Render Player -- (BEFORE UI pass)
 		// TODO: Actually fix and implement this shit
@@ -914,12 +985,12 @@ float getFPS(const frame_context& ctx)
 {
     static int frames = 0;
     static float elapsedTime = 0.0f;
-	static float lastFPS = 0.0f;
+    static float lastFPS = 0.0f;
     frames++;
     elapsedTime += ctx.delta_time; // accumulate frame times
 
     if (elapsedTime >= 0.3f) { // update FPS every 300ms
-		lastFPS = float(frames) / elapsedTime;
+        lastFPS = float(frames) / elapsedTime;
         frames = 0;
         elapsedTime = 0.0f;
     }

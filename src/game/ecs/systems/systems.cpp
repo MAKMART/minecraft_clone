@@ -21,11 +21,17 @@ void camera_controller_system(ECS& ecs, Entity player)
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
+  log::system_info("camera_controller_system", "ran!!!!!!");
 
-	ecs.for_each_components<CameraController, Camera, Transform, ActiveCamera>(
-	    [&](const Entity e, CameraController& ctrl, const Camera& cam, Transform& camTransform, ActiveCamera) {
+	ecs.for_each_components<CameraController, Camera, ActiveCamera>(
+	    [&](const Entity e, CameraController& ctrl, const Camera& cam, const ActiveCamera ac) {
         if (!ctrl.target.is_valid())
           return;
+
+          // active camera's transform component
+        auto* camTransform = ecs.get_component<Transform>(ac.target);
+        if (!camTransform)
+          log::system_error("camera_controller_system", "the 'active camera' with id : {} doesn't have a Transform component", ac.target.id);
 
 		    auto* targetTransform = ecs.get_component<Transform>(ctrl.target);
 		    if (!targetTransform)
@@ -48,10 +54,10 @@ void camera_controller_system(ECS& ecs, Entity player)
 
 			    //ctrl.yaw   = glm::mix(ctrl.yaw, targetYaw, smoothing);
 			    //ctrl.pitch = glm::mix(ctrl.pitch, targetPitch, smoothing);
-				ctrl.yaw = targetYaw;
-				ctrl.pitch = targetPitch;
-			    ctrl.pitch = glm::clamp(ctrl.pitch, -89.0f, 89.0f);
-				camTransform.rot   = glm::normalize(targetYaw * camTransform.rot * targetPitch);
+          ctrl.yaw = targetYaw;
+          ctrl.pitch = targetPitch;
+          ctrl.pitch = glm::clamp(ctrl.pitch, -89.0f, 89.0f);
+          camTransform->rot   = glm::normalize(targetYaw * camTransform->rot * targetPitch);
 		    }
 
 		    if (ctrl.third_person) {
@@ -60,18 +66,18 @@ void camera_controller_system(ECS& ecs, Entity player)
 			    offset.x         = ctrl.orbit_distance * -std::cos(glm::radians(ctrl.yaw)) * std::cos(glm::radians(ctrl.pitch));
 			    offset.y         = ctrl.orbit_distance * std::sin(glm::radians(ctrl.pitch));
 			    offset.z         = ctrl.orbit_distance * std::sin(glm::radians(ctrl.yaw)) * std::cos(glm::radians(ctrl.pitch));
-			    camTransform.pos = targetPos - offset;
+			    camTransform->pos = targetPos - offset;
 			    // Make camera look at target
-			    glm::vec3 dir = glm::normalize(targetPos - camTransform.pos);
-			    camTransform.rot = glm::quatLookAt(dir, glm::vec3(0, 1, 0));
+			    glm::vec3 dir = glm::normalize(targetPos - camTransform->pos);
+			    camTransform->rot = glm::quatLookAt(dir, glm::vec3(0, 1, 0));
 		    } else {
 			    // First-person
 			    glm::quat qPitch = glm::angleAxis(glm::radians(ctrl.pitch), glm::vec3(1, 0, 0));
 			    glm::quat qYaw   = glm::angleAxis(glm::radians(ctrl.yaw), glm::vec3(0, 1, 0));
-			    camTransform.rot = qYaw * qPitch;
-			    camTransform.pos = targetPos;
+			    camTransform->rot = qYaw * qPitch;
+			    camTransform->pos = targetPos;
 		    }
-		    camTransform.rot = glm::normalize(camTransform.rot);
+		    camTransform->rot = glm::normalize(camTransform->rot);
 	    });
 }
 
@@ -148,6 +154,8 @@ void movement_intent_system(ECS& ecs, const Camera* cam)
 
       if (glm::dot(input_dir, input_dir) > 0.0f)
       input_dir = glm::normalize(input_dir);
+
+      // log::system_info("movement_intent_system", "called for entity: {}", e.id);
 
       // --- Rotate movement into world-space based on where the camera is looking ---
       // Don't modify the camera's vectors directly
@@ -271,9 +279,9 @@ void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
             }
 
             // --- Gravity ---
-            if (!col.is_on_ground && !cfg.can_fly) {
-                vel.value.y -= GRAVITY * dt;
-            }
+            // if (!col.is_on_ground && !cfg.can_fly) {
+            //     vel.value.y -= GRAVITY * dt;
+            // }
 
             // --- Early out if stationary ---
             if (glm::all(glm::epsilonEqual(vel.value, glm::vec3(0.0f), 1e-4f))) {

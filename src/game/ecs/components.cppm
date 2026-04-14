@@ -125,11 +125,11 @@ export {
 		bool crouch        = false;
 	};
 
-	enum Type : std::uint8_t { SURVIVAL, CREATIVE, SPECTATOR };
+	enum ModeType : std::uint8_t { SURVIVAL, CREATIVE, SPECTATOR };
 	struct PlayerMode {
-		explicit PlayerMode(Type starting_mode) : mode(starting_mode) {}
+		explicit PlayerMode(ModeType starting_mode) : mode(starting_mode) {}
 		PlayerMode() = default;
-		Type mode    = SURVIVAL;
+		ModeType mode    = SURVIVAL;
 	};
 
 	enum class PlayerMovementState {

@@ -8,6 +8,7 @@ import ecs_components;
 import player;
 import glm;
 import game_factories;
+import logger;
 
 export struct game_state {
 
@@ -19,10 +20,13 @@ export struct game_state {
     game_state(int width, int height)
     {
       player = create_player(ecs, {0.1f, 50.0f, 0.1f});
+      log::info("Player entity id: {}", player.self.id);
       camera_manager_entity = ecs.create_entity();
       ecs.emplace_component<ActiveCamera>(camera_manager_entity, player.camera);
+      log::info("camera_manager_entity entity id: {}", camera_manager_entity.id);
 #if defined(DEBUG)
       debug_cam = ecs.create_entity();
+      log::info("Debug Camera entity id: {}", debug_cam.id);
       ecs.emplace_component<Camera>(debug_cam);
       ecs.emplace_component<Transform>(debug_cam, glm::vec3(0.0f, 10.0f, 0.0f));
       // At the start we do not need to add these componets since they will change at runtime when the player will switch to the debug camera
