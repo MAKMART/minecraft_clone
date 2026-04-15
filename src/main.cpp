@@ -307,7 +307,7 @@ int main()
 
 
 
-    // state.frame_ctx.active_camera = state.g_state.camera_manager_entity;
+    // Build this frame's active camera
     state.frame_ctx.active_camera = state.g_state.get_active_camera_component()->target;
 
 		Camera* ________cam = state.g_state.ecs.get_component<Camera>(state.frame_ctx.active_camera);
@@ -597,11 +597,13 @@ int main()
 		movement_intent_system(state.g_state.ecs, state.frame_ctx.cam);
     player_state_system(state.g_state.ecs);
 		movement_physics_system(state.g_state.ecs, manager, state.frame_ctx.delta_time);
-		camera_controller_system(state.g_state.ecs, state.g_state.player.self);
+    if (state.frame_ctx.active_camera == state.g_state.player.camera) {
+      camera_controller_system(state.g_state.ecs, state.g_state.player.self, state.frame_ctx);
+    }
 #if defined(DEBUG)
 		debug_camera_system(state.g_state.ecs, state.frame_ctx.delta_time);
 #endif
-		camera_system(state.g_state.ecs);
+		camera_system(state.g_state.ecs, state.frame_ctx);
 		frustum_volume_system(state.g_state.ecs);
 
 
