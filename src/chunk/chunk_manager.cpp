@@ -45,8 +45,8 @@ ChunkManager::ChunkManager()
 	mainThreadMeshData.faceMasks = new uint64_t[CS_2 * 6] { 0 };
 	mainThreadMeshData.forwardMerged = new uint8_t[CS_2] { 0 };
 	mainThreadMeshData.rightMerged = new uint8_t[CS] { 0 };
-	mainThreadMeshData.vertices = new std::vector<uint64_t>(10000);
-	mainThreadMeshData.maxVertices = 10000;
+	mainThreadMeshData.vertices = new std::vector<uint64_t>(100000);
+	mainThreadMeshData.maxVertices = 100000;
 
 	chunkRenderer.init();
 

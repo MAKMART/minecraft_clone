@@ -1,6 +1,5 @@
 module;
 #include <gl.h>
-#include <climits>
 export module chunk_manager;
 
 import std;
@@ -151,7 +150,7 @@ export class ChunkManager
 		std::vector<Chunk*> dirty_chunks;
 
 		// initialize with a value that's != to any reasonable spawn chunk position
-		glm::ivec3 last_player_chunk_pos{INT_MIN};
+		glm::ivec3 last_player_chunk_pos{std::numeric_limits<int>::min()};
 
 		const static constexpr unsigned int num_workgroups = (TOTAL_FACES + 255u) / 256u;
 		const static constexpr unsigned int num_scan_groups = (num_workgroups + 255u) / 256u;

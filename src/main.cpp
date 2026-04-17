@@ -44,8 +44,6 @@ import app_state;
 import debug;
 
 static float crosshair_size = 0.3f;
-float getFPS(const frame_context& ctx);
-void DrawBool(const char* label, bool value);
 int main()
 {
   app_state state(1920, 1080, MAIN_FONT_DIRECTORY);
@@ -621,10 +619,9 @@ int main()
 			DebugDrawer::get().addRay(trans->pos, world_up, {0.0f, 1.0f, 0.0f});
 			DebugDrawer::get().addRay(trans->pos, world_right, {0.0, 0.0f, 1.0f});
 
-			state.g_state.ecs.for_each_components<Camera, Transform>([&state](Entity e, Camera, Transform& trans){
-					if (!state.g_state.ecs.has_component<ActiveCamera>(e))
-						DebugDrawer::get().addAABB(AABB::fromCenterSize(trans.pos, {0.5f, 0.8f, 0.5f}), glm::vec3(1.0f, 0.0f, 1.0f));
-					});
+      state.g_state.ecs.for_each_components<Camera, Transform>([&state](Entity e, Camera, Transform& trans){
+          DebugDrawer::get().addAABB(AABB::fromCenterSize(trans.pos, {0.5f, 0.8f, 0.5f}), glm::vec3(1.0f, 0.0f, 1.0f));
+          });
 
 			float ndc_z = -1.0f; // near plane
 			glm::vec4 clip = glm::vec4(0.0f, 0.0f, ndc_z, 1.0f);
@@ -636,7 +633,7 @@ int main()
 			glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(player_cam->viewMatrix) * view_space));
 			glm::vec3 cam_pos   = player_cam_trans->pos + glm::vec3(0.1, 0.0, 0.1f);
 			DebugDrawer::get().addRay(cam_pos, ray_dir, {1.0f, 0.0f, 0.0f});
-			glm::vec3 cam_dir   = glm::normalize(player_cam_trans->rot * state.frame_ctx.cam->forward);
+			glm::vec3 cam_dir   = glm::normalize(player_cam_trans->rot * player_cam->forward);
 			DebugDrawer::get().addRay(cam_pos, cam_dir, {1.0f, 0.0f, 0.0f});
 
 
@@ -671,11 +668,13 @@ int main()
 
 
 
-
-
-
-
-
+#if defined(DEBUG)
+    if (state.g_state.render_ui) {
+      ImGui_ImplOpenGL3_NewFrame();
+      ImGui_ImplGlfw_NewFrame();
+      setup_imgui(state, manager, ctrl, player_state);
+    }
+#endif
 
 
 
@@ -736,10 +735,7 @@ int main()
 
 #if defined(DEBUG)
 		if (state.frame_ctx.debug_render) {
-			state.g_state.ecs.for_each_components<Camera, Transform, RenderTarget, ActiveCamera>([](Entity e, Camera& cam, Transform, RenderTarget, ActiveCamera){
-					glm::mat4 pv = cam.projectionMatrix * cam.viewMatrix;
-					DebugDrawer::get().draw(pv);
-					});
+      DebugDrawer::get().draw(state.frame_ctx.view_proj_matrix);
 		}
 #endif
 
@@ -777,7 +773,7 @@ int main()
 			fb_player.setInt("depth", 1);
 			fb_player.setInt("skybox", 2);
 			fb_player.use();
-		} 
+		}
 #if defined(DEBUG)
 		else if (state.frame_ctx.active_camera == state.g_state.debug_cam) {
 			fb_debug.setInt("color", 0);
@@ -824,7 +820,7 @@ int main()
 		                 ImGuiWindowFlags_::ImGuiWindowFlags_NoNavInputs |
 		                 ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus |
 		                 ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
-		ImGui::Text("FPS: %f", getFPS(state.frame_ctx));
+		ImGui::Text("FPS: %f", getFPS(state.frame_ctx.delta_time));
 		ImGui::Text("Selected block: ");
 		ImGui::SameLine();
 		ImGui::SetWindowFontScale(1.2f);
@@ -841,117 +837,6 @@ int main()
 			// --- ImGui Debug UI Pass ---
 			GLState::set_depth_test(false);
 			GLState::set_wireframe(false);
-			ImGui_ImplOpenGL3_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
-			ImGui::NewFrame();
-      auto pos = state.g_state.ecs.get_component<Transform>(state.g_state.player.self)->pos;
-      auto vel = state.g_state.ecs.get_component<Velocity>(state.g_state.player.self)->value;
-			glm::ivec3 chunkCoords = world_to_chunk(pos);
-			glm::ivec3 localCoords = world_to_local(pos);
-			ImGui::Begin("DEBUG", NULL,
-			             ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize |
-			                 ImGuiWindowFlags_::ImGuiWindowFlags_NoMove |
-			                 ImGuiWindowFlags_::ImGuiWindowFlags_NoNavInputs |
-			                 ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus |
-			                 ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
-			ImGui::PushFont(ImGui::GetFont()); // Or use a bold/large font if you have one
-			ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-			ImGui::Selectable("Rendering Infos:", false, ImGuiSelectableFlags_Disabled);
-			ImGui::PopStyleColor(1);
-			ImGui::PopFont();
-			ImGui::Indent();
-			ImGui::Text("FPS: %f", getFPS(state.frame_ctx));
-			ImGui::Text("Draw Calls: %d", g_drawCallCount);
-			RenderTimings();
-			ImGui::Unindent();
-			ImGui::Spacing();
-			ImGui::PushFont(ImGui::GetFont()); // Or use a bold/large font if you have one
-			ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-			ImGui::Selectable("Player:", false, ImGuiSelectableFlags_Disabled);
-			ImGui::PopStyleColor(1);
-			ImGui::PopFont();
-			ImGui::Indent();
-			ImGui::Text("Player position: %f, %f, %f", pos.x, pos.y, pos.z);
-			ImGui::Text("Player is in chunk: %i, %i, %i", chunkCoords.x, chunkCoords.y, chunkCoords.z);
-			ImGui::Text("Player local position: %d, %d, %d", localCoords.x, localCoords.y, localCoords.z);
-			ImGui::Text("Player velocity: %f, %f, %f", vel.x, vel.y, vel.z);
-      ImGui::Text("Player STATE: %s", player_mode_to_string(*state.g_state.ecs.get_component<PlayerMode>(state.g_state.player.self)).data());
-      ImGui::Text("Player STATE: %s", player_state_to_string(*state.g_state.ecs.get_component<PlayerState>(state.g_state.player.self)).data());
-			// glm::vec3 _min = player.getAABB().min;
-			// glm::vec3 _max = player.getAABB().max;
-			// ImGui::Text("Player AABB { %f, %f, %f }, { %f, %f, %f }", _min.x, _min.y, _min.z, _max.x, _max.y, _max.z);
-			ImGui::Text("Selected block: ");
-			ImGui::SameLine();
-			ImGui::SetWindowFontScale(1.2f);
-			ImGui::Text("%s", Block::toString(static_cast<Block::blocks>(state.g_state.player.selectedBlock)));
-			ImGui::SetWindowFontScale(1.0f);
-			ImGui::Unindent();
-			ImGui::Spacing();
-			ImGui::PushFont(ImGui::GetFont()); // Or use a bold/large font if you have one
-			ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-			ImGui::Selectable("Player flags:", false, ImGuiSelectableFlags_Disabled);
-			ImGui::PopStyleColor(1);
-			ImGui::PopFont();
-			ImGui::Indent();
-			DrawBool("is OnGround", state.g_state.ecs.get_component<Collider>(state.g_state.player.self)->is_on_ground);
-			DrawBool("is Damageable", state.g_state.player.isDamageable);
-			DrawBool("is Running", player_state->current == PlayerMovementState::Running);
-			DrawBool("is Flying", player_state->current == PlayerMovementState::Flying);
-			DrawBool("is Swimming", player_state->current == PlayerMovementState::Swimming);
-			DrawBool("is Walking", player_state->current == PlayerMovementState::Walking);
-			DrawBool("is Crouched", player_state->current == PlayerMovementState::Crouching);
-			DrawBool("is third-person", ctrl->third_person);
-			DrawBool("Player can place blocks", state.g_state.player.canPlaceBlocks);
-			DrawBool("Player can break blocks", state.g_state.player.canBreakBlocks);
-			DrawBool("renderSkin", state.g_state.player.renderSkin);
-			ImGui::Unindent();
-			ImGui::Spacing();
-			ImGui::PushFont(ImGui::GetFont()); // Or use a bold/large font if you have one
-			ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.30f, 0.30f, 0.30f, 1.0f));
-			ImGui::Selectable("Camera:", false, ImGuiSelectableFlags_Disabled);
-			ImGui::PopStyleColor(1);
-			ImGui::PopFont();
-			ImGui::Indent();
-			// DrawBool("is Camera interpolating", player.getCameraController().isInterpolationEnabled());
-			glm::vec3& camPos = state.g_state.ecs.get_component<Transform>(state.frame_ctx.active_camera)->pos;
-			ImGui::Text("Camera position: %f, %f, %f", camPos.x, camPos.y, camPos.z);
-			ImGui::Unindent();
-			if (state.g_state.render_ui && !input.isMouseTrackingEnabled()) {
-				if (ImGui::CollapsingHeader("Settings")) {
-					if (ImGui::TreeNode("Player")) {
-						auto* cfg = state.g_state.ecs.get_component<MovementConfig>(state.g_state.player.self);
-						ImGui::SliderFloat("Player walking speed ", &cfg->walk_speed, 0.0f, 100.0f);
-						ImGui::SliderFloat("Player flying speed", &cfg->fly_speed, 0.0f, 100.0f);
-						ImGui::SliderFloat("Max Interaction Distance", &state.g_state.player.max_interaction_distance, 0.0f, 1000.0f);
-						ImGui::TreePop();
-					}
-					if (ImGui::TreeNode("Camera")) {
-						ImGui::SliderFloat("Mouse Sensitivity", &ctrl->sensitivity, 0.01f, 2.0f);
-						ImGui::SliderFloat("FOV", &state.frame_ctx.cam->fov, 0.001f, 179.899f);
-						ImGui::SliderFloat("Near Plane", &state.frame_ctx.cam->near_plane, 0.001f, 10.0f);
-						ImGui::SliderFloat("Far Plane", &state.frame_ctx.cam->far_plane, 10.0f, 1000000.0f);
-						ImGui::SliderFloat("Third Person Offset", &ctrl->orbit_distance, 1.0f, 200.0f);
-						ImGui::TreePop();
-					}
-					if (ImGui::TreeNode("Miscellaneous")) {
-						ImGui::SliderInt("Render distance", (int*)&state.g_state.player.render_distance, 0, 30);
-						ImGui::SliderFloat("GRAVITY", &GRAVITY, -30.0f, 20.0f);
-						glm::vec4 backgroundColor{};
-						ImGui::SliderFloat3("BACKGROUND COLOR", &backgroundColor.r, 0.0f, 1.0f);
-						GLState::set_clear_color(backgroundColor);
-						static float _____width = GLState::get_line_width();
-						ImGui::SliderFloat("LINE_WIDTH", &_____width, 0.001f, 9.0f);
-						GLState::set_line_width(_____width);
-						ImGui::Checkbox("render_terrain: ", &state.g_state.render_terrain);
-						ImGui::Checkbox("render_player: ", &state.g_state.player.renderSkin);
-						static bool debug = false;
-						ImGui::Checkbox("debug", &debug); // Updates the value
-						manager.getShader().setBool("debug", debug);
-						ImGui::TreePop();
-					}
-				}
-			}
-			ImGui::End();
 
 			ImGui::Render();
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -980,29 +865,4 @@ int main()
 	ImGui::DestroyContext();
 	state.win_context.reset();
 
-}
-
-
-float getFPS(const frame_context& ctx)
-{
-    static int frames = 0;
-    static float elapsedTime = 0.0f;
-    static float lastFPS = 0.0f;
-    frames++;
-    elapsedTime += ctx.delta_time; // accumulate frame times
-
-    if (elapsedTime >= 0.3f) { // update FPS every 300ms
-        lastFPS = float(frames) / elapsedTime;
-        frames = 0;
-        elapsedTime = 0.0f;
-    }
-
-    return lastFPS; // will return 0 until first update
-}
-
-void DrawBool(const char* label, bool value)
-{
-	ImGui::Text("%s: ", label);
-	ImGui::SameLine();
-	ImGui::TextColored(value ? ImVec4(0, 1, 0, 1) : ImVec4(1, 0, 0, 1), value ? "TRUE" : "FALSE");
 }

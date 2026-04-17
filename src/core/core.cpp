@@ -58,50 +58,38 @@ void DrawArraysWrapper(GLenum mode, GLint first, GLsizei count)
 {
 	glDrawArrays(mode, first, count);
 	g_drawCallCount++;
-#if defined(DEBUG)
-	GLenum error = glGetError();
-	if (error != GL_NO_ERROR) {
-		std::cerr << "OpenGL Error in DrawArraysWrapper: Error code: "
-			<< std::hex << error << std::dec << std::endl;
-	}
-#endif
 }
 
 void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void* indices)
 {
 	glDrawElements(mode, count, type, indices);
 	g_drawCallCount++;
-#if defined(DEBUG)
-	GLenum error = glGetError();
-	if (error != GL_NO_ERROR) {
-		std::cerr << "OpenGL Error in DrawElementsWrapper: Error code: "
-			<< std::hex << error << std::dec << std::endl;
-	}
-#endif
 }
 
 void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount)
 {
 	glDrawArraysInstanced(mode, first, count, instanceCount);
 	g_drawCallCount++;
-#if defined(DEBUG)
-	GLenum error = glGetError();
-	if (error != GL_NO_ERROR) {
-		std::cerr << "OpenGL Error in DrawArraysInstancedWrapper: Error code: "
-			<< std::hex << error << std::dec << std::endl;
-	}
-#endif
 }
 void MultiDrawArraysIndirectWrapper(GLenum mode, const void *indirect, GLsizei drawcount, GLsizei stride)
 {
 
 	glMultiDrawArraysIndirect(mode, indirect, drawcount, stride);
 	g_drawCallCount++;
-#if defined(DEBUG)
-	GLenum error = glGetError();
-	if (error != GL_NO_ERROR) {
-		std::cerr << "OpenGL Error in MultiDrawArraysIndirectWrapper: Error code: "
-			<< std::hex << error << std::dec << std::endl;
-	}
-#endif
+}
+float getFPS(float dt)
+{
+    static int frames = 0;
+    static float elapsedTime = 0.0f;
+    static float lastFPS = 0.0f;
+    frames++;
+    elapsedTime += dt; // accumulate frame times
+
+    if (elapsedTime >= 0.3f) { // update FPS every 300ms
+        lastFPS = float(frames) / elapsedTime;
+        frames = 0;
+        elapsedTime = 0.0f;
+    }
+
+    return lastFPS; // will return 0 until first update
 }

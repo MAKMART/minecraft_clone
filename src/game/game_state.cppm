@@ -35,10 +35,10 @@ export struct game_state {
       ecs.emplace_component<MovementIntent>(debug_cam);
       ecs.emplace_component<DebugCamera>(debug_cam);
       ecs.emplace_component<DebugCameraController>(debug_cam);
-      ecs.emplace_component<RenderTarget>(debug_cam, RenderTarget(width, height, {
+      ecs.emplace_component<RenderTarget>(debug_cam, RenderTarget({
             { framebuffer_attachment_type::color, GL_RGBA16F }, // albedo
-                                                                //{ framebuffer_attachment_type::color, GL_RGBA16F }, // normal
-            { framebuffer_attachment_type::color, GL_RG16F   }, // material
+          //{ framebuffer_attachment_type::color, GL_RGBA16F }, // normal
+          //{ framebuffer_attachment_type::color, GL_RG16F   }, // material
             { framebuffer_attachment_type::depth, GL_DEPTH_COMPONENT24 }
             }));
 #endif

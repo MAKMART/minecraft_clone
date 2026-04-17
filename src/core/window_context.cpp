@@ -13,6 +13,7 @@ import core;
 import std;
 import logger;
 import gl_state;
+import debug;
 
 WindowContext::WindowContext(int _width, int _height, std::string _title) noexcept : window_width(_width), window_height(_height), title(_title) 
 {
@@ -63,8 +64,14 @@ void WindowContext::toggle_fullscreen() noexcept
 
 void WindowContext::create_window()
 {
+#if defined(DEBUG)
+  glfwSetErrorCallback([](int code, const char* desc)
+      {
+      log::system_error("GLFW", "{} : {}", code, desc);
+      });
+#endif
 	if (!glfwInit()) {
-		log::error("Failed to initialize GLFW for windowing");
+		log::system_error("GLFW", "Failed to initialize for windowing");
 		std::exit(1);
 	}
 
@@ -79,10 +86,15 @@ void WindowContext::create_window()
 	const int platform = glfwGetPlatform();
 	// Platform-specific
 	if (platform == GLFW_PLATFORM_X11) {
+    log::system_info("GLFW", "running on X11");
 		// XWayland-safe
 		glfwWindowHint(GLFW_SAMPLES, 0);
 		glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
-	}
+	} else if (platform == GLFW_PLATFORM_WAYLAND) {
+    log::system_info("GLFW", "running on Wayland");
+  } else if (platform == GLFW_PLATFORM_WIN32) {
+    log::system_info("GLFW", "running on WIN32");
+  }
 
 	//glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE); // !!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!
 	glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
@@ -102,18 +114,16 @@ void WindowContext::create_window()
 
 	window = fullscreen ? glfwCreateWindow(mode->width, mode->height, title.c_str(), monitor, nullptr)
 		: glfwCreateWindow(window_width, window_height, title.c_str(), nullptr, nullptr);
-  glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
 	if (!window) {
 		glfwTerminate();
-		log::error("Failed to create GLFW window");
+		log::system_error("GLFW", "Failed to create window");
 		std::exit(1);
 	}
 	glfwMakeContextCurrent(window);
-
 	if (glfwRawMouseMotionSupported()) {
 		glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 	} else {
-		log::info("Raw Mouse Motion not supported!");
+		log::system_info("GLFW", "Raw Mouse Motion not supported!");
 	}
 
   int version = gladLoadGL(glfwGetProcAddress);
@@ -123,6 +133,8 @@ void WindowContext::create_window()
 	} else {
     log::info("Initialized GLAD {}.{}", GLAD_VERSION_MAJOR(version),  GLAD_VERSION_MINOR(version));
   }
+  glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
+
 
 	// CONTEX CREATION TERMINATED
 
@@ -133,7 +145,7 @@ void WindowContext::create_window()
 	// --- DEBUG SETUP ---
 #if defined(DEBUG)
 	if (glfwExtensionSupported("GL_KHR_debug")) {
-		log::info("Debug Output is supported!");
+		log::system_info("GLFW", "Debug Output is supported!");
 		glEnable(GL_DEBUG_OUTPUT);
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 		glDebugMessageCallback(WindowContext::MessageCallback, 0);
@@ -143,7 +155,7 @@ void WindowContext::create_window()
 		}
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
 	} else {
-		log::info("Debug Output is not supported by this OpenGL context!");
+		log::system_info("GLFW", "Debug Output is not supported by this OpenGL context!");
 	}
 #endif
 
@@ -152,7 +164,7 @@ void WindowContext::create_window()
 	unsigned char* icon_data = stbi_load(WINDOW_ICON_DIRECTORY.string().c_str(), &icon_width, &icon_height, &icon_channels, 4);
 
 	if (icon_data) {
-		log::info("Loading window icon {} x {} with {} channels", icon_width, icon_height, icon_channels);
+		// log::info("Loading window icon {} x {} with {} channels", icon_width, icon_height, icon_channels);
 
 		GLFWimage image;
 		image.width  = icon_width;
@@ -162,7 +174,7 @@ void WindowContext::create_window()
 		glfwSetWindowIcon(window, 1, &image);
 		stbi_image_free(icon_data);
 	} else {
-		log::error("Failed to load window icon: {}", std::string(stbi_failure_reason()));
+		log::system_error("WINDOW", "Failed to load window icon: {}", std::string(stbi_failure_reason()));
 	}
 
 	GLenum err3 = glGetError();
@@ -178,14 +190,13 @@ void WindowContext::create_window()
 			default:
 				errorMessage = "Unknown OpenGL error (" + std::to_string(err3) + ")";
 		}
-		log::error("Failed to set window icon, OpenGL error: {}", errorMessage);
+		log::system_error("WINDOW", "Failed to set window icon, OpenGL error: {}", errorMessage);
 	}
 
 	glfwSwapInterval(v_sync ? 1 : 0);
 
 
 	GLState::init_capabilities();
-	// GLState::set_viewport(0, 0, width, height);
 	GLState::sync();
 }
 void WindowContext::MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
@@ -194,89 +205,31 @@ void WindowContext::MessageCallback(GLenum source, GLenum type, GLuint id, GLenu
 	(void)userParam;
 	// Map severity to log level & severity text
 	log::level level;
-	std::string   severityText;
 
 	switch (severity) {
 		case GL_DEBUG_SEVERITY_HIGH:
 			level        = log::level::ERROR;
-			severityText = "High";
 			break;
 		case GL_DEBUG_SEVERITY_MEDIUM:
 			level        = log::level::WARNING;
-			severityText = "Medium";
 			break;
 		case GL_DEBUG_SEVERITY_LOW:
 			return;
 			level        = log::level::INFO;
-			severityText = "Low";
 			break;
 		case GL_DEBUG_SEVERITY_NOTIFICATION:
 			return;
 			level        = log::level::INFO;
-			severityText = "Notification";
 			break;
 		default:
 			level        = log::level::INFO;
-			severityText = "Unknown";
 			break;
 	}
 
-	// Map source enum to string
-	const char* sourceStr = nullptr;
-	switch (source) {
-		case GL_DEBUG_SOURCE_API:
-			sourceStr = "API";
-			break;
-		case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
-			sourceStr = "Window System";
-			break;
-		case GL_DEBUG_SOURCE_SHADER_COMPILER:
-			sourceStr = "Shader Compiler";
-			break;
-		case GL_DEBUG_SOURCE_THIRD_PARTY:
-			sourceStr = "Third Party";
-			break;
-		case GL_DEBUG_SOURCE_APPLICATION:
-			sourceStr = "Application";
-			break;
-		case GL_DEBUG_SOURCE_OTHER:
-			sourceStr = "Other";
-			break;
-		default:
-			sourceStr = "Unknown";
-			break;
-	}
+  std::string_view severityText = gl_enum_to_string(severity);
+  std::string_view sourceStr = gl_enum_to_string(source);
+  std::string_view typeStr = gl_enum_to_string(type);
 
-	// Map type enum to string
-	const char* typeStr = nullptr;
-	switch (type) {
-		case GL_DEBUG_TYPE_ERROR:
-			typeStr = "Error";
-			break;
-		case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
-			typeStr = "Deprecated Behavior";
-			break;
-		case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-			typeStr = "Undefined Behavior";
-			break;
-		case GL_DEBUG_TYPE_PERFORMANCE:
-			typeStr = "Performance";
-			break;
-		case GL_DEBUG_TYPE_MARKER:
-			typeStr = "Marker";
-			break;
-		case GL_DEBUG_TYPE_PUSH_GROUP:
-			typeStr = "Push Group";
-			break;
-		case GL_DEBUG_TYPE_POP_GROUP:
-			typeStr = "Pop Group";
-			break;
-		default:
-			typeStr = "Unknown";
-			break;
-	}
-
-	// Construct a detailed log message with structured info
 	log::structured(
 			level,
 			message,

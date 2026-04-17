@@ -148,7 +148,7 @@ export {
 	extern void DrawElementsWrapper(GLenum mode, GLsizei count, GLenum type, const void* indices);
 	extern void DrawArraysInstancedWrapper(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount);
 	extern void MultiDrawArraysIndirectWrapper(GLenum mode, const void *indirect, GLsizei drawcount, GLsizei stride);
-
+  float getFPS(float dt);
 
 	inline std::string pretty_size(std::size_t bytes)
 	{

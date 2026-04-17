@@ -1,11 +1,10 @@
 module;
 #include <gl.h>
-#include <cmath>
 module debug_drawer;
 
 import core;
 import gl_state;
-//import logger;
+import logger;
 DebugDrawer::DebugDrawer() : shader(new Shader("Debug", std::filesystem::path(SHADERS_DIRECTORY / "debug_vert.glsl"), std::filesystem::path(SHADERS_DIRECTORY / "debug_frag.glsl"))), 
 	vbo(vertex_buffer_immutable(vertices.data(), vertices.size() * sizeof(glm::vec3))),
 	vbo2(vertex_buffer_immutable(line_vertices, sizeof(line_vertices)))
@@ -76,8 +75,9 @@ void DebugDrawer::addOBB(const glm::mat4& transform, const glm::vec3& halfExtent
 
 void DebugDrawer::draw(const glm::mat4& viewProj)
 {
-	if (aabbs.empty() && obbs.empty())
+	if (aabbs.empty() && obbs.empty() && rays.empty())
 		return;
+  log::system_info("debug_drawer", "aabbs.size(): {}, obbs.size(): {}", aabbs.size(), obbs.size());
 
 	shader->use();
 	shader->setMat4("viewProj", viewProj);
@@ -112,7 +112,7 @@ void DebugDrawer::draw(const glm::mat4& viewProj)
 		direction = glm::normalize(direction);
 		glm::vec3 up = glm::vec3(0, 1, 0); // unit line in +Y
 		glm::vec3 axis = glm::cross(up, direction);
-		float angle = acos(glm::clamp(glm::dot(up, glm::normalize(direction)), -1.0f, 1.0f));
+		float angle = std::acos(glm::clamp(glm::dot(up, glm::normalize(direction)), -1.0f, 1.0f));
 
 		glm::mat4 rotation = glm::mat4(1.0f);
 		if (glm::length(axis) > 0.0001f) {
@@ -150,6 +150,8 @@ void DebugDrawer::initGLResources()
 	glVertexArrayVertexBuffer(vao_lines, 0, vbo2.id(), 0, sizeof(glm::vec3));
 	glVertexArrayAttribFormat(vao_lines, 0, 3, GL_FLOAT, GL_FALSE, 0);
 	glEnableVertexArrayAttrib(vao_lines, 0);
+  glVertexArrayAttribBinding(vao, 0, 0);
+  glVertexArrayAttribBinding(vao_lines, 0, 0);
 	checkGLError("AABBDebugDrawer::initGLResources");
 }
 

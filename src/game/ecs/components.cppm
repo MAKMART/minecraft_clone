@@ -181,11 +181,7 @@ export {
 	struct RenderTarget {
 		public:
 			RenderTarget(int width, int height, std::initializer_list<framebuffer_attachment_desc> desc)
-        : width(width), height(height), attachments(desc) {}
-			RenderTarget(int width, int height, extent_mode mode, std::initializer_list<framebuffer_attachment_desc> desc)
-        : width(width), height(height), mode(mode), attachments(desc) {}
-      RenderTarget(extent_mode mode, std::initializer_list<framebuffer_attachment_desc> desc)
-        : mode(mode), attachments(desc) {}
+        : width(width), height(height), mode(extent_mode::fixed), attachments(desc) {}
       RenderTarget(std::initializer_list<framebuffer_attachment_desc> desc)
         : attachments(desc) {}
 			int width  = 0;
