@@ -29,7 +29,7 @@ public:
 export class vertex_buffer_persistent : public gpu_buffer {
 public:
     vertex_buffer_persistent(std::size_t size, const void* data = nullptr) noexcept
-        : gpu_buffer(size, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT, buffer_type::vertex)
+        : gpu_buffer(size, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT, buffer_type::vertex)
     {
         m_ptr = map_range(0, size, flags());
         if (data) std::memcpy(m_ptr, data, size);

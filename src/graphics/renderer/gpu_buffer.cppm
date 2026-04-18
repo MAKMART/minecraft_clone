@@ -11,25 +11,6 @@ export enum class buffer_type : GLenum {
     uniform = GL_UNIFORM_BUFFER,
 };
 
-constexpr std::string buffer_type_to_string(buffer_type type) {
-  switch (type) {
-    case buffer_type::vertex:
-      return "GL_ARRAY_BUFFER";
-      break;
-    case buffer_type::index:
-      return "GL_ELEMENT_ARRAY_BUFFER";
-      break;
-    case buffer_type::ssbo:    
-      return "GL_SHADER_STORAGE_BUFFER";
-      break;
-    case buffer_type::uniform:
-      return "GL_UNIFORM_BUFFER";
-      break;
-    default:
-      return "UNKNOWN";
-      break;
-  }
-}
 
 export class gpu_buffer {
 public:

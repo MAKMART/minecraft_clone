@@ -513,7 +513,7 @@ int main()
 
 		// Reload shaders
 		if (input.isPressed(GLFW_KEY_H)) {
-			manager.getShader().reload();
+			// manager.getShader().reload();
 			playerShader.reload();
 			fb_debug.reload();
 			fb_player.reload();
@@ -638,13 +638,13 @@ int main()
 
 
 			// Add all chunks' bounding boxes
-			for (const auto& [chunkKey, chunkPtr] : manager.get_all()) {
-				if (!chunkPtr)
-					continue; // safety
-
-				// Color for chunk boxes, maybe a translucent blue-ish?
-				DebugDrawer::get().addAABB(chunkPtr->aabb, glm::vec3(0.3f, 0.5f, 1.0f));
-			}
+			// for (const auto& [chunkKey, chunkPtr] : manager.get_all()) {
+			// 	if (!chunkPtr)
+			// 		continue; // safety
+			//
+			// 	// Color for chunk boxes, maybe a translucent blue-ish?
+			// 	DebugDrawer::get().addAABB(chunkPtr->aabb, glm::vec3(0.3f, 0.5f, 1.0f));
+			// }
       auto vel = state.g_state.ecs.get_component<Velocity>(state.g_state.player.self)->value;
 			DebugDrawer::get().addRay(trans->pos, vel, {1.0f, 1.0f, 0.0f});
 			DebugDrawer::get().addRay(trans->pos, glm::normalize(glm::vec3{0.0f, -GRAVITY, 0.0f}), glm::vec3(0.5f, 0.5f, 1.0f));
@@ -711,8 +711,8 @@ int main()
 
 		if (state.g_state.render_terrain) {
 			//manager.getShader().checkAndReloadIfModified();
-			manager.getShader().setMat4("projection", state.frame_ctx.cam->projectionMatrix);
-			manager.getShader().setMat4("view", state.frame_ctx.cam->viewMatrix);
+			// manager.getShader().setMat4("projection", state.frame_ctx.cam->projectionMatrix);
+			// manager.getShader().setMat4("view", state.frame_ctx.cam->viewMatrix);
 			//manager.getShader().setFloat("time", (float)glfwGetTime());
 
 			manager.getShader2().setMat4("u_projection", state.frame_ctx.cam->projectionMatrix);

@@ -4,9 +4,11 @@ module;
 module gpu_buffer;
 
 import logger;
+import debug;
 gpu_buffer::gpu_buffer(std::size_t size, GLbitfield flags, buffer_type type) noexcept
 : m_size(size), m_flags(flags), m_type(type)
 {
+  assert(size > 0 && "gpu_buffer size must be > 0");
 	glCreateBuffers(1, &m_id);
 	glNamedBufferStorage(m_id, size, nullptr, flags);
 }
@@ -57,7 +59,7 @@ void gpu_buffer::bind_base(GLuint slot) const noexcept {
 }
 void gpu_buffer::sub_data(const void* data, std::size_t size, std::size_t offset) noexcept {
 	assert(offset + size <= m_size);
-  log::system_info("gpu_buffer", "buffer_type = {}", buffer_type_to_string(m_type));
+  log::system_info("gpu_buffer", "buffer_type = {}", gl_enum_to_string(static_cast<GLenum>(m_type)));
   assert((m_flags & GL_DYNAMIC_STORAGE_BIT) && "The buffer wasn't created with GL_DYNAMIC_STORAGE_BIT flag, check buffer type");
 	glNamedBufferSubData(m_id, offset, size, data);
 }
@@ -69,6 +71,7 @@ void* gpu_buffer::map_range(std::size_t offset, std::size_t length, GLbitfield a
     return m_mapped_ptr;
 }
 void gpu_buffer::recreate(std::size_t new_size) noexcept {
+  assert(new_size > 0 && "Cannot recreate buffer with size <= 0");
     // 🔴 Important: unmap BEFORE deleting
     if (m_mapped_ptr) {
         glUnmapNamedBuffer(m_id);

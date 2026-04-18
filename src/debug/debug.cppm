@@ -56,6 +56,10 @@ import input_manager;
   X(GL_DEBUG_TYPE_PUSH_GROUP) \
   X(GL_DEBUG_TYPE_POP_GROUP) \
   X(GL_DEBUG_TYPE_PORTABILITY) \
+  X(GL_ARRAY_BUFFER) \
+  X(GL_ELEMENT_ARRAY_BUFFER) \
+  X(GL_SHADER_STORAGE_BUFFER) \
+  X(GL_UNIFORM_BUFFER) \
 
 export {
   std::string_view player_mode_to_string(PlayerMode mode) noexcept
@@ -83,7 +87,7 @@ export {
     }
   }
 
-  std::string_view gl_enum_to_string(GLenum e) {
+  constexpr std::string_view gl_enum_to_string(GLenum e) {
     switch (e) {
 #define X(x) case x: return #x;
       GL_ENUM_LIST
@@ -201,9 +205,9 @@ export {
           GLState::set_line_width(_____width);
           ImGui::Checkbox("render_terrain: ", &state.g_state.render_terrain);
           ImGui::Checkbox("render_player: ", &state.g_state.player.renderSkin);
-          static bool debug = false;
-          ImGui::Checkbox("debug", &debug); // Updates the value
-          manager.getShader().setBool("debug", debug);
+          // static bool debug = false;
+          // ImGui::Checkbox("debug", &debug); // Updates the value
+          // manager.getShader().setBool("debug", debug);
           ImGui::TreePop();
         }
       }

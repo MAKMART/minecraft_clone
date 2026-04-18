@@ -9,11 +9,6 @@ DebugDrawer::DebugDrawer() : shader(new Shader("Debug", std::filesystem::path(SH
 	vbo(vertex_buffer_immutable(vertices.data(), vertices.size() * sizeof(glm::vec3))),
 	vbo2(vertex_buffer_immutable(line_vertices, sizeof(line_vertices)))
 {
-	// TODO: Adjust paths
-	// shader = new Shader("Debug", std::filesystem::path(SHADERS_DIRECTORY / "debug_vert.glsl"), std::filesystem::path(SHADERS_DIRECTORY / "debug_frag.glsl"));
-	// vbo = vertex_buffer::immutable(vertices.data(), vertices.size() * sizeof(glm::vec3));
-	// vbo2 = vertex_buffer::immutable(line_vertices, sizeof(line_vertices));
-
 	vertices = {
 	    // Front face
 	    {-0.5f, -0.5f, 0.5f},
