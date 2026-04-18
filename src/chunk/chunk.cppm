@@ -85,10 +85,10 @@ static_assert(sizeof(face_gpu) == sizeof(std::uint32_t));
 export class Chunk {
 public:
   explicit Chunk(const glm::ivec3& pos)
-	  : position(pos), 
+	  : position(pos),
 	  changed(true),           // Force initial upload
-	  in_dirty_list(false), 
-	  faces_offset(0), 
+	  in_dirty_list(false),
+	  faces_offset(0),
 	  current_mesh_bytes(0),
 	  visible_face_count(0)
 	{
@@ -128,7 +128,7 @@ public:
   }
 
   // The byte offset within the global_faces buffer where this chunk starts
-  GLintptr faces_offset = 0; 
+  GLintptr faces_offset = 0;
 
   // The current size (in bytes) of the mesh stored in the global buffer
   // Required so the Free List knows how much to deallocate when remeshing

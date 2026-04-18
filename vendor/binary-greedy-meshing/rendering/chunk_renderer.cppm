@@ -1,5 +1,4 @@
 module;
-#include <cstring>
 #include <gl.h>
 export module chunk_renderer;
 
@@ -7,25 +6,25 @@ import std;
 import mesher;
 
 static constexpr int BUFFER_SIZE = 5e8; // 500 mb
-static constexpr uint32_t QUAD_SIZE = 8;
+static constexpr std::uint32_t QUAD_SIZE = 8;
 static constexpr int MAX_DRAW_COMMANDS = 100000;
 
 struct BufferSlot {
-  uint32_t startByte;
-  uint32_t sizeBytes;
+  std::uint32_t startByte;
+  std::uint32_t sizeBytes;
 };
 
 export struct DrawElementsIndirectCommand {
-  uint32_t indexCount;    // (count) Quad count * 6
-  uint32_t instanceCount; // 1
-  uint32_t firstIndex;    // 0
-  uint32_t baseQuad;      // (baseVertex) Starting index in the SSBO
-  uint32_t baseInstance;  // Chunk x, y z, face index
+  std::uint32_t indexCount;    // (count) Quad count * 6
+  std::uint32_t instanceCount; // 1
+  std::uint32_t firstIndex;    // 0
+  std::uint32_t baseQuad;      // (baseVertex) Starting index in the SSBO
+  std::uint32_t baseInstance;  // Chunk x, y z, face index
 };
 
 struct BufferFit {
-  uint32_t pos;
-  uint32_t space;
+  std::uint32_t pos;
+  std::uint32_t space;
   std::vector<BufferSlot>::iterator iter;
 };
 
@@ -50,8 +49,8 @@ public:
 
     glGenBuffers(1, &IBO);
     int maxQuads = CS * CS * CS * 6;
-    std::vector<uint32_t> indices;
-    for (uint32_t i = 0; i < maxQuads; i++) {
+    std::vector<std::uint32_t> indices;
+    for (std::uint32_t i = 0; i < maxQuads; i++) {
       indices.push_back((i << 2) | 2u);
       indices.push_back((i << 2) | 0u);
       indices.push_back((i << 2) | 1u);
@@ -60,7 +59,7 @@ public:
       indices.push_back((i << 2) | 2u);
     }
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(std::uint32_t), indices.data(), GL_STATIC_DRAW);
 
     glBindVertexArray(VAO);
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
@@ -90,9 +89,9 @@ public:
 	  glDeleteBuffers(1, &SSBO);
   };
 
-  DrawElementsIndirectCommand getDrawCommand(int quadCount, uint32_t baseInstance) {
+  DrawElementsIndirectCommand getDrawCommand(int quadCount, std::uint32_t baseInstance) {
     unsigned int requestedSize = quadCount * QUAD_SIZE;
-	BufferSlot slot;
+    BufferSlot slot;
 
     // Allocate at the end if possible
     if ((BUFFER_SIZE - allocationEnd) > requestedSize) {
@@ -178,8 +177,8 @@ public:
   }
 
   void buffer(const DrawElementsIndirectCommand& command, void* vertices) {
-	  size_t offset = (command.baseQuad >> 2) * QUAD_SIZE;
-	  size_t size = (command.indexCount / 6) * QUAD_SIZE;
+    std::size_t offset = (command.baseQuad >> 2) * QUAD_SIZE;
+    std::size_t size = (command.indexCount / 6) * QUAD_SIZE;
 
 	  std::memcpy(static_cast<uint8_t*>(ssbo_ptr) + offset, vertices, size);
   }
@@ -196,7 +195,7 @@ public:
     }
 
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
-	std::memcpy(command_ptr, drawCommands.data(), numCommands * sizeof(DrawElementsIndirectCommand));
+    std::memcpy(command_ptr, drawCommands.data(), numCommands * sizeof(DrawElementsIndirectCommand));
 
     glBindVertexArray(VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
@@ -215,7 +214,7 @@ public:
   };
 
 private:
-  DrawElementsIndirectCommand createCommand(BufferSlot& slot, uint32_t baseInstance) {
+  DrawElementsIndirectCommand createCommand(BufferSlot& slot, std::uint32_t baseInstance) {
 	  DrawElementsIndirectCommand cmd;
 	  cmd.indexCount = (slot.sizeBytes / QUAD_SIZE) * 6;
 	  cmd.instanceCount = 1;
@@ -234,5 +233,5 @@ private:
   DrawElementsIndirectCommand* command_ptr = nullptr;
   std::vector<BufferSlot> usedSlots;
   std::vector<DrawElementsIndirectCommand> drawCommands;
-  uint32_t allocationEnd = 0;
+  std::uint32_t allocationEnd = 0;
 };

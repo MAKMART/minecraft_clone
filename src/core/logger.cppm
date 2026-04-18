@@ -1,22 +1,7 @@
 module;
-/*
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <iomanip>
-#include <string_view>
-#include <mutex>
-#include <chrono>
+#include <cstdio>
 #include <ctime>
-#include <thread>
-#include <map>
-#include <format>
-#include <print>
-*/
-#include <stdio.h>
-#include <time.h>
-#include "core/platform.hpp"
-#if defined(KPLATFORM_LINUX)
+#if defined(__linux__)
 #include <unistd.h>
 #endif
 export module logger;
@@ -226,7 +211,11 @@ export class log
 
 				// Check if we should actually use colors
 				// requires #include <unistd.h> on Linux
+#if defined (__linux__)
 				bool use_colors = enable_color && isatty(fileno(out));
+#else
+        bool use_colors = enable_color;
+#endif
 
 				if (use_colors) {
 					std::println(out, "{} {}{}\x1b[0m T{} {}\t| {}",
