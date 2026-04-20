@@ -187,7 +187,7 @@ export {
           ImGui::TreePop();
         }
         if (ImGui::TreeNode("Camera")) {
-          ImGui::SliderFloat("Mouse Sensitivity", &ctrl->sensitivity, 0.01f, 2.0f);
+          // ImGui::SliderFloat("Mouse Sensitivity", &ctrl->sensitivity, 0.01f, 2.0f);
           ImGui::SliderFloat("FOV", &state.frame_ctx.cam->fov, 0.001f, 179.899f);
           ImGui::SliderFloat("Near Plane", &state.frame_ctx.cam->near_plane, 0.001f, 10.0f);
           ImGui::SliderFloat("Far Plane", &state.frame_ctx.cam->far_plane, 10.0f, 1000000.0f);

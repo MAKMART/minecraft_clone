@@ -7,6 +7,7 @@ import aabb;
 import glm;
 import shader;
 import vertex_buffer;
+import core;
 
 export class DebugDrawer
 {
@@ -17,42 +18,69 @@ export class DebugDrawer
 			return instance;
 		}
 
-		void addAABB(const AABB& box, const glm::vec3& color);
-		void addOBB(const glm::mat4& transform, const glm::vec3& halfExtents, const glm::vec3& color);
-		void addRay(glm::vec3 start, glm::vec3 dir, glm::vec3 color);
-		void draw(const glm::mat4& viewProj);
+		void add_aabb(const AABB& b, glm::vec3 color);
+		void add_obb(const glm::mat4& transform, glm::vec3 half_extents, glm::vec3 color);
+		void add_ray(glm::vec3 origin, glm::vec3 d, glm::vec3 color);
+		void draw(const glm::mat4& view_projection);
 
 	private:
 		// Make these private because a singleton class should never have the possibility to be constructed/destructed because its lifetime is managed internally
-		explicit DebugDrawer();
-		~DebugDrawer();
-		struct DebugAABB {
-			AABB      box;
-			glm::vec3 color;
-			DebugAABB(const AABB& b, const glm::vec3& c) : box(b), color(c) {}
-		};
+    struct DebugVertex
+    {
+        glm::vec3 pos;
+        glm::vec3 color;
+    };
+    explicit DebugDrawer() :
+      shader("Debug", std::filesystem::path(SHADERS_DIRECTORY / "debug_vert.glsl"), std::filesystem::path(SHADERS_DIRECTORY / "debug_frag.glsl")),
+      vbo(vertex_buffer_dynamic(10000))
+    {
+      glGenVertexArrays(1, &vao);
 
-		struct DebugOBB {
-			glm::mat4 transform;
-			glm::vec3 halfExtents;
-			glm::vec3 color;
-			DebugOBB(const glm::mat4& t, const glm::vec3& h, const glm::vec3& c)
-				: transform(t), halfExtents(h), color(c) {}
-		};
-		std::vector<DebugAABB> aabbs;
-		std::vector<DebugOBB>  obbs;
-		std::vector<std::tuple<glm::vec3, glm::vec3, glm::vec3>> rays;
-		std::vector<glm::vec3> vertices;
-		Shader*                shader;
-		GLuint                 vao = 0;
-		GLuint                 vao_lines = 0;
-		vertex_buffer_immutable vbo;
-		vertex_buffer_immutable vbo2;
+      glVertexArrayVertexBuffer(vao, 0, vbo.id(), 0, sizeof(DebugVertex));
+      static constexpr std::size_t pos_offset   = 0;
+      static constexpr std::size_t color_offset = sizeof(glm::vec3);
+      glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, pos_offset);
+      glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, color_offset);
 
-		void initGLResources();
+      glVertexArrayAttribBinding(vao, 0, 0);
+      glVertexArrayAttribBinding(vao, 1, 0);
+
+      glEnableVertexArrayAttrib(vao, 0);
+      glEnableVertexArrayAttrib(vao, 1);
+      checkGLError("aabbdebugdrawer::aabbdebugdrawer");
+    }
+    ~DebugDrawer() {
+      if (vao) {
+        glDeleteVertexArrays(1, &vao);
+        vao = 0;
+      }
+    }
+    enum class DebugPrimitiveType : std::uint32_t
+    {
+      line = 0,
+      tri  = 1,
+    };
+
+    std::vector<DebugVertex> debug_vertices;
+		vertex_buffer_dynamic vbo;
+    Shader shader;
+		GLuint vao = 0;
+
 		void checkGLError(const std::string& operation);
-		float line_vertices[6] = {
-			0.0f, 0.0f, 0.0f, // start
-			0.0f, 1.0f, 0.0f  // end along +Y
-		};
+    static constexpr glm::vec3 obb_local_corners[8] = {
+      {-1, -1, -1},
+      { 1, -1, -1},
+      { 1,  1, -1},
+      {-1,  1, -1},
+      {-1, -1,  1},
+      { 1, -1,  1},
+      { 1,  1,  1},
+      {-1,  1,  1},
+    };
+
+    static constexpr int obb_edges[12][2] = {
+      {0,1},{1,2},{2,3},{3,0},
+      {4,5},{5,6},{6,7},{7,4},
+      {0,4},{1,5},{2,6},{3,7}
+    };
 };

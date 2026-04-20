@@ -133,6 +133,14 @@ void WindowContext::create_window()
 	} else {
     log::info("Initialized GLAD {}.{}", GLAD_VERSION_MAJOR(version),  GLAD_VERSION_MINOR(version));
   }
+  // log::system_info("GLFW", "glGetString(GL_VERSION) == {}", (char*)glGetString(GL_VERSION));
+  // log::system_info("GLFW", "glGetString(GL_VENDOR) == {}", (char*)glGetString(GL_VENDOR));
+  // log::system_info("GLFW", "glGetString(GL_RENDERER) == {}", (char*)glGetString(GL_RENDERER));
+
+  std::cout << "glGetString(GL_VERSION)" << glGetString(GL_VERSION) << std::endl;
+  std::cout << "glGetString(GL_VENDOR)" << glGetString(GL_VENDOR) << std::endl;
+  std::cout << "glGetString(GL_RENDERER)" << glGetString(GL_RENDERER) << std::endl;
+
   glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
 
 

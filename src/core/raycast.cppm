@@ -16,7 +16,7 @@ export class raycast
 	static std::optional<glm::ivec3> voxel(ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance)
 	{
 #if defined (DEBUG)
-		DebugDrawer::get().addRay(rayOrigin, rayDirection, {1.0f, 0.0f, 0.0f});
+		DebugDrawer::get().add_ray(rayOrigin, rayDirection, {1.0f, 0.0f, 0.0f});
 #endif
 		// Initialize voxel position (world-space)
 		glm::ivec3 worldResult(
@@ -86,7 +86,7 @@ export class raycast
 	    ChunkManager& chunkManager, glm::vec3 rayOrigin, glm::vec3 rayDirection, float maxDistance)
 	{
 #if defined (DEBUG)
-		DebugDrawer::get().addRay(rayOrigin, rayDirection, {0.0f, 1.0f, 0.0f});
+		DebugDrawer::get().add_ray(rayOrigin, rayDirection, {0.0f, 1.0f, 0.0f});
 #endif
 		glm::ivec3 worldResult = glm::floor(rayOrigin);
 		glm::ivec3 step        = glm::sign(rayDirection); // Step direction (-1 or +1)

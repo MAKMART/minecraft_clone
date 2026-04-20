@@ -16,51 +16,61 @@ import input_manager;
 import aabb;
 import logger;
 
-void camera_controller_system(ECS& ecs, Entity player, const frame_context& ctx)
+void camera_pose_system(ECS& ecs, Entity player, const frame_context& ctx, float dt)
 {
 #if defined(TRACY_ENABLE)
   ZoneScoped;
 #endif
+  CameraLook* angles = ecs.get_component<CameraLook>(ctx.active_camera);
+  Transform* trans = ecs.get_component<Transform>(ctx.active_camera);
+  InputComponent* camera_ic = ecs.get_component<InputComponent>(ctx.active_camera);
+  if (!angles || !trans || !camera_ic) return;
+
+  if (ecs.has_component<DebugCamera>(ctx.active_camera)) {
+    float speed = 10.0f; // units per second
+    if (camera_ic->sprint)
+      speed = 100.0f;
+
+
+    // Movement
+    if(camera_ic->forward)  trans->pos -= trans->forward() * speed * dt;
+    if(camera_ic->backward) trans->pos += trans->forward() * speed * dt;
+    if(camera_ic->left)     trans->pos -= trans->right() * speed * dt;
+    if(camera_ic->right)    trans->pos += trans->right() * speed * dt;
+    if(camera_ic->jump)     trans->pos += trans->up() * speed * dt;
+    if(camera_ic->crouch)   trans->pos -= trans->up() * speed * dt;
+
+    // Mouse look
+    if (InputManager::get().isMouseTrackingEnabled()) {
+      glm::vec2 delta = camera_ic->mouse_delta;
+      camera_model::apply_mouse_look(delta, angles->sensitivity, angles->yaw, angles->pitch);
+      trans->rot = camera_model::to_orientation(angles->yaw, angles->pitch);
+    }
+
+  }
+
   CameraController* ctrl = ecs.get_component<CameraController>(ctx.active_camera);
   if (!ctrl || !ctrl->target.is_valid()) return;
+  Transform* target_trans = ecs.get_component<Transform>(ctrl->target);
+  InputComponent* input = ecs.get_component<InputComponent>(player);
 
-  auto* camTransform = ecs.get_component<Transform>(ctx.active_camera);
-  auto* targetTransform = ecs.get_component<Transform>(ctrl->target);
-  auto* input = ecs.get_component<InputComponent>(player);
-
-  if (!camTransform || !input || !targetTransform)
+  if (!trans || !input || !target_trans)
     log::system_error("camera_controller_system", "the 'active camera' with id : {} doesn't have a Transform || InputComponent component", ctx.active_camera.id);
 
   if (InputManager::get().isMouseTrackingEnabled()) {
-    ctrl->yaw -= input->mouse_delta.x * ctrl->sensitivity;
-    ctrl->pitch -= input->mouse_delta.y * ctrl->sensitivity;
-    // float smoothing   = 0.19f; // 0 = no smoothing, 1 = very smooth
-    //ctrl.yaw   = glm::mix(ctrl.yaw, targetYaw, smoothing);
-    //ctrl.pitch = glm::mix(ctrl.pitch, targetPitch, smoothing);
-    ctrl->pitch = glm::clamp(ctrl->pitch, -89.0f, 89.0f);
+    camera_model::apply_mouse_look(input->mouse_delta, angles->sensitivity, angles->yaw, angles->pitch);
   }
 
+  glm::vec3 targetPos = target_trans->pos + target_trans->rot * ctrl->offset;
 
-  // Effective target position = entity position + offset
-  glm::vec3 targetPos = targetTransform->pos + targetTransform->rot * ctrl->offset;
-
+  glm::quat rot = camera_model::to_orientation(angles->yaw, angles->pitch);
+  glm::vec3 offset{};
   if (ctrl->third_person) {
-    // Compute orbit offset
-    glm::vec3 offset;
-    offset.x         = ctrl->orbit_distance * -std::cos(glm::radians(ctrl->yaw)) * std::cos(glm::radians(ctrl->pitch));
-    offset.y         = ctrl->orbit_distance * std::sin(glm::radians(ctrl->pitch));
-    offset.z         = ctrl->orbit_distance * std::sin(glm::radians(ctrl->yaw)) * std::cos(glm::radians(ctrl->pitch));
-    camTransform->pos = targetPos - offset;
-    // Make camera look at target
-    glm::vec3 dir = glm::normalize(targetPos - camTransform->pos);
-    camTransform->rot = glm::quatLookAt(dir, glm::vec3(0, 1, 0));
-  } else {
-    // First-person
-    glm::quat qPitch = glm::angleAxis(glm::radians(ctrl->pitch), glm::vec3(1, 0, 0));
-    glm::quat qYaw   = glm::angleAxis(glm::radians(ctrl->yaw), glm::vec3(0, 1, 0));
-    camTransform->rot = glm::normalize(qYaw * qPitch);
-    camTransform->pos = targetPos;
+    offset = rot * (coord::WORLD_FORWARD * ctrl->orbit_distance);
   }
+  // Effective target position = entity position + offset
+  trans->pos = targetPos + offset;
+  trans->rot = rot;
 }
 
 void chunk_renderer_system(ECS& ecs, ChunkManager& cm, Entity cam, const FrustumVolume& wanted_fv, const FramebufferManager& fb)
@@ -117,20 +127,21 @@ void input_system(ECS& ecs)
 	});
 }
 
-void movement_intent_system(ECS& ecs, const Camera* cam)
+void movement_intent_system(ECS& ecs, const Entity camera)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
-	assert(cam && "Camera was nullptr in movement_intent_system");
+  Transform* trans = ecs.get_component<Transform>(camera);
+  assert(trans && "camera transform was nullptr in movement_intent_system()");
 
 	ecs.for_each_components<InputComponent, MovementIntent, MovementConfig>(
       [&](const Entity e, const InputComponent& ic, MovementIntent& intent, const MovementConfig& cfg){
       // --- Build local movement direction from input ---
       glm::vec3 input_dir(0.0f);
 
-      if (ic.forward)	  input_dir.z += 1.0f;
-      if (ic.backward)  input_dir.z -= 1.0f;
+      if (ic.forward)	  input_dir.z -= 1.0f;
+      if (ic.backward)  input_dir.z += 1.0f;
       if (ic.left)	    input_dir.x -= 1.0f;
       if (ic.right)	    input_dir.x += 1.0f;
 
@@ -140,9 +151,8 @@ void movement_intent_system(ECS& ecs, const Camera* cam)
       // log::system_info("movement_intent_system", "called for entity: {}", e.id);
 
       // --- Rotate movement into world-space based on where the camera is looking ---
-      // Don't modify the camera's vectors directly
-      glm::vec3 forward = cam->forward;
-      glm::vec3 right   = cam->right;
+      glm::vec3 forward = trans->forward();
+      glm::vec3 right   = trans->right();
 
       forward.y = 0.0f;
       right.y = 0.0f;
@@ -255,7 +265,7 @@ void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
             }
 
             // --- Jumping ---
-            if (cfg.can_jump && intent.jump && col.is_on_ground) {
+            if (intent.jump && col.is_on_ground) {
                 vel.value.y = std::sqrt(2.0f * GRAVITY * cfg.jump_height);
                 col.is_on_ground = false;
             }
@@ -268,11 +278,13 @@ void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
             // --- Early out if stationary ---
             if (glm::all(glm::epsilonEqual(vel.value, glm::vec3(0.0f), 1e-4f))) {
                 col.is_on_ground = isCollidingAt(trans.pos - glm::vec3(0.0f, 0.05f, 0.0f), col, chunkManager);
-                col.aabb = col.get_AABB_at(trans.pos);
+                // col.aabb = col.get_AABB_at(trans.pos);
+                col.halfExtents = col.get_AABB_at(trans.pos).extent();
                 return;
             }
 
             const glm::vec3 oldPos = trans.pos;
+            // s = s_0 + v*t;
             glm::vec3 newPos = trans.pos + vel.value * dt;
             col.is_on_ground = false;
 
@@ -315,93 +327,64 @@ void movement_physics_system(ECS& ecs, ChunkManager& chunkManager, float dt)
             }
 
             // Sync AABB once at the end
-            col.aabb = col.get_AABB_at(trans.pos);
+            col.halfExtents = col.get_AABB_at(trans.pos).extent();
         });
 }
 
-void camera_system(ECS& ecs, const frame_context& ctx)
+void camera_system(ECS& ecs, frame_context& ctx)
 {
 #if defined(TRACY_ENABLE)
 	ZoneScoped;
 #endif
 
-  Transform* transform = ecs.get_component<Transform>(ctx.active_camera);
-  if (!transform) return;
-  Camera* cam = ctx.cam;
-  if (!cam) return;
-  transform->rot = glm::normalize(transform->rot);
+  log::system_info("camera_system", "");
 
-  cam->forward = transform->rot * glm::vec3(0, 0, -1);
-  cam->right   = transform->rot * glm::vec3(1, 0, 0);
-  cam->up      = transform->rot * glm::vec3(0, 1, 0);
-
-  cam->viewMatrix =
-    glm::mat4_cast(glm::conjugate(transform->rot)) *
-    glm::translate(glm::mat4(1.0f), -transform->pos);
-  // Note that we use RH_ZO because we use reverse-Z depth, if you want to change to forward-Z just change to RH_NO and switch the far with the near plane and vice-versa
-  cam->projectionMatrix = glm::perspectiveRH_ZO(
-      glm::radians(cam->fov),
-      cam->aspect_ratio,
-      cam->far_plane,
-      cam->near_plane);
 }
 
-void debug_camera_system(ECS& ecs, float dt)
+static inline glm::vec4 extract_plane(const glm::mat4& m, int axis, float sign)
 {
-#if defined(TRACY_ENABLE)
-	ZoneScoped;
-#endif
-    ecs.for_each_components<Camera, Transform, InputComponent, DebugCameraController, DebugCamera>(
-        [&](Entity e, Camera& cam, Transform& transform, InputComponent& ic, DebugCameraController& dc, DebugCamera&) {
-            float speed = 10.0f; // units per second
-			if (ic.sprint)
-				speed = 100.0f;
-
-
-            // Movement
-            if(ic.forward)  transform.pos += cam.forward * speed * dt;
-            if(ic.backward) transform.pos -= cam.forward * speed * dt;
-            if(ic.left)     transform.pos -= cam.right * speed * dt;
-            if(ic.right)    transform.pos += cam.right * speed * dt;
-            if(ic.jump)     transform.pos += cam.up * speed * dt;
-            if(ic.crouch)   transform.pos -= cam.up * speed * dt;
-
-            // Mouse look
-			if (InputManager::get().isMouseTrackingEnabled()) {
-			glm::vec2 delta = ic.mouse_delta;
-			dc.yaw   += -delta.x * dc.sensitivity;
-			dc.pitch += -delta.y * dc.sensitivity;
-			dc.pitch = glm::clamp(dc.pitch, -89.0f, 89.0f);
-			glm::quat qyaw   = glm::angleAxis(glm::radians(dc.yaw),   glm::vec3(0, 1, 0));
-			glm::quat qpitch = glm::angleAxis(glm::radians(dc.pitch), glm::vec3(1, 0, 0));
-
-			transform.rot = glm::normalize(qyaw * qpitch);
-			}
-
-			ic.mouse_delta = glm::vec2(0.0f);
-        });
+  return glm::vec4(
+      m[0][3] + sign * m[0][axis],
+      m[1][3] + sign * m[1][axis],
+      m[2][3] + sign * m[2][axis],
+      m[3][3] + sign * m[3][axis]
+      );
 }
+enum frustum_axis : std::uint8_t {
+  X = 0,
+  Y = 1,
+  Z = 2
+};
+void extractFrustumPlanes(const glm::mat4& vp, std::array<FrustumVolume::FrustumPlane,6>& planes) {
+    // planes[0].equation = glm::vec4(VP[0][3] + VP[0][0], VP[1][3] + VP[1][0], VP[2][3] + VP[2][0], VP[3][3] + VP[3][0]);
+    // planes[1].equation = glm::vec4(VP[0][3] - VP[0][0], VP[1][3] - VP[1][0], VP[2][3] - VP[2][0], VP[3][3] - VP[3][0]);
+    // planes[2].equation = glm::vec4(VP[0][3] + VP[0][1], VP[1][3] + VP[1][1], VP[2][3] + VP[2][1], VP[3][3] + VP[3][1]);
+    // planes[3].equation = glm::vec4(VP[0][3] - VP[0][1], VP[1][3] - VP[1][1], VP[2][3] - VP[2][1], VP[3][3] - VP[3][1]);
+    // planes[4].equation = glm::vec4(VP[0][3] + VP[0][2], VP[1][3] + VP[1][2], VP[2][3] + VP[2][2], VP[3][3] + VP[3][2]);
+    // planes[5].equation = glm::vec4(VP[0][3] - VP[0][2], VP[1][3] - VP[1][2], VP[2][3] - VP[2][2], VP[3][3] - VP[3][2]);
 
-void extractFrustumPlanes(const glm::mat4& VP, std::array<FrustumVolume::FrustumPlane,6>& planes) {
-    planes[0].equation = glm::vec4(VP[0][3] + VP[0][0], VP[1][3] + VP[1][0], VP[2][3] + VP[2][0], VP[3][3] + VP[3][0]);
-    planes[1].equation = glm::vec4(VP[0][3] - VP[0][0], VP[1][3] - VP[1][0], VP[2][3] - VP[2][0], VP[3][3] - VP[3][0]);
-    planes[2].equation = glm::vec4(VP[0][3] + VP[0][1], VP[1][3] + VP[1][1], VP[2][3] + VP[2][1], VP[3][3] + VP[3][1]);
-    planes[3].equation = glm::vec4(VP[0][3] - VP[0][1], VP[1][3] - VP[1][1], VP[2][3] - VP[2][1], VP[3][3] - VP[3][1]);
-    planes[4].equation = glm::vec4(VP[0][3] + VP[0][2], VP[1][3] + VP[1][2], VP[2][3] + VP[2][2], VP[3][3] + VP[3][2]);
-    planes[5].equation = glm::vec4(VP[0][3] - VP[0][2], VP[1][3] - VP[1][2], VP[2][3] - VP[2][2], VP[3][3] - VP[3][2]);
+    planes[0].equation = extract_plane(vp, X, +1);
+    planes[1].equation = extract_plane(vp, X, -1);
+    planes[2].equation = extract_plane(vp, Y, +1);
+    planes[3].equation = extract_plane(vp, Y, -1);
+    planes[4].equation = extract_plane(vp, Z, +1);
+    planes[5].equation = extract_plane(vp, Z, -1);
 
     for (auto& plane : planes) {
-        float len = glm::length(glm::vec3(plane.equation));
-        if (len > 0.0f) plane.equation /= len;
+      assert(glm::length(glm::vec3(plane.equation)) > 0.0f);
+      // float len = glm::length(glm::vec3(plane.equation));
+      // if (len > 0.0f) plane.equation /= len;
+      float inv_len = glm::inversesqrt(glm::dot(glm::vec3(plane.equation), glm::vec3(plane.equation)));
+      plane.equation *= inv_len;
     }
 }
 
 void frustum_volume_system(ECS& ecs)
 {
 
-	ecs.for_each_components<Camera, FrustumVolume>(
-			[&](Entity e, Camera& cam, FrustumVolume& fv) {
-			extractFrustumPlanes(cam.projectionMatrix * cam.viewMatrix, fv.planes);
+	ecs.for_each_components<Camera, Transform, FrustumVolume>(
+			[&](const Entity e, const Camera& cam, const Transform& trans, FrustumVolume& fv) {
+			extractFrustumPlanes(cam.projection_matrix() * cam.view_matrix(trans), fv.planes);
 			});
 
 }

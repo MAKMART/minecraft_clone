@@ -82,6 +82,36 @@ export {
 	// World Attributes
 	extern float GRAVITY;
 
+
+  namespace coord
+  {
+    inline constexpr glm::vec3 WORLD_FORWARD = {0, 0, 1};
+    inline constexpr glm::vec3 WORLD_UP      = {0, 1, 0};
+    inline constexpr glm::vec3 WORLD_RIGHT   = {1, 0, 0};
+
+    constexpr float PITCH_LIMIT = 89.0f;
+  }
+
+  namespace camera_model
+  {
+    inline void apply_mouse_look(glm::vec2 delta, float sensitivity, float& yaw, float& pitch)
+    {
+      yaw   -= delta.x * sensitivity;
+      pitch -= delta.y * sensitivity;
+
+      pitch = glm::clamp( pitch, -coord::PITCH_LIMIT, coord::PITCH_LIMIT);
+    }
+
+    inline glm::quat to_orientation(const float& yaw, const float& pitch)
+    {
+      glm::quat q_yaw   = glm::angleAxis(glm::radians(yaw), coord::WORLD_UP);
+
+      glm::quat q_pitch = glm::angleAxis(glm::radians(pitch), coord::WORLD_RIGHT);
+
+      return glm::normalize(q_yaw * q_pitch);
+    }
+  }
+
 	// WARNING: CHUNK_SIZE ≤ 32 because of how the voxel faces are packed in the GPU buffer
 	inline constexpr glm::ivec3 CHUNK_SIZE{16};
 	static_assert(CHUNK_SIZE.x > 0 && CHUNK_SIZE.y > 0 && CHUNK_SIZE.z > 0, "CHUNK_SIZE must be positive");
@@ -140,7 +170,7 @@ export {
 	}
 
 
-	inline constexpr int MAX_ENTITIES = 10'000;
+	inline constexpr std::size_t MAX_ENTITIES = 10'000;
 
 	// Utils for rendering
 	unsigned int g_drawCallCount = 0;
@@ -154,7 +184,7 @@ export {
 	{
 		constexpr const char* IEC_UNITS[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
 
-		double      value      = static_cast<double>(bytes);
+		double value = static_cast<double>(bytes);
 		std::size_t unit_index = 0;
 
 		while (value >= 1024.0 && unit_index < (sizeof(IEC_UNITS) / sizeof(*IEC_UNITS)) - 1) {

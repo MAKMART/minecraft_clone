@@ -10,6 +10,8 @@ export struct frame_context {
 
     Entity active_camera;
     Camera* cam;
+    glm::mat4 view_matrix;
+    glm::mat4 projection_matrix;
     glm::mat4 view_proj_matrix;
     glm::mat4 inv_view_proj_matrix;
 
