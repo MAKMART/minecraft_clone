@@ -1,0 +1,683 @@
+module;
+#if defined(TRACY_ENABLE)
+#include "tracy/Tracy.hpp"
+#endif
+#include <gl.h>
+#include <stb_image.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+#include <GLFW/glfw3.h>
+module app;
+// TODO: fix the damn stencil buffer to allow cropping in RmlUI
+
+// TODO:    FIX THE CAMERA CONTROLLER TO WORK WITH INTERPOLATION
+
+import core;
+import app_state;
+import logger;
+import ecs;
+import ecs_components;
+import vertex_buffer;
+import index_buffer;
+import gl_state;
+import timer;
+import ecs_systems;
+import glm;
+import ui;
+import debug_drawer;
+import raycast;
+import aabb;
+import debug;
+import framebuffer_manager;
+
+App::App(int width, int height)
+  : state(width, height, MAIN_FONT_DIRECTORY),
+  playerShader("Player", PLAYER_VERTEX_SHADER_DIRECTORY, PLAYER_FRAGMENT_SHADER_DIRECTORY),
+  fb_debug("FB_DEBUG", SHADERS_DIRECTORY / "fb_vert.glsl", SHADERS_DIRECTORY / "fb_debug_frag.glsl"),
+  fb_player("FB_PLAYER", SHADERS_DIRECTORY / "fb_vert.glsl", SHADERS_DIRECTORY / "fb_player_frag.glsl"),
+  Atlas(BLOCK_ATLAS_TEXTURE_DIRECTORY, GL_RGBA, GL_REPEAT, GL_NEAREST),
+	// --- CROSSHAIR STUFF ---
+	crossHairshader("Crosshair", CROSSHAIR_VERTEX_SHADER_DIRECTORY, CROSSHAIR_FRAGMENT_SHADER_DIRECTORY),
+	crossHairTexture(ICONS_DIRECTORY, GL_RGBA, GL_CLAMP_TO_EDGE, GL_NEAREST)
+{
+  /*
+     int nExt;
+     glGetIntegerv(GL_NUM_EXTENSIONS, &nExt);
+     for (int i = 0; i < nExt; ++i) {
+     std::cout << glGetStringi(GL_EXTENSIONS, i) << std::endl;
+     }
+   */
+
+  // Cubemap
+  glGenTextures(1, &cube_id);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, cube_id);
+
+
+  int __width, __height, nrChannels;
+  unsigned char *data;
+  for(unsigned int i = 0; i < 6; i++)
+  {
+    std::string string = ASSETS_DIRECTORY / "skybox" / cube_faces[i];
+    //log::info("loading cubemap texture from: {}", string);
+    data = stbi_load(string.c_str(), &__width, &__height, &nrChannels, 0);
+    if (data) {
+      glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB,
+          __width, __height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data); // BEWARE OF THE FORMAT: It has to match the provided images
+      stbi_image_free(data);
+    } else {
+      log::error("Failed to load skybox: {}", string);
+    }
+  }
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+  // Initialize framebuffers for render targets
+  state.g_state.ecs.for_each_component<RenderTarget>([&](Entity e, RenderTarget& rt) {
+      state.fb_manager.ensure(e, rt);
+      });
+  // CROSSHAIR STUFF
+  float crosshairSize;
+  //std::cout << crossHairTexture.getWidth() << " x " << crossHairTexture.getHeight() << "\n";
+  const float textureWidth  = 512.0f;
+  const float textureHeight = 512.0f;
+  const float cellWidth     = 15.0f;
+  const float cellHeight    = 15.0f;
+  // Define row and column (0-based index, top-left starts at row=0, col=0)
+  const int row = 0; // First row (from the top)
+  const int col = 0; // First column
+  float uMin = (col * cellWidth) / textureWidth;
+  float vMin = 1.0f - ((row + 1) * cellHeight) / textureHeight;
+  float uMax = ((col + 1) * cellWidth) / textureWidth;
+  float vMax = 1.0f - (row * cellHeight) / textureHeight;
+  crosshairSize = std::floor(cellWidth * 3.5f);
+
+  float verts[] = {
+    -crosshairSize, -crosshairSize, 0.0f, uMin, vMin,
+    crosshairSize, -crosshairSize, 0.0f, uMax, vMin,
+    crosshairSize,  crosshairSize, 0.0f, uMax, vMax,
+    -crosshairSize,  crosshairSize, 0.0f, uMin, vMax
+  };
+
+
+  glCreateVertexArrays(1, &crosshairVAO);
+  vertex_buffer_immutable crosshairVBO = vertex_buffer_immutable(verts, sizeof(verts));
+  index_buffer_immutable<std::int32_t> crosshairEBO = index_buffer_immutable<std::int32_t>(CrosshairIndices, std::size(CrosshairIndices)); // std::size(CrosshairIndices) == 6
+
+  glVertexArrayVertexBuffer(crosshairVAO, 0, crosshairVBO.id(), 0, 5 * sizeof(float));
+  glVertexArrayElementBuffer(crosshairVAO, crosshairEBO.id());
+
+  glVertexArrayAttribFormat(crosshairVAO, 0, 3, GL_FLOAT, GL_FALSE, 0);
+  glVertexArrayAttribBinding(crosshairVAO, 0, 0);
+  glEnableVertexArrayAttrib(crosshairVAO, 0);
+
+  glVertexArrayAttribFormat(crosshairVAO, 1, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float));
+  glVertexArrayAttribBinding(crosshairVAO, 1, 0);
+  glEnableVertexArrayAttrib(crosshairVAO, 1);
+  // IMGUI SETUP
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  // ImGuiIO& io = ImGui::GetIO();
+  ImGui::StyleColorsDark();
+  ImGui_ImplGlfw_InitForOpenGL(state.win_context->window, true);
+  ImGui_ImplOpenGL3_Init("#version 460");
+
+	glCreateVertexArrays(1, &VAO);
+
+	lastFrame = glfwGetTime();
+}
+App::~App()
+{
+	glDeleteVertexArrays(1, &crosshairVAO);
+  glDeleteVertexArrays(1, &VAO);
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+}
+void App::run() noexcept
+{
+  //           #     #    #    ### #     #     #####     #    #     # #######    #       ####### ####### ######
+  //           ##   ##   # #    #  ##    #    #     #   # #   ##   ## #          #       #     # #     # #     #
+  //           # # # #  #   #   #  # #   #    #        #   #  # # # # #          #       #     # #     # #     #
+  //           #  #  # #     #  #  #  #  #    #  #### #     # #  #  # #####      #       #     # #     # ######
+  //           #     # #######  #  #   # #    #     # ####### #     # #          #       #     # #     # #
+  //           #     # #     #  #  #    ##    #     # #     # #     # #          #       #     # #     # #
+  //           #     # #     # ### #     #     #####  #     # #     # #######    ####### ####### ####### #
+  while (!state.win_context->should_close()) {
+    begin_frame();
+    update();
+    render();
+    end_frame();
+  }
+}
+void App::begin_frame() noexcept
+{
+		double currentFrame = glfwGetTime();
+    state.frame_ctx.delta_time = currentFrame - lastFrame;
+    state.frame_ctx.first_frame = state.frame_ctx.frame_number == 0;  // The fist frame has idx 0x0000000
+    lastFrame = currentFrame;
+    g_drawCallCount = 0;
+    // Clear the screen for the start of the new current frame
+    GLState::set_depth_test(true);
+    GLState::set_wireframe(false);
+    GLState::clear_depth();
+    glStencilMask(0xFF); // Ensure we can actually clear the stencil bits
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+
+    // Build this frame's active camera
+    state.frame_ctx.active_camera = state.g_state.get_active_camera_component()->target;
+    {
+      Camera* cam = state.g_state.ecs.get_component<Camera>(state.frame_ctx.active_camera);
+      if (!cam )
+        log::error("Couldn't find active cam for frame {}", state.frame_ctx.frame_number);
+      state.frame_ctx.cam = cam;
+
+    }
+    // Build matrices
+
+    Transform* transform = state.g_state.ecs.get_component<Transform>(state.frame_ctx.active_camera);
+    if (transform) {
+      transform->rot = glm::normalize(transform->rot);
+    } else if (!transform) {
+      log::error("Couldn't find a Transform component on this frame's active_camera");
+    }
+    state.frame_ctx.view_matrix = state.frame_ctx.cam->view_matrix(*transform);
+    state.frame_ctx.projection_matrix = state.frame_ctx.cam->projection_matrix();
+    glm::mat4 view_proj_matrix = state.frame_ctx.projection_matrix * state.frame_ctx.view_matrix;
+    state.frame_ctx.view_proj_matrix = view_proj_matrix;
+    state.frame_ctx.inv_view_proj_matrix = glm::inverse(view_proj_matrix);
+
+}
+void App::update() noexcept
+{
+  UpdateFrametimeGraph(state.frame_ctx.delta_time);
+  // --- Input & Event Processing ---
+  glfwPollEvents();     // new events arrive → PRESSED/RELEASED, mouse, scroll
+  input_system(state.g_state.ecs);
+
+  { // Switch currently active camera
+    auto* active_camera = state.g_state.get_active_camera_component();
+
+    if (input.isPressed(GLFW_KEY_RIGHT)) {
+      active_camera->target = state.g_state.player.camera;
+      state.g_state.ecs.add_component_if_missing<InputComponent>(state.g_state.player.self, InputComponent{});
+    }
+
+    if (input.isPressed(GLFW_KEY_LEFT)) {
+#if defined(DEBUG)
+      active_camera->target = state.g_state.debug_cam;
+      state.g_state.ecs.add_component_if_missing<InputComponent>(state.g_state.debug_cam, InputComponent{});
+#endif
+    }
+
+  }
+
+  if (input.isPressed(EXIT_KEY))
+    glfwSetWindowShouldClose(state.win_context->window, true);
+
+  if (input.isPressed(FULLSCREEN_KEY))
+    state.win_context->toggle_fullscreen();
+
+  static float scale = 0.01f;
+  if (state.frame_ctx.active_camera == state.g_state.player.camera) {
+    //fb_player.setFloat("near_plane", cam->near_plane);
+    //fb_player.setFloat("far_plane", cam->far_plane);
+    fb_player.setFloat("scale", scale);
+  }
+#if defined(DEBUG)
+  else if (state.frame_ctx.active_camera == state.g_state.debug_cam) {
+    fb_debug.setFloat("near_plane", state.frame_ctx.cam->near_plane);
+    fb_debug.setFloat("far_plane", state.frame_ctx.cam->far_plane);
+  }
+#endif
+  if (input.isPressed(GLFW_KEY_UP))
+    scale+=0.001f;
+  if (input.isPressed(GLFW_KEY_DOWN))
+    scale-=0.001f;
+
+  static bool toggle = false;
+  static bool was_pressed = false;
+
+  bool pressed = input.isPressed(GLFW_KEY_6);
+
+  if (pressed && !was_pressed) { // only trigger on key-down edge
+    toggle = !toggle;          // flip toggle
+    if (state.frame_ctx.active_camera == state.g_state.player.camera) {
+      fb_player.setInt("toggle", toggle ? 1 : 0);
+    }
+#if defined(DEBUG)
+    else if (state.frame_ctx.active_camera == state.g_state.debug_cam) {
+      fb_debug.setInt("toggle", toggle ? 1 : 0);
+    }
+#endif
+  }
+
+  was_pressed = pressed; // remember state for next frame
+
+
+  // 1. Player
+  if (input.isMouseTrackingEnabled()) {
+    // if (input.isMousePressed(ATTACK_BUTTON) && state.g_state.player.canBreakBlocks && state.frame_ctx.active_camera == state.g_state.player.camera) {
+    // 	state.g_state.player.breakBlock(manager);
+    // }
+    // if (input.isMousePressed(DEFENSE_BUTTON) && state.g_state.player.canPlaceBlocks && state.frame_ctx.active_camera == state.g_state.player.camera) {
+    // 	state.g_state.player.placeBlock(manager);
+    // }
+#if defined(DEBUG)
+    if (state.frame_ctx.active_camera == state.g_state.debug_cam) {
+      Transform* trans = state.g_state.ecs.get_component<Transform>(state.frame_ctx.active_camera);
+      if (!trans)
+        log::error("NO TRANSFORM FOR ENTITY: {}", state.frame_ctx.active_camera.id);
+      glm::vec4 clip = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
+
+      glm::vec4 view_space = glm::inverse(state.frame_ctx.projection_matrix) * clip;
+      view_space.z = 1.0f; // forward direction
+      view_space.w = 0.0f;  // this is a direction, not a position
+
+      glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(state.frame_ctx.view_matrix) * view_space));
+      glm::vec3 ray_origin = trans->pos; // start at camera position
+      if (input.isMouseHeld(ATTACK_BUTTON)) {
+        std::optional<glm::ivec3> hitBlock = raycast::voxel(manager, ray_origin, ray_dir, state.g_state.player.max_interaction_distance);
+        if (hitBlock.has_value()) {
+          glm::ivec3 blockPos = hitBlock.value();
+          manager.update_block(blockPos, Block::blocks::AIR);
+        }
+        // log::info("Breaking block at: {}, {}, {}", blockPos.x, blockPos.y, blockPos.z);
+      }
+      if (input.isMouseHeld(DEFENSE_BUTTON)) {
+        std::optional<std::pair<glm::ivec3, glm::ivec3>> hitResult = raycast::voxel_normals(manager, ray_origin, ray_dir, state.g_state.player.max_interaction_distance);
+        if (hitResult.has_value()) {
+          glm::ivec3 hitBlockPos = hitResult->first;
+          glm::ivec3 normal      = hitResult->second;
+          glm::ivec3 placePos = hitBlockPos + (-normal);
+          glm::ivec3 localBlockPos = world_to_local(placePos);
+
+          if (manager.getChunk(placePos)->get_block_type(localBlockPos.x, localBlockPos.y, localBlockPos.z) != Block::blocks::AIR) {
+            log::error("❌ Target block is NOT air! It's type: {}", Block::toString(manager.getChunk(placePos)->get_block_type(localBlockPos.x, localBlockPos.y, localBlockPos.z)));
+          }
+
+          //log::info("Placing block at: {}, {}, {}", placePos.x, placePos.y, placePos.z);
+          /*
+             int radius = 2;
+             for(int i = -radius; i < radius; i++) {
+             for(int j = -radius; j < radius; j++) {
+             for(int k = -radius; k < radius; k++)
+             manager.updateBlock(placePos + glm::ivec3(i, j, k), static_cast<Block::blocks>(state.g_state.player.selectedBlock));
+             }
+             }
+             */
+          manager.update_block(placePos, static_cast<Block::blocks>(state.g_state.player.selectedBlock));
+        }
+      }
+    }
+#endif
+
+
+    float scrollY = input.getScroll().y;
+    if (scrollY != 0.0f) {
+      CameraController* ctrl = state.g_state.ecs.get_component<CameraController>(state.frame_ctx.active_camera);
+      float scroll_speed_multiplier = 1.0f;
+      if (ctrl && !ctrl->third_person) {
+        state.g_state.player.selectedBlock += static_cast<int>(scrollY * scroll_speed_multiplier);
+        if (state.g_state.player.selectedBlock < 1)
+          state.g_state.player.selectedBlock = 1;
+        if (state.g_state.player.selectedBlock >= Block::toInt(Block::blocks::MAX_BLOCKS))
+          state.g_state.player.selectedBlock = Block::toInt(Block::blocks::MAX_BLOCKS) - 1;
+      }
+
+      // To change FOV
+      // camCtrl.processMouseScroll(scrollY);
+    }
+  }
+
+  PlayerMode* mode = state.g_state.ecs.get_component<PlayerMode>(state.g_state.player.self);
+  PlayerState* player_state = state.g_state.ecs.get_component<PlayerState>(state.g_state.player.self);
+  MovementConfig* player_movement_config = state.g_state.ecs.get_component<MovementConfig>(state.g_state.player.self);
+  if (input.isPressed(CAMERA_SWITCH_KEY) && state.g_state.ecs.has_component<CameraController>(state.frame_ctx.active_camera)) {
+    state.g_state.ecs.get_component<CameraController>(state.frame_ctx.active_camera)->third_person = !state.g_state.ecs.get_component<CameraController>(state.frame_ctx.active_camera)->third_person;
+  }
+  // MovementConfig survival_config {
+  //   .can_jump = true,
+  //   .can_walk = true,
+  //   .can_run = true,
+  //   .can_crouch = true,
+  //   .can_fly = false,
+  //   .jump_height = 1.8f,
+  //   .walk_speed = 5.0f,
+  //   .run_speed = 7.5f,
+  //   .crouch_speed = 2.5f,
+  //   .fly_speed = 10.0f
+  // };
+  //
+  // MovementConfig creative_config {
+  //   .can_jump = true,
+  //   .can_walk = true,
+  //   .can_run = true,
+  //   .can_crouch = true,
+  //   .can_fly = false,
+  //   .jump_height = 1.8f,
+  //   .walk_speed = 5.0f,
+  //   .run_speed = 7.5f,
+  //   .crouch_speed = 2.5f,
+  //   .fly_speed = 10.0f
+  // };
+  //
+  // MovementConfig spectator_config {
+  //   .can_jump = true,
+  //   .can_walk = true,
+  //   .can_run = true,
+  //   .can_crouch = true,
+  //   .can_fly = false,
+  //   .jump_height = 1.8f,
+  //   .walk_speed = 5.0f,
+  //   .run_speed = 7.5f,
+  //   .crouch_speed = 2.5f,
+  //   .fly_speed = 10.0f
+  // };
+  //
+  if (input.isPressed(SURVIVAL_MODE_KEY)) {
+    mode->mode = ModeType::SURVIVAL;
+  }
+
+  if (input.isPressed(CREATIVE_MODE_KEY)) {
+    mode->mode = ModeType::CREATIVE;
+  }
+
+  if (input.isPressed(SPECTATOR_MODE_KEY)) {
+    mode->mode = ModeType::SPECTATOR;
+  }
+
+  // Reload shaders
+  if (input.isPressed(GLFW_KEY_H)) {
+    // manager.getShader().reload();
+    playerShader.reload();
+    fb_debug.reload();
+    fb_player.reload();
+    playerShader.reload();
+    crossHairshader.reload();
+  }
+
+  if (input.isHeld(GLFW_KEY_P))
+    crosshair_size += 0.1f;
+  if (input.isHeld(GLFW_KEY_M))
+    crosshair_size -= 0.1f;
+
+#if defined(DEBUG)
+  if (input.isPressed(GLFW_KEY_ENTER) && state.frame_ctx.active_camera == state.g_state.debug_cam) {
+    state.g_state.ecs.get_component<Transform>(state.g_state.player.self)->pos = state.g_state.ecs.get_component<Transform>(state.g_state.debug_cam)->pos;
+    state.g_state.ecs.get_component<Velocity>(state.g_state.player.self)->value = state.g_state.ecs.get_component<Velocity>(state.g_state.debug_cam)->value;
+  }
+#endif
+
+  // 2. UI
+  if (state.ui.get_context()) {
+    glm::vec2 mousePos = input.getMousePos();
+    state.ui.get_context()->ProcessMouseMove(static_cast<int>(mousePos.x), static_cast<int>(mousePos.y), state.ui.GetKeyModifiers());
+
+    // Mouse buttons
+    for (int b = 0; b < InputManager::MAX_MOUSE_BUTTONS; ++b) {
+      if (input.isMousePressed(b))
+        state.ui.get_context()->ProcessMouseButtonDown(b, 0);
+      else if (input.isMouseReleased(b))
+        state.ui.get_context()->ProcessMouseButtonUp(b, 0);
+    }
+
+    // Scroll
+    float scrollY = input.getScroll().y;
+    if (scrollY != 0.0f)
+      state.ui.get_context()->ProcessMouseWheel(-scrollY, 0);
+
+    // Keyboard
+    for (int k = 0; k < InputManager::MAX_KEYS; ++k) {
+      if (input.isPressed(k))
+        state.ui.get_context()->ProcessKeyDown(state.ui.MapKey(k), state.ui.GetKeyModifiers());
+      else if (input.isReleased(k))
+        state.ui.get_context()->ProcessKeyUp(state.ui.MapKey(k), state.ui.GetKeyModifiers());
+    }
+  }
+
+#if defined(DEBUG)
+  if (input.isPressed(GLFW_KEY_8)) {
+    state.frame_ctx.debug_render = !state.frame_ctx.debug_render;
+  }
+#endif
+
+  if (input.isPressed(MENU_KEY)) {
+#if defined(DEBUG)
+    UI::set_debugger_visible(input.isMouseTrackingEnabled());
+#endif
+    input.setMouseTrackingEnabled(!input.isMouseTrackingEnabled());
+  }
+
+#if defined(DEBUG)
+  static bool _was_pressed = false;
+
+  bool _pressed = input.isPressed(WIREFRAME_KEY);
+
+  if (_pressed && !_was_pressed) { // only trigger on key-down edge
+    GLState::set_wireframe(!GLState::is_wireframe());
+  }
+
+  _was_pressed = _pressed; // remember state for next frame
+
+#endif
+
+
+
+
+  CameraController* ctrl = state.g_state.ecs.get_component<CameraController>(state.g_state.player.camera);
+
+  movement_intent_system(state.g_state.ecs, state.frame_ctx.active_camera);
+  player_state_system(state.g_state.ecs);
+  movement_physics_system(state.g_state.ecs, manager, state.frame_ctx.delta_time);
+  camera_pose_system(state.g_state.ecs, state.g_state.player.self, state.frame_ctx, state.frame_ctx.delta_time);
+  frustum_volume_system(state.g_state.ecs);
+
+
+#if defined(DEBUG)
+  if (state.frame_ctx.debug_render) {
+    auto* player_trans = state.g_state.ecs.get_component<Transform>(state.g_state.player.self);
+    auto aabb = state.g_state.ecs.get_component<Collider>(state.g_state.player.self)->get_AABB_at(player_trans->pos);
+    DebugDrawer::get().add_aabb(aabb, glm::vec3(0.3f, 1.0f, 0.5f));
+    Transform* player_cam_trans = state.g_state.ecs.get_component<Transform>(state.g_state.player.camera);
+    Transform* trans = state.g_state.ecs.get_component<Transform>(state.g_state.player.self);
+    DebugDrawer::get().add_ray(trans->pos, player_cam_trans->forward(), {1.0f, 0.0f, 0.0f});
+    DebugDrawer::get().add_ray(trans->pos, player_cam_trans->up(), {0.0f, 1.0f, 0.0f});
+    DebugDrawer::get().add_ray(trans->pos, player_cam_trans->right(), {0.0, 0.0f, 1.0f});
+
+    state.g_state.ecs.for_each_components<Camera, Transform>([&](Entity e, Camera, Transform& trans){
+        DebugDrawer::get().add_aabb(AABB::fromCenterSize(trans.pos, {0.5f, 0.8f, 0.5f}), glm::vec3(1.0f, 0.0f, 1.0f));
+        });
+
+    float ndc_z = -1.0f; // near plane
+    glm::vec4 clip = glm::vec4(0.0f, 0.0f, ndc_z, 1.0f);
+
+    Camera* player_cam = state.g_state.ecs.get_component<Camera>(state.g_state.player.camera);
+    glm::vec4 view_space = glm::inverse(player_cam->projection_matrix()) * clip;
+    view_space.z = -1.0f; // forward direction
+    view_space.w = 0.0f;  // this is a direction, not a position
+
+    glm::vec3 ray_dir = glm::normalize(glm::vec3(glm::inverse(player_cam->view_matrix(*player_cam_trans)) * view_space));
+    glm::vec3 cam_pos   = player_cam_trans->pos;
+    DebugDrawer::get().add_ray(cam_pos, ray_dir, {1.0f, 0.0f, 0.0f});
+    DebugDrawer::get().add_ray(cam_pos, player_cam_trans->forward(), {1.0f, 0.0f, 0.0f});
+
+
+    // Add all chunks' bounding boxes
+    // for (const auto& [chunkKey, chunkPtr] : manager.get_all()) {
+    // 	if (!chunkPtr)
+    // 		continue; // safety
+    //
+    // 	// Color for chunk boxes, maybe a translucent blue-ish?
+    // 	DebugDrawer::get().add_aabb(chunkPtr->aabb, glm::vec3(0.3f, 0.5f, 1.0f));
+    // }
+    auto vel = state.g_state.ecs.get_component<Velocity>(state.g_state.player.self)->value;
+    DebugDrawer::get().add_ray(trans->pos, vel, {1.0f, 1.0f, 0.0f});
+    DebugDrawer::get().add_ray(trans->pos, glm::normalize(glm::vec3{0.0f, -GRAVITY, 0.0f}), glm::vec3(0.5f, 0.5f, 1.0f));
+  }
+#endif
+
+
+
+  manager.generate_chunks(state.g_state.ecs.get_component<Transform>(state.g_state.player.self)->pos, state.g_state.player.render_distance);
+
+}
+void App::render() noexcept
+{
+
+  // -- Render Player -- (BEFORE UI pass)
+  // TODO: Actually fix and implement this shit
+  /*
+     if (player.renderSkin) {
+     playerShader.setMat4("projection", cam->projectionMatrix);
+     playerShader.setMat4("view", cam->viewMatrix);
+     player.render(playerShader);
+     }
+     */
+
+
+  if (state.g_state.render_terrain) {
+    //manager.getShader().checkAndReloadIfModified();
+    // manager.getShader().setMat4("projection", state.frame_ctx.cam->projectionMatrix);
+    // manager.getShader().setMat4("view", state.frame_ctx.cam->viewMatrix);
+    //manager.getShader().setFloat("time", (float)glfwGetTime());
+
+    manager.getShader2().setMat4("u_projection", state.frame_ctx.projection_matrix);
+    manager.getShader2().setMat4("u_view", state.frame_ctx.view_matrix);
+    Transform* cam_trans = state.g_state.ecs.get_component<Transform>(state.frame_ctx.active_camera);
+    manager.getShader2().setVec3("eye_position", cam_trans->pos);
+
+    // manager.getShader2().setIVec3("eye_position_int", glm::ivec3(floor(cam_trans->pos)));
+    Atlas.Bind(0);
+
+    manager.getShader2().use();
+    // Whatever VAO'll work
+    glBindVertexArray(VAO);
+    chunk_renderer_system(state.g_state.ecs, manager, state.frame_ctx.active_camera, *state.g_state.ecs.get_component<FrustumVolume>(state.g_state.player.camera), state.fb_manager);
+    glBindVertexArray(0);
+    Atlas.Unbind(0);
+  }
+
+  // Debug render
+
+#if defined(DEBUG)
+  if (state.frame_ctx.debug_render) {
+    GLState::set_depth_test(false);
+    GLState::set_face_culling(false);
+    DebugDrawer::get().draw(state.frame_ctx.view_proj_matrix);
+  }
+#endif
+
+  auto& cur_fb = state.fb_manager.get(state.frame_ctx.active_camera);
+  glBindTextureUnit(0, cur_fb.color_attachment(0));
+  glBindTextureUnit(1, cur_fb.depth_attachment());
+  glActiveTexture(GL_TEXTURE2);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, cube_id);
+
+  if (state.frame_ctx.active_camera == state.g_state.player.camera) {
+    glm::mat4 prev_view_proj = state.g_state.ecs.get_component<CameraTemporal>(state.g_state.player.camera)->prev_view_proj;
+    fb_player.setMat4("curr_inv_view_proj", state.frame_ctx.inv_view_proj_matrix);
+    fb_player.setMat4("prev_view_proj", prev_view_proj);
+    fb_player.setMat4("invView", glm::inverse(state.frame_ctx.view_matrix));
+    fb_player.setMat4("invProj", glm::inverse(state.frame_ctx.projection_matrix));
+    fb_player.setInt("color", 0);
+    fb_player.setInt("depth", 1);
+    fb_player.setInt("skybox", 2);
+    fb_player.use();
+  }
+#if defined(DEBUG)
+  else if (state.frame_ctx.active_camera == state.g_state.debug_cam) {
+    fb_debug.setInt("color", 0);
+    fb_debug.setInt("depth", 1);
+    fb_debug.use();
+  }
+#endif
+
+  // NOTE: Make sure to have a VAO bound when making this draw call!!
+  // Fullscreen triangle covering the whole screen for post-processing and shit like that
+  framebuffer::bind_default_draw();
+  GLState::set_depth_test(false);
+  // GLState::set_wireframe(false);
+  glDepthMask(GL_FALSE);
+  glBindVertexArray(VAO);
+  DrawArraysWrapper(GL_TRIANGLES, 0, 3);
+
+  glBindVertexArray(0);
+  glDepthMask(GL_TRUE);
+
+  // --- UI Pass --- (now rendered BEFORE ImGui)
+  if (state.g_state.render_ui/* && state.frame_ctx.active_camera == player.camera*/) {
+    GLState::set_depth_test(false);
+    GLState::set_wireframe(false);
+    GLState::set_stencil_test(false);
+    // -- Crosshair Pass ---
+    glm::mat4 orthoProj = glm::ortho(0.0f, static_cast<float>(cur_fb.width()), 0.0f, static_cast<float>(cur_fb.height()));
+    crossHairshader.setMat4("uProjection", orthoProj);
+    crossHairshader.setVec2("uCenter", glm::vec2(cur_fb.width() * 0.5f, cur_fb.height() * 0.5f));
+    crossHairshader.setFloat("uSize", crosshair_size);
+
+    crossHairTexture.Bind(2); // INFO: MAKE SURE TO BIND IT TO THE CORRECT TEXTURE BINDING!!!
+    crossHairshader.use();
+    glBindVertexArray(crosshairVAO);
+    DrawElementsWrapper(GL_TRIANGLES, sizeof(CrosshairIndices) / sizeof(CrosshairIndices[0]), GL_UNSIGNED_INT, nullptr);
+    glBindVertexArray(0);
+
+    if (state.frame_ctx.active_camera == state.g_state.player.camera)
+      state.ui.render();
+    // other UI stuff...
+  }
+#if defined(NDEBUG) // TEMP
+  ImGui_ImplOpenGL3_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+  ImGui::Begin("INFO", NULL,
+      ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize |
+      ImGuiWindowFlags_::ImGuiWindowFlags_NoMove |
+      ImGuiWindowFlags_::ImGuiWindowFlags_NoNavInputs |
+      ImGuiWindowFlags_::ImGuiWindowFlags_NoBringToFrontOnFocus |
+      ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse);
+  ImGui::Text("FPS: %f", getFPS(state.frame_ctx.delta_time));
+  ImGui::Text("Selected block: ");
+  ImGui::SameLine();
+  ImGui::SetWindowFontScale(1.2f);
+  ImGui::Text(Block::toString(static_cast<Block::blocks>(state.g_state.player.selectedBlock)));
+  ImGui::SetWindowFontScale(1.0f);
+  ImGui::SliderInt("Render distance", (int*)&state.g_state.player.render_distance, 0, 30);
+  ImGui::End();
+  ImGui::Render();
+  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+  GLState::sync();
+#endif
+
+#if defined(DEBUG)
+  if (state.g_state.render_ui) {
+    GLState::set_depth_test(false);
+    GLState::set_wireframe(false);
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    CameraController* ctrl = state.g_state.ecs.get_component<CameraController>(state.g_state.player.camera);
+    PlayerState* player_state = state.g_state.ecs.get_component<PlayerState>(state.g_state.player.self);
+    setup_imgui(state, manager, ctrl, player_state);
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    GLState::sync();
+  }
+#endif
+}
+void App::end_frame() noexcept
+{
+  camera_temporal_system(state.g_state.ecs, state.frame_ctx);
+  // other UI things...
+
+  // TODO: Fix input handling in the manager
+  input.update();       // reset this frame's state
+
+  glfwSwapBuffers(state.win_context->window);
+#if defined(TRACY_ENABLE)
+  FrameMark;
+#endif
+  state.frame_ctx.frame_number++;
+}
