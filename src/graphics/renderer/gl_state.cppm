@@ -7,10 +7,14 @@ export struct GLState {
 	public:
 		GLState() = delete;
 
+    static void clear_depth();
+    // static void apply_state(const RenderState& target);
+
 		static void set_line_width(float width);
 		static void set_wireframe(bool enable);
 		static void set_depth_test(bool enable);
 		static void set_depth_func(GLenum func);
+    static void set_depth_write(bool enable);
 		static void set_blending(bool enable);
 		static void set_face_culling(bool enable);
 		static void set_msaa(bool enable);
@@ -19,6 +23,7 @@ export struct GLState {
 		static void set_stencil_test(bool enable);
 		static void set_scissor(int x, int y, int width, int height);
 		static void set_clear_color(const glm::vec4& color);
+    static void set_color_mask(bool r, bool g, bool b, bool a);
 		static void set_viewport(int x, int y, int width, int height);
 
 		static bool is_wireframe() noexcept { return m_wireframe_mode; }
