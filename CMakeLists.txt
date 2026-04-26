@@ -250,6 +250,7 @@ target_sources(${PROJECT_NAME}
 		src/graphics/renderer/gpu_buffer.cppm
 		src/graphics/renderer/vertex_buffer.cppm
 		src/graphics/renderer/index_buffer.cppm
+		src/graphics/renderer/uniform_buffer.cppm
 		src/graphics/debug_drawer.cppm
 		src/graphics/shader.cppm
 		src/graphics/texture.cppm
@@ -260,6 +261,13 @@ target_sources(${PROJECT_NAME}
     src/game/app_state.cppm
     src/game/game_state.cppm
     src/game/game_factories.cppm
+
+
+
+
+
+
+    src/game/app.cppm
 )
 
 
