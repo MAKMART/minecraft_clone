@@ -6,3 +6,7 @@ imgui.ini
 .clang-tidy
 .clang-format
 CMakeUserPresets.json
+CMakeCache.txt
+CMakeFiles/
+Testing/
+.compile_commands.json
