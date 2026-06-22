@@ -6,46 +6,168 @@
 		"patch": 3
 	},
 	"configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "toolchainFile": "toolchain.cmake",
+      "environment": {
+        "CLANG_COLOR_DIAGNOSTICS": "1",
+        "ASAN_OPTIONS": "detect_leaks=1"
+      },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      },
+      "warnings": {
+        "dev": false,
+        "deprecated": true
+      }
+    },
 		{
-			"name": "debug",
-			"displayName": "Debug Build",
-			"description": "Debug build with optional Tracy profiler",
-			"generator": "Ninja",
-			"binaryDir": "build/",
+			"name": "engine-debug",
+			"description": "Engine debug build",
+      "inherits": "base",
+      "hidden": false,
+			"binaryDir": "build/debug/engine",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
-				"ENABLE_TRACY": "OFF",
 				"ENABLE_UNITY_BUILD": "OFF",
-				"CMAKE_C_COMPILER_LAUNCHER": "sccache",
-				"CMAKE_CXX_COMPILER_LAUNCHER": "sccache"
+				"ENABLE_TRACY": "OFF",
+        "ENABLE_TESTS": "OFF",
+        "ENABLE_GAME": "OFF",
+				"CMAKE_INTERPROCEDURAL_OPTIMIZATION": "OFF"
 			}
 		},
 		{
-			"name": "release",
-			"displayName": "Release Build",
-			"description": "Release build with optional Tracy profiler",
-			"generator": "Ninja",
-			"binaryDir": "build/",
+			"name": "engine-release",
+			"description": "Engine release build",
+      "inherits": "base",
+      "hidden": false,
+			"binaryDir": "build/release/engine",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release",
-				"ENABLE_TRACY": "OFF",
 				"ENABLE_UNITY_BUILD": "ON",
-				"CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
-				"CMAKE_C_COMPILER_LAUNCHER": "sccache",
-				"CMAKE_CXX_COMPILER_LAUNCHER": "sccache"
+				"ENABLE_TRACY": "OFF",
+        "ENABLE_TESTS": "OFF",
+        "ENABLE_GAME": "OFF",
+				"CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
 			}
-		}
+		},
+		{
+			"name": "game-debug",
+			"description": "Game debug build",
+      "inherits": "base",
+      "hidden": false,
+			"binaryDir": "build/debug/game",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug",
+				"ENABLE_UNITY_BUILD": "OFF",
+				"ENABLE_TRACY": "OFF",
+        "ENABLE_TESTS": "OFF",
+        "ENABLE_GAME": "ON",
+				"CMAKE_INTERPROCEDURAL_OPTIMIZATION": "OFF"
+			}
+		},
+		{
+			"name": "game-release",
+			"description": "Game release build",
+      "inherits": "base",
+      "hidden": false,
+			"binaryDir": "build/release/game",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release",
+				"ENABLE_UNITY_BUILD": "ON",
+				"ENABLE_TRACY": "OFF",
+        "ENABLE_TESTS": "OFF",
+        "ENABLE_GAME": "ON",
+				"CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
+			}
+		},
+    {
+      "name": "testing-debug",
+      "inherits": "engine-debug",
+			"cacheVariables": {
+        "ENABLE_TESTS": "ON"
+			}
+    }
 	],
 	"buildPresets": [
 		{
-			"name": "debug",
-			"configurePreset": "debug",
-			"jobs": 0
+			"name": "engine-debug",
+			"configurePreset": "engine-debug"
 		},
 		{
-			"name": "release",
-			"configurePreset": "release",
-			"jobs": 0
-		}
-	]
+			"name": "engine-release",
+			"configurePreset": "engine-release"
+		},
+		{
+			"name": "game-debug",
+			"configurePreset": "game-debug"
+		},
+		{
+			"name": "game-release",
+			"configurePreset": "game-release"
+		},
+    {
+      "name": "testing-debug",
+      "configurePreset": "testing-debug"
+    }
+	],
+  "testPresets": [
+    {
+      "name": "testing-debug",
+      "configurePreset": "testing-debug",
+      "output": { 
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "tests",
+      "displayName": "Complete engine tests",
+      "steps": [
+        { "type": "configure", "name": "testing-debug" },
+        { "type": "build", "name": "testing-debug" },
+        { "type": "test", "name": "testing-debug" }
+      ]
+    },
+    {
+      "name": "engine-debug",
+      "displayName": "Engine debug build",
+      "steps": [
+        { "type": "configure", "name": "engine-debug" },
+        { "type": "build", "name": "engine-debug" }
+      ]
+    },
+    {
+      "name": "engine-release",
+      "displayName": "Engine release build",
+      "steps": [
+        { "type": "configure", "name": "engine-release" },
+        { "type": "build", "name": "engine-release" }
+      ]
+    },
+    {
+      "name": "game-debug",
+      "displayName": "Game debug build",
+      "steps": [
+        { "type": "configure", "name": "game-debug" },
+        { "type": "build", "name": "game-debug" }
+      ]
+    },
+    {
+      "name": "game-release",
+      "displayName": "Game release build",
+      "steps": [
+        { "type": "configure", "name": "game-release" },
+        { "type": "build", "name": "game-release" }
+      ]
+    }
+  ]
 }

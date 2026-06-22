@@ -1,6 +1,9 @@
 # Minecraft Clone
 ## Introduction 📝
 
+## WARNING
+Major rewrite with new game engine BUILD IS BROKEN, WIP
+
 This is a small minecraft clone built using OpenGL 4.6 and C++ 23. The project is in a very early, experimental stage 🚀.
 
 Since this is meant for me to learn programming, don't expect high-quality stuff here for some time.
@@ -26,8 +29,8 @@ Make sure all four are installed and added to your system's `PATH` if you're on 
 After building, all build files will be stored in the `build` directory.
 The final binary will be located in:
 
-* `build/bin/Debug/` for **Debug** builds
-* `build/bin/Release/` for **Release** builds
+* `build/debug/game/` for **Debug** builds
+* `build/release/game/` for **Release** builds
 
 ---
 
@@ -42,42 +45,27 @@ cd minecraft_clone
 > ⚠️ Warning: You need to have [git](https://git-scm.com/downloads) installed.
 ---
 
-### 2. Configure the Project ⚙️
+### 2. Building the Project 🏗️
 
-Choose the configuration type:
+Choose the build type:
 
 ```bash
 # For Debug build
-cmake --preset debug
+cmake --workflow --fresh --preset debug
 
 # For Release build
-cmake --preset release
-```
+cmake --workflow --fresh --preset release
 
-> ⚡ Tip: Pick one preset depending on whether you want a Debug or Release build.
+# To build engine tests
+cmake --workflow --fresh --preset tests
 
----
-
-### 3. Build the Project 🏗️
-
-Use the same preset you chose for configuration:
-
-```bash
-cmake --build --preset <preset>
-```
-
-For example:
-
-```bash
-# Debug build
-cmake --build --preset debug
-
-# Release build
-cmake --build --preset release
+# To see available options
+cmake --workflow --list-presets
 ```
 
 > ✅ Once configured, you only need to run the build command again if you make changes.
 
+---
 ## Troubleshooting 🛡️
 
 If you run into any build issues or have questions, feel free to [email me](mailto:martinmarco813@gmail.com).
