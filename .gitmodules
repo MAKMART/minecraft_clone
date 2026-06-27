@@ -16,3 +16,12 @@
 [submodule "vendor/imgui"]
 	path = vendor/imgui
 	url = https://github.com/stripe2933/imgui-module
+[submodule "engine/vendor/glfw"]
+	path = engine/vendor/glfw
+	url = https://github.com/glfw/glfw
+[submodule "engine/vendor/freetype"]
+	path = engine/vendor/freetype
+	url = https://gitlab.freedesktop.org/freetype/freetype
+[submodule "engine/vendor/glm"]
+	path = engine/vendor/glm
+	url = https://github.com/g-truc/glm
