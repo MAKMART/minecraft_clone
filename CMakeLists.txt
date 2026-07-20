@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.2.3)
+cmake_minimum_required(VERSION 4.4.0)
 if(NOT CMAKE_BUILD_TYPE)
     message(FATAL_ERROR "You must choose the type of build")
 endif()

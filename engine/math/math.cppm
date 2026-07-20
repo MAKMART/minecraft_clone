@@ -3,6 +3,18 @@ export module engine.math;
 export import :aabb;
 export import :types;
 export namespace engine::math {
+
+
+
+// CONVENTIONS FOR THIS PROJECT:
+// +X -> right
+// +Y -> up
+// +Z -> forward
+//
+// yaw positive = turn right
+//
+// right handed system
+//
   namespace space {
     inline constexpr vec3 WORLD_FORWARD{0, 0, 1};
     inline constexpr vec3 WORLD_UP{0, 1, 0};

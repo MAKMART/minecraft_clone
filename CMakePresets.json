@@ -1,9 +1,9 @@
 {
-	"version": 10,
+	"version": 12,
 	"cmakeMinimumRequired": {
 		"major": 4,
-		"minor": 2,
-		"patch": 3
+		"minor": 4,
+		"patch": 0
 	},
 	"configurePresets": [
     {
@@ -20,7 +20,7 @@
         "CMAKE_CXX_COMPILER": "clang++"
       },
       "warnings": {
-        "dev": false,
+        "author": false,
         "deprecated": true
       }
     },

@@ -6,7 +6,6 @@ set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
 set(CMAKE_CXX_MODULE_STD ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 set(CMAKE_EXPERIMENTAL_CXX_MODULE_DYNDEP 1)
-set(CMAKE_CMAKE_CXX_EXTENSIONS OFF) # Compiler extensions disabled globally
-# message(STATUS "[TOOLCHAIN] Loaded")
+set(CMAKE_CXX_EXTENSIONS OFF) # Compiler extensions disabled globally message(STATUS "[TOOLCHAIN] Loaded")
 # message(STATUS "CXX compiler: ${CMAKE_CXX_COMPILER}")
 # message(STATUS "Modules std: ${CMAKE_CXX_MODULE_STD}")
