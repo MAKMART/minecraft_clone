@@ -10,7 +10,6 @@
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "toolchainFile": "toolchain.cmake",
       "environment": {
         "CLANG_COLOR_DIAGNOSTICS": "1",
         "ASAN_OPTIONS": "detect_leaks=1"

@@ -3,10 +3,27 @@ if(NOT CMAKE_BUILD_TYPE)
     message(FATAL_ERROR "You must choose the type of build")
 endif()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
+set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -stdlib=libc++")
+
+# C++ standard library modules
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "f35a9ac6-8463-4d38-8eec-5d6008153e7d")
+set(CMAKE_CXX_MODULE_STD ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_SCAN_FOR_MODULES ON)
+# set(CMAKE_EXPERIMENTAL_CXX_MODULE_DYNDEP 1)
+set(CMAKE_CXX_STDLIB_MODULES_JSON
+"/usr/lib/libc++.modules.json")
+# message(STATUS "CXX compiler: ${CMAKE_CXX_COMPILER}")
+# message(STATUS "Modules std: ${CMAKE_CXX_MODULE_STD}")
 project("game" VERSION 1.0.1 LANGUAGES C CXX)
+
 set(PROJECT_FULL_VERSION "${PROJECT_VERSION}-alpha")
 
+set(CMAKE_CXX_STANDARD 26)          # or at least 23
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF) # Compiler extensions disabled globally message(STATUS "[TOOLCHAIN] Loaded")
 # ==== Build Options ====
 option(ENABLE_UNITY_BUILD "Enable unity build" OFF)
 option(ENABLE_TRACY "Enable Tracy profiler" OFF)
