@@ -1,10 +1,11 @@
+module;
+#include <string>
 export module engine.core;
 
 export import :types;
 export import :logger;
 export import :events;
 
-import std;
 export namespace engine::core {
   // Config
   struct engine_config {

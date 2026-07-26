@@ -35,9 +35,11 @@ SOFTWARE.
 
 module;
 #include <stdint.h>
+#include <vector>
+#include <cstdint>
+#include <cstring>
 export module mesher;
 
-import std;
 #ifndef BM_VECTOR
 #define BM_VECTOR std::vector
 #endif

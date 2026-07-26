@@ -1,5 +1,12 @@
+module;
+#include <algorithm>
+#include <cstdint>
+#include <ranges>
+#include <string>
+#include <unordered_map>
+#include <vector>
 export module engine.platform:input_action_map;
-import std;
+
 import engine.core;
 import :input_state;
 export namespace engine::platform {

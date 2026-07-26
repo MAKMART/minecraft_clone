@@ -1,8 +1,11 @@
 module;
 #include <cassert>
+#include <array>
+#include <cstdint>
+#include <initializer_list>
+#include <vector>
 export module ecs_components;
 
-import std;
 import core;
 import glm;
 import ecs;

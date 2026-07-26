@@ -1,6 +1,8 @@
+module;
+#include <expected>
+#include <string>
 export module engine.renderer:gl_backend;
 
-import std;
 import engine.core;
 using namespace engine::core;
 export class gl_backend {

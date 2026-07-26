@@ -1,6 +1,11 @@
+module;
+#include <array>
+#include <cstddef>
+#include <functional>
+#include <utility>
+#include <vector>
 export module player;
 
-import std;
 import ecs;
 
 export struct Player

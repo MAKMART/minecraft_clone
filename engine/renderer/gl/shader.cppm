@@ -1,8 +1,15 @@
 module;
 #include <glad/gl.h>
+#include <filesystem>   // std::filesystem::{path, file_time_type, last_write_time}
+#include <fstream>      // std::ifstream
+#include <mutex>        // std::mutex, std::lock_guard
+#include <sstream>      // std::stringstream
+#include <stdexcept>    // std::runtime_error
+#include <string>       // std::string
+#include <unordered_map>// std::unordered_map
+#include <utility>      // std::move
 export module engine.renderer:gl_backend.shader;
 
-import std;
 import engine.core;
 import engine.math;
 

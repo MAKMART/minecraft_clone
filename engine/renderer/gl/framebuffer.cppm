@@ -1,9 +1,13 @@
 module;
 #include <glad/gl.h>
 #include <cassert>
+#include <cstddef>          // std::size_t
+#include <initializer_list> // std::initializer_list
+#include <span>             // std::span
+#include <utility>          // std::move
+#include <vector>           // std::vector
 export module engine.renderer:gl_backend.framebuffer;
 
-import std;
 import engine.core;
 // import ecs_components;
 

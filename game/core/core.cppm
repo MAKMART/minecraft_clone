@@ -1,6 +1,13 @@
+module;
+#include <cstdint>
+#include <cstddef>
+#include <filesystem>
+#include <string>
+#include <string_view>
+#include <cstdio>
+#include <bit>
 export module core;
 
-import std;
 import glm;
 
 export {

@@ -1,6 +1,7 @@
+module;
+#include <cstdint>
 export module utility;
 
-import std;
 import mesher;
 
 export {

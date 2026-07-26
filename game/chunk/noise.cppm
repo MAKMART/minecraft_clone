@@ -2,9 +2,9 @@ module;
 //#include <optional>
 //#include <memory>
 #include <FastNoise/FastNoise.h>
+#include <optional>
 export module noise;
 
-import std;
 import core;
 import glm;
 import mesher;

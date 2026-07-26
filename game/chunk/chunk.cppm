@@ -1,7 +1,9 @@
+module;
+#include <array>
+#include <cstdint>
 export module chunk;
 
 import core;
-import std;
 import glm;
 import aabb;
 import logger;

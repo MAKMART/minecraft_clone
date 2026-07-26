@@ -1,6 +1,11 @@
+module;
+#include <functional> // std::function
+#include <type_traits> // std::decay_t
+#include <utility>     // std::move
+#include <variant>     // std::variant, std::visit
+#include <vector>      // std::vector
 export module engine.core:events;
 
-import std;
 import :types;
 
 export namespace engine::core::events {

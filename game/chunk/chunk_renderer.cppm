@@ -1,6 +1,9 @@
+module;
+#include <cstdint>
+#include <cstring>
+#include <vector>
 export module chunk_renderer;
 
-import std;
 import mesher;
 import logger;
 

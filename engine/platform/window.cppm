@@ -1,8 +1,11 @@
 module;
 #include <GLFW/glfw3.h>
 #include <cassert>
+#include <expected>
+#include <functional>
+#include <string>
 export module engine.platform:window;
-import std;
+
 import engine.core;
 
 export namespace engine::platform {

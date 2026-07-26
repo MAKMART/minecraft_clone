@@ -1,11 +1,22 @@
 module;
 #include <cassert>
+
+#include <algorithm>      // std::fill, std::min
+#include <concepts>       // std::invocable
+#include <cstddef>        // std::size_t
+#include <limits>         // std::numeric_limits
+#include <memory>         // std::unique_ptr, std::make_unique
+#include <span>           // std::span
+#include <string_view>    // std::string_view
+#include <tuple>          // std::tuple, std::make_tuple, std::get, std::tuple_element_t
+#include <type_traits>    // std::remove_cvref_t
+#include <utility>        // std::move, std::forward
+#include <vector>         // std::vector
 export module engine.ecs;
 
 // 'export import' makes 'Entity' visible to importers
 export import :entity;
 import engine.core;
-import std;
 
 using namespace engine::core;
 

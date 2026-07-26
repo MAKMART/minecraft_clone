@@ -16,21 +16,16 @@ WIP
 
 To build this project, you'll need:
 
-* [CMake](https://cmake.org/download/) `(>= 4.2.3)`
-* [Ninja](https://github.com/ninja-build/ninja)
-* [A C++ compiler](https://isocpp.org/get-started)
-* [sccache](https://github.com/mozilla/sccache)
-* [mold](https://github.com/rui314/mold)
+* [xmake](https://xmake.io/guide/quick-start.html) `(>= 3.0.9)`
+* [A C++ compiler](https://isocpp.org/get-started) `(works only with clang, will get better with time)`
 
-Make sure all four are installed and added to your system's `PATH` if you're on Windows.
+Make sure these are installed and added to your system's `PATH` if you're on Windows.
 
 ## Building the Project from Source 🛠️
 
 After building, all build files will be stored in the `build` directory.
 The final binary will be located in:
-
-* `build/debug/game/` for **Debug** builds
-* `build/release/game/` for **Release** builds
+`build/<your-OS>/<your-arch>/<build-type>/`
 
 ---
 
@@ -39,7 +34,7 @@ The final binary will be located in:
 Open a terminal in your desired folder and run:
 
 ```bash
-git clone --recurse-submodules https://github.com/MAKMART/minecraft_clone.git
+git clone https://github.com/MAKMART/minecraft_clone.git
 cd minecraft_clone
 ```
 > ⚠️ Warning: You need to have [git](https://git-scm.com/downloads) installed.
@@ -51,16 +46,22 @@ Choose the build type:
 
 ```bash
 # For Debug build
-cmake --workflow --fresh --preset debug
+xmake config -m debug
 
 # For Release build
-cmake --workflow --fresh --preset release
+xmake config -m debug
 
-# To build engine tests
-cmake --workflow --fresh --preset tests
+# To run engine tests
+xmake run test
 
-# To see available options
-cmake --workflow --list-presets
+# To run a certain target
+xmake run <target>
+
+# To see available build targets
+xmake show -l targets
+
+# To see available infos
+xmake show 
 ```
 
 > ✅ Once configured, you only need to run the build command again if you make changes.

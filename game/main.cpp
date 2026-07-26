@@ -1,6 +1,5 @@
 import app;
-int main()
-{
+int main() {
   App app;
   app.run();
 }

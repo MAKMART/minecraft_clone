@@ -34,10 +34,11 @@ SOFTWARE.
 //   * Define BM_VECTOR with your own vector implementation - otherwise it will use std::vector
 
 module;
-#include <stdint.h>
+#include <cstdint>
+#include <vector>
+#include <cstring>
 export module mesher;
 
-import std;
 #ifndef BM_VECTOR
 #define BM_VECTOR std::vector
 #endif

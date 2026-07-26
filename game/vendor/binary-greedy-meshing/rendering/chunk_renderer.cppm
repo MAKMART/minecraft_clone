@@ -1,8 +1,11 @@
 module;
 #include <gl.h>
+#include <cstdint>
+#include <vector>
+#include <cstring>
+#include <cstddef>
 export module chunk_renderer;
 
-import std;
 import mesher;
 
 static constexpr int BUFFER_SIZE = 5e8; // 500 mb

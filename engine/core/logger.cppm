@@ -1,7 +1,21 @@
+module;
+#include <array>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <format>
+#include <initializer_list>
+#include <iostream>
+#include <mutex>
+#include <ostream>
+#include <print>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 export module engine.core:logger;
 
 import :types;
-import std;
 
 export namespace engine::core {
   class logger final {

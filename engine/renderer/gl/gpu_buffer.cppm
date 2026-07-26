@@ -1,9 +1,9 @@
 module;
 #include <glad/gl.h>
 #include <cassert>
+#include <cstddef>
+#include <string_view>
 export module engine.renderer:gl_backend.gpu_buffer;
-
-import std;
 
 export {
   enum class buffer_type : GLenum {

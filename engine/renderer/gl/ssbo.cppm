@@ -1,8 +1,8 @@
 module;
 #include <glad/gl.h>
 #include <cassert>
+#include <cstddef>
 export module engine.renderer:gl_backend.ssbo;
-import std;
 import :gl_backend.gpu_buffer;
 
 export {

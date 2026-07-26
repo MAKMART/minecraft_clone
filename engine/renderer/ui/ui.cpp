@@ -1,5 +1,5 @@
 module;
-#include <gl.h>
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Types.h>

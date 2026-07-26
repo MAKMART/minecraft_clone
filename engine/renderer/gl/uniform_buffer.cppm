@@ -1,8 +1,9 @@
 module;
 #include <glad/gl.h>
 #include <cassert>
+#include <cstddef>
+#include <cstring>
 export module engine.renderer:gl_backend.uniform_buffer;
-import std;
 import :gl_backend.gpu_buffer;
 class uniform_buffer_base : public gpu_buffer {
 protected:

@@ -1,6 +1,11 @@
+module;
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp> // translate, rotate, scale, perspective, lookAt
+#include <glm/gtc/quaternion.hpp>        // glm::quat
+#include <glm/gtc/type_ptr.hpp>          // value_ptr
 export module engine.math:types;
 
-import glm;
+// import glm;
 // TODO: Write your own math library, don't rely on glm
 export namespace engine::math {
   using vec2 = glm::vec2;

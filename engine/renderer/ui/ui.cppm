@@ -6,12 +6,21 @@ module;
 #endif
 #include <RmlUi/Core/RenderInterface.h>
 #include <RmlUi/Core/FileInterface.h>
-#include <gl.h>
+#include <glad/gl.h>
 #include <RmlUi/Core/Input.h>
 #include "system_interface_glfw.hpp"
+
+#include <cstddef>
+#include <cstdio>        // fopen, fclose, fread, fseek, ftell
+#include <filesystem>     // std::filesystem::path
+#include <functional>    // std::function
+#include <memory>        // std::unique_ptr
+#include <string>        // std::string
+#include <unordered_map> // std::unordered_map
+#include <utility>       // std::move
+#include <vector>        // std::vector
 export module ui;
 
-import std;
 import shader;
 import glm;
 import texture;
@@ -135,7 +144,7 @@ export class UI : public Rml::RenderInterface
 	struct Geometry {
 		GLuint  vao;
 		vertex_buffer_dynamic vbo;
-		index_buffer_dynamic<int32_t> ibo;
+		index_buffer_dynamic<std::int32_t> ibo;
 		GLsizei index_count;
 		// vertex_buffer / index_buffer destructors should handle their own glDeleteBuffers
 		~Geometry() { if (vao) glDeleteVertexArrays(1, &vao); }
@@ -166,5 +175,5 @@ export class UI : public Rml::RenderInterface
 	Rml::TextureHandle next_texture_handle  = 1;
 
 	int viewport_width, viewport_height;
-	uint8_t next_stencil_value = 1;
+  std::uint8_t next_stencil_value = 1;
 };

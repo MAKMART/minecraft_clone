@@ -1,6 +1,8 @@
 module;
 #include <cassert>
 #include <imgui.h>
+#include <memory>
+#include <string_view>
 export module app;
 /*
  *
@@ -10,7 +12,6 @@ import core;
 import shader;
 import chunk_manager;
 import texture;
-import std;
 import input_manager;
 import ui;
 import framebuffer_manager;

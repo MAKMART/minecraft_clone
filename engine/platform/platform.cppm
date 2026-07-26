@@ -1,6 +1,7 @@
 module;
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#include <cstdlib>
 export module engine.platform;
 
 import engine.core;

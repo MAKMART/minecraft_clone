@@ -1,15 +1,11 @@
-/*
 #include <string>
 #include <unordered_map>
 #include <mutex>
 #include <vector>
 #include <deque>
-*/
 module;
 #include <cuchar>
 export module timer;
-
-import std;
 
 constexpr size_t MaxTimingSamples = 100;
 

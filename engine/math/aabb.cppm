@@ -1,6 +1,7 @@
+module;
+#include <limits>
 export module engine.math:aabb;
 
-import std;
 import engine.core;
 import :types;
 

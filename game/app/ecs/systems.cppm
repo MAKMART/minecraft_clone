@@ -1,6 +1,5 @@
 export module ecs_systems;
 
-import std;
 import ecs;
 import ecs_components;
 import framebuffer_manager;

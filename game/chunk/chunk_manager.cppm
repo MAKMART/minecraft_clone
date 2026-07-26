@@ -1,6 +1,9 @@
+module;
+#include <cstdint>
+#include <limits>
+#include <vector>
 export module chunk_manager;
 
-import std;
 import core;
 import glm;
 import ecs_components;

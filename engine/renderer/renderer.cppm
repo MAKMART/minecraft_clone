@@ -1,9 +1,13 @@
+module;
+#include <vector>
+#include <cstdint>
+#include <exception>
 export module engine.renderer;
-import std;
+
 import engine.core;
 
 // export import :debug_drawer;
-import :gl_backend;
+export import :gl_backend;
 
 using namespace engine::core;
 export namespace engine::renderer {

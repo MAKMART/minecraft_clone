@@ -1,8 +1,9 @@
 module;
 #include <glad/gl.h>
+#include <cstddef>
+#include <cstring>
 export module engine.renderer:gl_backend.vertex_buffer;
 
-import std;
 import :gl_backend.gpu_buffer;
 
 export namespace engine::renderer {

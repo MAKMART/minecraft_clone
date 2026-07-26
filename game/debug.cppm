@@ -1,8 +1,13 @@
 module;
+#include <cstddef>
+#include <mutex>
+#include <string>
+#include <string_view>
+#include <vector>
+
 #include <imgui.h>
 export module debug;
 
-import std;
 import ecs_components;
 import game_state;
 import frame_context;

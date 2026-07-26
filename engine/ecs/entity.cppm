@@ -1,6 +1,9 @@
+module;
+#include <cstddef>
+#include <functional>
+#include <limits>
 export module engine.ecs:entity;
 
-import std;
 import engine.core;
 export namespace engine::ecs {
   using entity_id = i32;

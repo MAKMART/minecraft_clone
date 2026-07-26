@@ -1,6 +1,5 @@
 module engine.runtime;
 
-import std;
 import engine.core;
 import engine.platform;
 import engine.renderer;

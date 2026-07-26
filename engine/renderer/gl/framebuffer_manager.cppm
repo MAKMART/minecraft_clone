@@ -1,6 +1,5 @@
 export module engine.renderer:gl_backend:framebuffer_manager;
 //
-// import std;
 // export import :framebuffer;
 // import engine.core;
 // import engine.ecs;

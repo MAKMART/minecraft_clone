@@ -1,5 +1,7 @@
+module;
+#include <cstdint>
 export module engine.core:types;
-import std;
+
 export namespace engine::core {
   using i8 = std::int8_t;
   using i16 = std::int16_t;

@@ -1,8 +1,7 @@
-import engine.runtime;
 import engine.core;
+import engine.runtime;
 import engine.platform;
 
-import std;
 class Application final : public engine::App {
   public:
     // Keep constructor empty or use it ONLY for standard, non-engine member variables
@@ -19,6 +18,7 @@ class Application final : public engine::App {
       if (input_map->is_action_pressed(close_action, *input)) {
         window->request_close();
       }
+
       // engine::core::logger::info("FPS: {}", static_cast<f64>(1) / dt);
     }
     void on_render() noexcept override {

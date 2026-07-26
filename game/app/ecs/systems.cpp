@@ -3,9 +3,11 @@ module;
 #if defined(TRACY_ENABLE)
 #include <tracy/Tracy.hpp>
 #endif
+#include <array>
+#include <cmath>
+#include <cstdint>
 module ecs_systems;
 
-import std;
 import core;
 import gl_state;
 import glm;

@@ -1,7 +1,10 @@
 module;
 #include <FastNoise/FastNoise.h>  // FastNoise2 API
+#include <vector>
+#include <algorithm>
+#include <cstdint>
 export module noise_2;
-import std;
+
 import mesher;
 import utility;
 

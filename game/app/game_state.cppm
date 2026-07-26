@@ -1,6 +1,7 @@
+module;
+#include <cstdint>
 export module game_state;
 
-import std;
 import ecs;
 import ecs_components;
 import player;

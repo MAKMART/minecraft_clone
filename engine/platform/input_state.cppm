@@ -1,9 +1,10 @@
 module;
 #include <GLFW/glfw3.h>
 #include <cassert>
+#include <array>
+#include <cstddef>
 export module engine.platform:input_state;
 
-import std;
 import engine.math;
 import engine.core;
 

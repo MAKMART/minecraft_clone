@@ -1,13 +1,16 @@
 module;
+#include <cstddef>
+#include <concepts>
 #include <glad/gl.h>
 export module engine.renderer:gpu_buffer.index_buffer;
 
-import std;
 import engine.core;
 import :gl_backend.gpu_buffer;
 
 export template<typename T>
-requires std::is_same_v<T, u16> || std::is_same_v<T, u32> || std::is_same_v<T, i32>
+requires std::same_as<T, u16> ||
+         std::same_as<T, u32> ||
+         std::same_as<T, i32>
 class index_buffer_dynamic : public gpu_buffer {
 public:
     index_buffer_dynamic(std::size_t count) noexcept
