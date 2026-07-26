@@ -1,5 +1,5 @@
-// import engine.platform;
-// import engine.core;
+import engine.platform;
+import engine.core;
 // namespace window_tests {
 //   using namespace engine::platform;
 //   using namespace engine::core;
