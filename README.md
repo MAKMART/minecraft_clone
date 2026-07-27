@@ -61,7 +61,7 @@ xmake run <target>
 xmake show -l targets
 
 # To see available infos
-xmake show 
+xmake show
 ```
 
 > ✅ Once configured, you only need to run the build command again if you make changes.
