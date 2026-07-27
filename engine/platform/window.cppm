@@ -81,6 +81,11 @@ export namespace engine::platform {
     std::expected<void, std::string> create_window();
     void destroy_window() noexcept {
       if (window_handle) {
+        glfwSetScrollCallback(window_handle, nullptr);
+        glfwSetCursorPosCallback(window_handle, nullptr);
+        glfwSetWindowSizeCallback(window_handle, nullptr);
+        glfwSetWindowCloseCallback(window_handle, nullptr);
+
         glfwMakeContextCurrent(nullptr);
         glfwDestroyWindow(window_handle);
         window_handle = nullptr;

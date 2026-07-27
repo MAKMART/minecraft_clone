@@ -226,7 +226,7 @@ namespace engine::renderer {
       return;
     }
 
-    glProgramUniform2fv(ID, location, 1, value_ptr(value));
+    glProgramUniform2fv(ID, location, 1, &value.x);
   }
 
   void Shader::set_vec3(const std::string& name, const vec3& value) const {

@@ -28,9 +28,25 @@ export namespace engine::core {
     e,
     f,
     g,
-
-    w,
+    h,
+    i,
+    j,
+    k,
+    l,
+    m,
+    n,
+    o,
+    p,
+    q,
+    r,
     s,
+    t,
+    u,
+    v,
+    w,
+    x,
+    y,
+    z,
 
     // numbers
     num_0,
@@ -52,10 +68,10 @@ export namespace engine::core {
     right_alt,
 
     // arrows
-    up,
-    down,
-    left,
-    right,
+    up_arrow,
+    down_arrow,
+    left_arrow,
+    right_arrow,
 
     // function keys
     f1,
@@ -63,8 +79,10 @@ export namespace engine::core {
 
     // mouse
     mouse_left,
-    mouse_right,
     mouse_middle,
+    mouse_right,
+    mouse_forward,
+    mouse_back,
 
     count
   };

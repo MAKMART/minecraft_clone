@@ -22,7 +22,7 @@ end
 
 target("glad")
   set_kind("static")
-  set_showmenu(false)
+  -- set_showmenu(false)
   add_files("engine/vendor/glad/src/gl.c")
   add_includedirs("engine/vendor/glad/include")
 

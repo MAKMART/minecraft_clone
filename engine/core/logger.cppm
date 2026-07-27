@@ -53,37 +53,37 @@ export namespace engine::core {
       }
 
       // Logging interface
-      template <typename... Args>
+      template<typename... Args>
         static void info(std::format_string<Args...> fmt, Args&&... args) {
           write_log<level::info>("GLOBAL", fmt, std::forward<Args>(args)...);
         }
 
-      template <typename... Args>
+      template<typename... Args>
         static void warn(std::format_string<Args...> fmt, Args&&... args) {
           write_log<level::warning>("GLOBAL", fmt, std::forward<Args>(args)...);
         }
 
-      template <typename... Args>
+      template<typename... Args>
         static void error(std::format_string<Args...> fmt, Args&&... args) {
           write_log<level::error>("GLOBAL", fmt, std::forward<Args>(args)...);
         }
 
-      template<level lvl, typename... Args>
+      template<level lvl, typename... Args> requires (lvl < level::count)
         static void log(std::format_string<Args...> fmt, Args&&... args) {
           write_log<lvl>("GLOBAL", fmt, std::forward<Args>(args)...);
         }
 
-      template <typename... Args>
+      template<typename... Args>
         static void system_info(std::string_view system, std::format_string<Args...> fmt, Args&&... args) {
           write_log<level::info>(system, fmt, std::forward<Args>(args)...);
         }
 
-      template <typename... Args>
+      template<typename... Args>
         static void system_warn(std::string_view system, std::format_string<Args...> fmt, Args&&... args) {
           write_log<level::warning>(system, fmt, std::forward<Args>(args)...);
         }
 
-      template <typename... Args>
+      template<typename... Args>
         static void system_error(std::string_view system, std::format_string<Args...> fmt, Args&&... args) {
           write_log<level::error>(system, fmt, std::forward<Args>(args)...);
         }
@@ -91,7 +91,7 @@ export namespace engine::core {
       struct attr { std::string_view key; std::string_view value; };
 
       // Structured logging (just key = value for now)
-      template<level lvl>
+      template<level lvl> requires (lvl < level::count)
       static void system_structured(std::string_view system, std::string_view message, std::initializer_list<attr> fields) {
         std::string out(message);
         for (const auto& [k,v] : fields)
@@ -104,7 +104,7 @@ export namespace engine::core {
         write_log<lvl>(system, "{}", out);
       }
 
-      template<level lvl>
+      template<level lvl> requires (lvl < level::count)
       static void structured(std::string_view message, std::initializer_list<attr> fields) {
         std::string out(message);
         for (const auto& [k,v] : fields)
@@ -122,17 +122,17 @@ export namespace engine::core {
         public:
         explicit scoped_logger(std::string_view name) noexcept : system_name(name) {}
 
-        template <typename... Args>
+        template<typename... Args>
           void info(std::format_string<Args...> fmt, Args&&... args)
           {
             write_log(level::info, system_name, fmt, std::forward<Args>(args)...);
           }
-        template <typename... Args>
+        template<typename... Args>
           void warn(std::format_string<Args...> fmt, Args&&... args)
           {
             write_log(level::warning, system_name, fmt, std::forward<Args>(args)...);
           }
-        template <typename... Args>
+        template<typename... Args>
           void error(std::format_string<Args...> fmt, Args&&... args)
           {
             write_log(level::error, system_name, fmt, std::forward<Args>(args)...);
@@ -174,7 +174,8 @@ export namespace engine::core {
 
 
 
-      [[nodiscard]] static std::string_view get_color_code(level lvl) noexcept {
+      template<level lvl> requires (lvl < level::count)
+      [[nodiscard]] static constexpr std::string_view get_color_code() noexcept {
         switch(lvl) {
           case level::info:    return "\x1b[92m"; // Bright Green
           case level::warning: return "\x1b[93m"; // Bright Yellow
@@ -182,30 +183,21 @@ export namespace engine::core {
           default:             return "";
         }
       }
+      template<level lvl> requires (lvl < level::count)
+        [[nodiscard]] static constexpr char level_to_char() noexcept {
+          constexpr std::array chars{ 'I', 'W', 'E' };
 
-      [[nodiscard]] static char level_to_char(level level) noexcept {
-        switch (level) {
-          case level::info:
-            return 'I';
-          case level::warning:
-            return 'W';
-          case level::error:
-            return 'E';
-          default:
-            return '?';
+          return chars[static_cast<std::size_t>(lvl)];
         }
-      }
 
       [[nodiscard]] static std::uint32_t thread_id_short() noexcept { return tid; }
 
-      [[nodiscard]] static auto current_timestamp() {
-        std::array<char, 32> buffer{};
+      [[nodiscard]] static std::string current_timestamp() {
         auto now = std::chrono::system_clock::now();
-        auto ms = duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+        // auto ms = duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
 
         // %T formats as HH:MM:SS.mmm automatically based on the time_point's precision
-        std::format_to(buffer.data(), "{:%T}", ms);
-        return buffer;
+        return std::format("{:%T}", now);
       }
 
 
@@ -231,8 +223,8 @@ export namespace engine::core {
 //       }
 
 
-      template <level lvl, typename... Args> requires (lvl < level::count)
-        static void write_log(std::string_view system, std::format_string<Args...> fmt, Args&&... args) {
+      template<level lvl, typename... Args> requires (lvl < level::count)
+        static constexpr void write_log(std::string_view system, std::format_string<Args...> fmt, Args&&... args) {
           if constexpr (lvl < build_log_level)
             return;
 
@@ -257,15 +249,15 @@ export namespace engine::core {
           if (use_colors) {
             final_string = std::format("{} {}{}\x1b[0m T{} {}\t| {}",
                 timestamp,
-                get_color_code(lvl),
-                level_to_char(lvl),
+                get_color_code<lvl>(),
+                level_to_char<lvl>(),
                 tid,
                 system,
                 message);
           } else {
             final_string = std::format("{} {} T{} {}\t| {}",
                 timestamp,
-                level_to_char(lvl),
+                level_to_char<lvl>(),
                 tid,
                 system,
                 message);

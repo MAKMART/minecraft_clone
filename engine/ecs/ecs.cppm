@@ -20,23 +20,34 @@ import engine.core;
 
 using namespace engine::core;
 
+export namespace engine::ecs {
+  class component {
+    protected:
+      constexpr component() = default;
+  };
+
   template <typename T>
-constexpr std::string_view type_name()
-{
-  // TODO: Use reflection when available
-#if defined(__clang__) || defined(__GNUC__)
-  std::string_view p     = __PRETTY_FUNCTION__;
-  auto             start = p.find("T = ") + 4;
-  auto             end   = p.find(';', start);
-  return p.substr(start, end - start);
-#elif defined(_MSC_VER)
-  std::string_view p     = __FUNCSIG__;
-  auto             start = p.find("type_name<") + 10;
-  auto             end   = p.find(">(void)", start);
-  return p.substr(start, end - start);
-#endif
-  // std::meta::identifier_of(^^T);
+    concept component_type = std::derived_from<T, component>;
 }
+
+
+
+  template <typename T>
+    constexpr std::string_view type_name() {
+      // TODO: Use reflection when available
+#if defined(__clang__) || defined(__GNUC__)
+      std::string_view p     = __PRETTY_FUNCTION__;
+      auto             start = p.find("T = ") + 4;
+      auto             end   = p.find(';', start);
+      return p.substr(start, end - start);
+#elif defined(_MSC_VER)
+      std::string_view p     = __FUNCSIG__;
+      auto             start = p.find("type_name<") + 10;
+      auto             end   = p.find(">(void)", start);
+      return p.substr(start, end - start);
+#endif
+      // std::meta::identifier_of(^^T);
+    }
 
 struct IComponentStorage {
   virtual ~IComponentStorage() = default;
@@ -44,15 +55,15 @@ struct IComponentStorage {
   virtual void clear() = 0;
 };
 
-template <typename T>
+template <component_type Component>
 class ComponentStorage : public IComponentStorage {
   public:
-    constexpr explicit ComponentStorage(std::size_t max_entities) {
+    explicit ComponentStorage(std::size_t max_entities) {
       sparse.resize(max_entities, invalid_entity_id);
       dense.reserve(max_entities);
       data.reserve(max_entities);
     }
-    void add(Entity e, T comp) {
+    void add(Entity e, Component comp) {
       assert(e.id < sparse.size());
       entity_id& slot = sparse[e.id];
       if (slot == invalid_entity_id) {
@@ -64,7 +75,7 @@ class ComponentStorage : public IComponentStorage {
       }
     }
     template <typename... Args>
-      T& emplace(Entity e, Args&&... args)
+      Component& emplace(Entity e, Args&&... args)
       {
         assert(e.id < sparse.size());
         entity_id& slot{sparse[e.id]};
@@ -76,7 +87,7 @@ class ComponentStorage : public IComponentStorage {
           return data.back();
         }
         else {
-          data[slot] = T(std::forward<Args>(args)...);
+          data[slot] = Component(std::forward<Args>(args)...);
           return data[slot];
         }
       }
@@ -87,12 +98,12 @@ class ComponentStorage : public IComponentStorage {
         dense[sparse[e.id]].generation == e.generation;
     }
 
-    T* get(Entity e) {
+    Component* get(Entity e) {
       if (!has(e)) return nullptr;
       return &data[sparse[e.id]];
     }
 
-    const T* get(Entity e) const {
+    const Component* get(Entity e) const {
       if (!has(e)) return nullptr;
       return &data[sparse[e.id]];
     }
@@ -122,14 +133,14 @@ class ComponentStorage : public IComponentStorage {
     }
 
     // Direct packed iteration – best cache locality, no sparse lookups
-    template<typename F> requires std::invocable<F, Entity, T&>
+    template<typename F> requires std::invocable<F, Entity, Component&>
       void iterate(F&& func) {
         for (std::size_t i{0}; i < dense.size(); ++i) {
           func(dense[i], data[i]);
         }
       }
 
-    template<typename F> requires std::invocable<F, Entity, T&>
+    template<typename F> requires std::invocable<F, Entity, Component&>
       void iterate(F&& func) const {
         for (std::size_t i{0}; i < dense.size(); ++i) {
           func(dense[i], data[i]);
@@ -139,7 +150,7 @@ class ComponentStorage : public IComponentStorage {
   private:
     std::vector<entity_id> sparse; // entity.id → dense index (invalid_entity_id if absent)
     std::vector<Entity> dense;   // packed entities
-    std::vector<T> data;         // packed components
+    std::vector<Component> data;         // packed components
 };
 class ComponentManager {
   public:
@@ -149,49 +160,49 @@ class ComponentManager {
       // inline void add_component(Entity e, auto comp) noexcept {
       //   get_storage<decltype(comp)>()->add(e, std::move(comp));
       // }
+
       inline void add_component(Entity e, auto&& comp) noexcept {
         using T = std::remove_cvref_t<decltype(comp)>;
 
         get_storage<T>()->add(e, std::forward<decltype(comp)>(comp));
       }
-    template <typename T, typename... Args>
-      void emplace_component(Entity e, Args&&... args) noexcept
+    template <component_type Component, typename... Args>
+      void emplace_component(Entity e, Args&&... args)
       {
-        get_storage<T>()->emplace(e, std::forward<Args>(args)...);
+        get_storage<Component>()->emplace(e, std::forward<Args>(args)...);
       }
 
-    template <typename T>
-      T* get_component(Entity e) noexcept {
+    template <component_type Component>
+      Component* get_component(Entity e) noexcept {
         // get will return nullptr
-        return get_storage<T>()->get(e);
+        return get_storage<Component>()->get(e);
       }
 
-    template <typename T>
+    template <component_type Component>
       bool has_component(Entity e) noexcept {
-        return get_storage<T>()->has(e);
+        return get_storage<Component>()->has(e);
       }
 
-    template <typename T>
+    template <component_type Component>
       void remove_component(Entity e) noexcept {
-        get_storage<T>()->remove_entity(e);
+        get_storage<Component>()->remove_entity(e);
       }
 
     // Single-component iteration – uses packed dense arrays for optimal cache performance
-    template <typename T>
+    template <component_type Component>
       void for_each_component(auto&& func) noexcept {
-        get_storage<T>()->iterate(std::forward<decltype(func)>(func));
+        get_storage<Component>()->iterate(std::forward<decltype(func)>(func));
       }
 
     // Multi-component iteration – uses first component type as base (put the most restrictive/rarest first for best perf)
-    template <typename... Components>
+    template <component_type... Components> requires (sizeof...(Components) > 0)
       void for_each_components(auto&& func) {
-        static_assert(sizeof...(Components) > 0, "At least one component required");
-
         // Create tuple of all storages (lazy-creates any missing ones)
         auto storages_tuple{std::make_tuple(this->template get_storage<Components>()...)};
 
         // Use the first component's storage as iteration base
-        using First = std::tuple_element_t<0, std::tuple<Components...>>;
+        // using First = std::tuple_element_t<0, std::tuple<Components...>>;
+        using First = Components...[0];
         auto* base_storage{std::get<ComponentStorage<First>*>(storages_tuple)};
 
         for (Entity e : base_storage->all_entities()) {
@@ -214,31 +225,30 @@ class ComponentManager {
     }
 
   private:
-    template <typename T>
-      ComponentStorage<T>* get_storage() noexcept {
-        const std::size_t type_id{ComponentTypeID<T>()};  // <-- changed 'constexpr' to 'const'
+    template <component_type Component>
+      ComponentStorage<Component>* get_storage() {
+        const std::size_t type_id{ComponentTypeID<Component>()};
         if (type_id >= typed_storages.size()) {
           typed_storages.resize(type_id + 1);
         }
         if (!typed_storages[type_id]) {
-          typed_storages[type_id] = std::make_unique<ComponentStorage<T>>(max_entities);
+          typed_storages[type_id] = std::make_unique<ComponentStorage<Component>>(max_entities);
         }
-        return static_cast<ComponentStorage<T>*>(typed_storages[type_id].get());
+        return static_cast<ComponentStorage<Component>*>(typed_storages[type_id].get());
       }
-    /* This must not allocate
-       const ComponentStorage<T>* get_storage() const noexcept {
-       const std::size_t type_id = ComponentTypeID<T>();  // <-- changed 'constexpr' to 'const'
-       if (type_id >= typed_storages.size()) {
-       typed_storages.resize(type_id + 1);
-       }
-       if (!typed_storages[type_id]) {
-       typed_storages[type_id] = std::make_unique<ComponentStorage<T>>();
-       }
-       return static_cast<ComponentStorage<T>*>(typed_storages[type_id].get());
-       }
-       */
 
-    template <typename T>
+
+    template <component_type Component>
+      const ComponentStorage<Component>* get_storage() const noexcept {
+        const std::size_t type_id{ComponentTypeID<Component>()};
+
+        if (type_id >= typed_storages.size())
+          return nullptr;
+
+        return static_cast<const ComponentStorage<Component>*>(typed_storages[type_id].get());
+      }
+
+    template <component_type Component>
       static std::size_t ComponentTypeID() {
         static std::size_t id{counter++};
         return id;
@@ -313,112 +323,113 @@ export namespace engine::ecs {
           return em.is_alive(e);
         }
 
-          inline bool add_component(Entity e, const auto& c) {
+
+
+        template <typename Component> requires component_type<std::remove_cvref_t<Component>>
+          inline bool add_component(Entity e, Component&& c) {
             if (!em.is_alive(e))
               return false;
-            cm.add_component(e, c);
+            cm.add_component(e, std::forward<Component>(c));
             return true;
           }
-        template <typename T, typename... Args>
+        template <component_type Component, typename... Args>
           inline bool add_component_if_missing(Entity e, Args&&... args) noexcept {
             if (!em.is_alive(e))
               return false;
-            if (!has_component<T>(e)) {
-              emplace_component<T>(e, std::forward<Args>(args)...);
+            if (!has_component<Component>(e)) {
+              emplace_component<Component>(e, std::forward<Args>(args)...);
               return true;
             }
             return false;
           }
 
-        template <typename T, typename... Args>
+        template <component_type Component, typename... Args>
           inline bool emplace_component(Entity e, Args&&... args) {
             if (!em.is_alive(e))
               return false;
-            cm.emplace_component<T>(e, std::forward<Args>(args)...);
+            cm.emplace_component<Component>(e, std::forward<Args>(args)...);
             return true;
           }
 
-        template <typename T>
+        template <component_type Component>
           inline bool remove_component(Entity e) {
             if (!em.is_alive(e))
               return false;
-            cm.remove_component<T>(e);
+            cm.remove_component<Component>(e);
             return true;
           }
 
-        template <typename T>
-          [[nodiscard]] inline T* get_component(Entity e) {
-            T* ptr{cm.get_component<T>(e)};
+        template <component_type Component>
+          [[nodiscard]] inline Component* get_component(Entity e) {
+            Component* ptr{cm.get_component<Component>(e)};
 #if defined(DEBUG)
             if (!ptr) {
-              // auto name = type_name<T>();
+              // auto name = type_name<Component>();
               // logger::system_error("ECS", "Failed to get component {}, for entity with id: {}", name, e.id);
             }
 #endif
             return ptr;
           }
 
-        template <typename T>
-          [[nodiscard]] inline const T* get_component(Entity e) const {
-            const T* ptr{cm.get_component<T>(e)};
+        template <component_type Component>
+          [[nodiscard]] inline const Component* get_component(Entity e) const {
+            const Component* ptr{cm.get_component<Component>(e)};
 #if defined(DEBUG)
             if (!ptr) {
-              // auto name = type_name<T>();
+              // auto name = type_name<Component>();
               // logger::system_error("ECS", "Failed to get component {}, for entity with id: {}", name, e.id);
             }
 #endif
             return ptr;
           }
 
-        template <typename T>
+        template <component_type Component>
           inline void for_each_component(auto&& func) {
-            cm.for_each_component<T>(std::forward<decltype(func)>(func));
+            cm.for_each_component<Component>(std::forward<decltype(func)>(func));
           }
 
-        template <typename... Components>
+        template <component_type... Components> requires (sizeof...(Components) > 0)
           inline void for_each_components(auto&& func) {
             cm.for_each_components<Components...>(std::forward<decltype(func)>(func));
           }
 
-        template <typename T>
+        template <component_type Component>
           [[nodiscard]] inline bool has_component(Entity e) {
             if (!em.is_alive(e))
               return false;
-            return cm.has_component<T>(e);
+            return cm.has_component<Component>(e);
           }
 
-        template <typename... Ts>
+        template <component_type... Components> requires (sizeof...(Components) > 0)
           [[nodiscard]] inline bool has_components(Entity e) {
             if (!em.is_alive(e))
               return false;
-            return (has_component<Ts>(e) && ...);
+            return (has_component<Components>(e) && ...);
           }
 
-        template <typename... Ts>
+        template <component_type... Components> requires (sizeof...(Components) > 0)
           void for_entities_with(auto&& func) {
-            for_each_components<Ts...>([&](Entity e, Ts&...) {
+            for_each_components<Components...>([&](Entity e, Components&...) {
                 func(e);
                 });
           }
-        template <typename... Ts>
+        template <component_type... Components> requires (sizeof...(Components) > 0)
           std::vector<Entity> get_entities_with() {
             std::vector<Entity> result;
 
-            if constexpr (sizeof...(Ts) > 0) {
-              std::size_t min_size{std::min({ cm.get_storage<Ts>()->all_entities().size() ... })};
-              result.reserve(min_size);
-            }
+            std::size_t min_size{std::min({ cm.get_storage<Components>()->all_entities().size() ... })};
+            result.reserve(min_size);
 
-            for_each_components<Ts...>([&](Entity e, Ts&...) {
+            for_each_components<Components...>([&](Entity e, Components&...) {
                 result.push_back(e);
                 });
 
             return result;
           }
 
-        template <typename T>
-          std::size_t component_count() const {
-            return cm.get_storage<T>()->all_entities().size();
+        template <component_type Component>
+          std::size_t component_count() {
+            return cm.get_storage<Component>()->all_entities().size();
           }
 
         void clear() {

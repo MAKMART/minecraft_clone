@@ -5,10 +5,14 @@ module;
 #include <glm/gtc/type_ptr.hpp>          // value_ptr
 export module engine.math:types;
 
+import engine.core;
 // import glm;
 // TODO: Write your own math library, don't rely on glm
 export namespace engine::math {
-  using vec2 = glm::vec2;
+  struct vec2 {
+    f32 x;
+    f32 y;
+  };
   using vec3 = glm::vec3;
   using vec4 = glm::vec4;
 

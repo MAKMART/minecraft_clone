@@ -1,15 +1,24 @@
 import engine.core;
+import engine.math;
 import engine.runtime;
 import engine.platform;
+import engine.ecs;
 
 class Application final : public engine::App {
   public:
     // Keep constructor empty or use it ONLY for standard, non-engine member variables
     Application() : App() {}
     void on_init() noexcept override {
+      ent = ecs.create_entity();
+
+      ecs.emplace_component<Velocity>(ent);
+
       engine::core::logger::info("on_init override called");
       close_action = input_map->create_action("close_window");
       input_map->bind_key(close_action, engine::core::button::escape);
+
+      increment_velocity = input_map->create_action("increment_velocity");
+      input_map->bind_key(increment_velocity, engine::core::button::backspace);
     }
     void on_update(f64 dt) noexcept override {
       // engine::core::logger::info("on_update override called");
@@ -17,6 +26,13 @@ class Application final : public engine::App {
       // engine::core::logger::info("fps: {}", static_cast<f64>(1.0) / dt);
       if (input_map->is_action_pressed(close_action, *input)) {
         window->request_close();
+      }
+
+      if (input_map->is_action_pressed(increment_velocity, *input)) {
+        Velocity* vel = ecs.get_component<Velocity>(ent);
+
+        vel->value += engine::math::vec3{1.0f};
+        engine::core::logger::info("Velocity {{{}, {}, {}}}", vel->value.x, vel->value.y, vel->value.z);
       }
 
       // engine::core::logger::info("FPS: {}", static_cast<f64>(1) / dt);
@@ -34,7 +50,15 @@ class Application final : public engine::App {
         };
     }
   private:
+    struct Velocity : engine::ecs::component {
+      engine::math::vec3 value{};
+    };
+    static_assert(sizeof(Velocity) == (3 * sizeof(u32)));
+
+    engine::ecs::ECS ecs{1'000};
+    engine::ecs::Entity ent{};
     engine::platform::action_id close_action{};
+    engine::platform::action_id increment_velocity{};
 };
 
 int main() {

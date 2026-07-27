@@ -13,9 +13,11 @@ namespace engine {
     platform_context context;
     events::event_dispatcher dispatcher;
     events::event_queue event_queue;
-    Window window(config.window, dispatcher);
+
     input_action_map input_map;
     input_state input(dispatcher);
+
+    Window window(config.window, dispatcher);
     Renderer renderer;
 
     application.window = &window;
@@ -78,5 +80,9 @@ namespace engine {
     renderer.shutdown();
     application.on_shutdown();
 
+    application.window = nullptr;
+    application.input = nullptr;
+    application.input_map = nullptr;
+    application.renderer = nullptr;
   }
 }

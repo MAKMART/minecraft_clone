@@ -122,6 +122,9 @@ export namespace engine::platform {
       };
       void on_mouse_button_callback(i32 mouse_button, i32 action, i32 mods) noexcept {
         button b = glfw_to_engine_button(mouse_button);
+        if (b == button::unknown)
+          core::logger::warn("No mapping for button {}", mouse_button);
+
         auto idx = static_cast<std::size_t>(b);
         if (action == GLFW_PRESS)
           button_states[idx] = button_state::PRESSED;
