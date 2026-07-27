@@ -57,6 +57,9 @@ xmake run test
 # To run a certain target
 xmake run <target>
 
+# To build the whole project
+xmake
+
 # To see available build targets
 xmake show -l targets
 
